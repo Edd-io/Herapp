@@ -6,9 +6,11 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import 'hermes.dart';
+import 'settings.dart';
 
 class Chat {
   final msgs = <Msg>[];
+  String model = settings.model;
   String get title => msgs.isEmpty ? 'Nouveau chat' : msgs.first.text;
 }
 
@@ -56,7 +58,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   void send() {
     final text = input.text.trim();
     if (text.isEmpty || streaming) return;
-    HapticFeedback.lightImpact();
+    settings.haptic();
     input.clear();
     final m = Msg(true, text);
     setState(() {
@@ -71,7 +73,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     final history = List.of(chat.msgs);
     setState(() => chat.msgs.add(reply));
     toBottom();
-    sub = hermes(history).listen(
+    sub = hermes(history, chat.model).listen(
       (chunk) {
         setState(() => reply.text += chunk);
         if (atBottom) toBottom(jump: true);
@@ -110,6 +112,25 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     toBottom(jump: true);
   }
 
+  /// Feuille de choix du modèle, groupée par fournisseur.
+  Future<void> pickModel() async {
+    final c = Theme.of(context).colorScheme;
+    final current = modelOf(chat.model).id;
+    final id = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: c.surface,
+      barrierColor: Colors.black.withValues(alpha: .4),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (context) => _ModelSheet(current: current),
+    );
+    if (id == null || !mounted) return;
+    settings.haptic();
+    setState(() => chat.model = settings.model = id);
+  }
+
   void openDrawer() {
     focus.unfocus();
     drawer.animateTo(1, curve: Curves.easeOutCubic);
@@ -118,10 +139,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   void closeDrawer() => drawer.animateTo(0, curve: Curves.easeOutCubic);
 
   void toBottom({bool jump = false}) => WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!scroll.hasClients) return;
-        final max = scroll.position.maxScrollExtent;
-        jump ? scroll.jumpTo(max) : scroll.animateTo(max, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
-      });
+    if (!scroll.hasClients) return;
+    final max = scroll.position.maxScrollExtent;
+    jump ? scroll.jumpTo(max) : scroll.animateTo(max, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -145,23 +166,28 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             animation: drawer,
             builder: (context, _) {
               final x = drawer.value * width;
-              return Stack(children: [
-                Positioned(left: x - width, top: 0, bottom: 0, width: width, child: sidebar),
-                Positioned(
-                  left: x,
-                  top: 0,
-                  bottom: 0,
-                  width: screen,
-                  child: Stack(fit: StackFit.expand, children: [
-                    main,
-                    if (drawer.value > 0)
-                      GestureDetector(
-                        onTap: closeDrawer,
-                        child: ColoredBox(color: Colors.black.withValues(alpha: .25 * drawer.value)),
-                      ),
-                  ]),
-                ),
-              ]);
+              return Stack(
+                children: [
+                  Positioned(left: x - width, top: 0, bottom: 0, width: width, child: sidebar),
+                  Positioned(
+                    left: x,
+                    top: 0,
+                    bottom: 0,
+                    width: screen,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        main,
+                        if (drawer.value > 0)
+                          GestureDetector(
+                            onTap: closeDrawer,
+                            child: ColoredBox(color: Colors.black.withValues(alpha: .25 * drawer.value)),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
             },
           ),
         ),
@@ -170,28 +196,81 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   }
 
   Widget _main(ColorScheme c) => ColoredBox(
-        color: c.surface,
-        child: SafeArea(
-          child: Column(children: [
-            SizedBox(
-              height: 52,
-              child: Row(children: [
+    color: c.surface,
+    child: SafeArea(
+      child: Column(
+        children: [
+          SizedBox(
+            height: 52,
+            child: Row(
+              children: [
                 _IconBtn(onTap: openDrawer, child: _MenuIcon(c.onSurface)),
-                const Spacer(),
-                Text('Hermes', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface)),
-                const SizedBox(width: 4),
-                Icon(CupertinoIcons.chevron_right, size: 13, color: c.outline),
-                const Spacer(),
-                _IconBtn(onTap: newChat, child: Icon(CupertinoIcons.square_pencil, size: 24, color: c.onSurface)),
-              ]),
+                Expanded(
+                  // vide : pas de titre, la pastille au centre sert de sélecteur
+                  child: chat.msgs.isEmpty
+                      ? const SizedBox()
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Hermes',
+                              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                modelOf(chat.model).name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 17, color: c.outline),
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+                _IconBtn(
+                  onTap: newChat,
+                  child: Icon(CupertinoIcons.square_pencil, size: 24, color: c.onSurface),
+                ),
+              ],
             ),
-            Expanded(
-              child: chat.msgs.isEmpty
-                  ? Center(
-                      child: Text('Par quoi commençons-nous ?',
-                          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, color: c.onSurface)),
-                    )
-                  : Stack(children: [
+          ),
+          Expanded(
+            child: chat.msgs.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Par quoi commençons-nous ?',
+                          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, color: c.onSurface),
+                        ),
+                        const SizedBox(height: 16),
+                        GestureDetector(
+                          onTap: pickModel,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(20)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  modelOf(chat.model).name,
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(modelOf(chat.model).provider, style: TextStyle(fontSize: 15, color: c.outline)),
+                                const SizedBox(width: 6),
+                                Icon(CupertinoIcons.chevron_down, size: 13, color: c.outline),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Stack(
+                    children: [
                       ListView.builder(
                         controller: scroll,
                         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -217,7 +296,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                                   color: c.surface,
                                   shape: BoxShape.circle,
                                   border: Border.all(color: c.surfaceContainerHighest),
-                                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 8, offset: const Offset(0, 2))],
+                                  boxShadow: [
+                                    BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 8, offset: const Offset(0, 2)),
+                                  ],
                                 ),
                                 child: Icon(CupertinoIcons.arrow_down, size: 18, color: c.onSurface),
                               ),
@@ -225,12 +306,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                           ),
                         ),
                       ),
-                    ]),
-            ),
-            _composer(c),
-          ]),
-        ),
-      );
+                    ],
+                  ),
+          ),
+          _composer(c),
+        ],
+      ),
+    ),
+  );
 
   Widget _message(ColorScheme c, Msg m, bool last) {
     const body = TextStyle(fontSize: 17, height: 1.45);
@@ -261,101 +344,111 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     final live = last && streaming;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (m.text.isEmpty) _PulseDot(c.onSurface) else _StreamText(m.text, style: body.copyWith(color: c.onSurface)),
-        if (!live && m.text.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Row(children: [
-              _IconBtn(
-                small: true,
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: m.text.trim()));
-                  HapticFeedback.selectionClick();
-                },
-                child: Icon(CupertinoIcons.doc_on_doc, size: 18, color: c.onSurfaceVariant),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (m.text.isEmpty) _PulseDot(c.onSurface) else _StreamText(m.text, style: body.copyWith(color: c.onSurface)),
+          if (!live && m.text.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                children: [
+                  _IconBtn(
+                    small: true,
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: m.text.trim()));
+                      settings.haptic();
+                    },
+                    child: Icon(CupertinoIcons.doc_on_doc, size: 18, color: c.onSurfaceVariant),
+                  ),
+                  if (last)
+                    _IconBtn(
+                      small: true,
+                      onTap: regenerate,
+                      child: Icon(CupertinoIcons.arrow_2_circlepath, size: 18, color: c.onSurfaceVariant),
+                    ),
+                ],
               ),
-              if (last)
-                _IconBtn(
-                  small: true,
-                  onTap: regenerate,
-                  child: Icon(CupertinoIcons.arrow_2_circlepath, size: 18, color: c.onSurfaceVariant),
-                ),
-            ]),
-          ),
-      ]),
+            ),
+        ],
+      ),
     );
   }
 
   Widget _composer(ColorScheme c) {
     final hasText = input.text.trim().isNotEmpty;
-    final (IconData? icon, VoidCallback? onTap) = streaming
-        ? (null, stop)
-        : hasText
-            ? (CupertinoIcons.arrow_up, send)
-            : (Icons.graphic_eq, null); // ponytail: mode vocal non branché
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(color: c.surfaceContainerHighest, shape: BoxShape.circle),
-          child: Icon(CupertinoIcons.add, size: 22, color: c.onSurface),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.only(left: 16, right: 4),
-            decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Expanded(
-                child: TextField(
-                  controller: input,
-                  focusNode: focus,
-                  minLines: 1,
-                  maxLines: 6,
-                  textCapitalization: TextCapitalization.sentences,
-                  style: TextStyle(fontSize: 17, color: c.onSurface),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                    hintText: 'Poser une question',
-                    hintStyle: TextStyle(fontSize: 17, color: c.outline),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(color: c.surfaceContainerHighest, shape: BoxShape.circle),
+            child: Icon(CupertinoIcons.add, size: 22, color: c.onSurface),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.only(left: 16, right: 4),
+              decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    // centré dans 44 pt quand il n'y a qu'une ligne, grandit ensuite
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 44),
+                      alignment: Alignment.centerLeft,
+                      child: TextField(
+                        controller: input,
+                        focusNode: focus,
+                        minLines: 1,
+                        maxLines: 6,
+                        textCapitalization: TextCapitalization.sentences,
+                        style: TextStyle(fontSize: 17, color: c.onSurface),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                          hintText: 'Poser une question',
+                          hintStyle: TextStyle(fontSize: 17, color: c.outline),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              if (!hasText && !streaming)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 11),
-                  child: Icon(CupertinoIcons.mic, size: 22, color: c.onSurfaceVariant),
-                ),
-              GestureDetector(
-                onTap: onTap,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
-                  child: AnimatedSwitcher(
+                  AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
                     transitionBuilder: (child, a) => ScaleTransition(scale: a, child: child),
-                    child: icon == null
-                        ? Container(
-                            key: const ValueKey('stop'),
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(color: c.onPrimary, borderRadius: BorderRadius.circular(2)),
-                          )
-                        : Icon(icon, key: ValueKey(icon), size: 20, color: c.onPrimary),
+                    child: !hasText && !streaming
+                        ? const SizedBox(width: 12, height: 44)
+                        : GestureDetector(
+                            key: ValueKey(streaming),
+                            onTap: streaming ? stop : send,
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+                              child: streaming
+                                  ? Center(
+                                      child: Container(
+                                        width: 12,
+                                        height: 12,
+                                        decoration: BoxDecoration(color: c.onPrimary, borderRadius: BorderRadius.circular(2)),
+                                      ),
+                                    )
+                                  : Icon(CupertinoIcons.arrow_up, size: 20, color: c.onPrimary),
+                            ),
+                          ),
                   ),
-                ),
+                ],
               ),
-            ]),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
@@ -363,63 +456,84 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     final q = query.toLowerCase();
     final listed = chats.where((ch) => ch.msgs.isNotEmpty && ch.title.toLowerCase().contains(q));
     Widget tile(String label, {IconData? icon, bool selected = false, required VoidCallback onTap}) => GestureDetector(
-          onTap: onTap,
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            decoration: BoxDecoration(
-              color: selected ? c.surfaceContainerHighest : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(children: [
-              if (icon != null) ...[Icon(icon, size: 20, color: c.onSurface), const SizedBox(width: 12)],
-              Expanded(
-                child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, color: c.onSurface)),
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          color: selected ? c.surfaceContainerHighest : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            if (icon != null) ...[Icon(icon, size: 20, color: c.onSurface), const SizedBox(width: 12)],
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 16, color: c.onSurface),
               ),
-            ]),
-          ),
-        );
+            ),
+          ],
+        ),
+      ),
+    );
     return ColoredBox(
       color: c.surfaceContainerLow,
       child: SafeArea(
         right: false,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
-              child: Row(children: [
-                Icon(CupertinoIcons.search, size: 18, color: c.outline),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    onChanged: (v) => setState(() => query = v),
-                    style: TextStyle(fontSize: 16, color: c.onSurface),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                      hintText: 'Rechercher',
-                      hintStyle: TextStyle(fontSize: 16, color: c.outline),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  children: [
+                    Icon(CupertinoIcons.search, size: 18, color: c.outline),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        onChanged: (v) => setState(() => query = v),
+                        style: TextStyle(fontSize: 16, color: c.onSurface),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                          hintText: 'Rechercher',
+                          hintStyle: TextStyle(fontSize: 16, color: c.outline),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ]),
+              ),
             ),
-          ),
-          tile('Nouveau chat', icon: CupertinoIcons.square_pencil, onTap: newChat),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
-            child: Text('Chats', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline)),
-          ),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [for (final ch in listed) tile(ch.title, selected: identical(ch, chat), onTap: () => select(ch))],
+            tile('Nouveau chat', icon: CupertinoIcons.square_pencil, onTap: newChat),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
+              child: Text(
+                'Chats',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
+              ),
             ),
-          ),
-        ]),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [for (final ch in listed) tile(ch.title, selected: identical(ch, chat), onTap: () => select(ch))],
+              ),
+            ),
+            tile(
+              'Paramètres',
+              icon: CupertinoIcons.gear,
+              onTap: () => showCupertinoSheet(context: context, builder: (_) => const SettingsSheet()),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
@@ -432,11 +546,7 @@ class _IconBtn extends StatelessWidget {
   final bool small;
 
   @override
-  Widget build(BuildContext context) => CupertinoButton(
-        padding: EdgeInsets.all(small ? 6 : 14),
-        onPressed: onTap,
-        child: child,
-      );
+  Widget build(BuildContext context) => CupertinoButton(padding: EdgeInsets.all(small ? 6 : 14), onPressed: onTap, child: child);
 }
 
 /// Icône menu à deux traits inégaux.
@@ -447,10 +557,10 @@ class _MenuIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget bar(double w) => Container(
-          width: w,
-          height: 2,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(1)),
-        );
+      width: w,
+      height: 2,
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(1)),
+    );
     return SizedBox(
       width: 24,
       height: 24,
@@ -483,12 +593,16 @@ class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixi
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: ScaleTransition(
-          scale: Tween(begin: .75, end: 1.1).animate(CurvedAnimation(parent: a, curve: Curves.easeInOut)),
-          child: Container(width: 13, height: 13, decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle)),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: ScaleTransition(
+      scale: Tween(begin: .75, end: 1.1).animate(CurvedAnimation(parent: a, curve: Curves.easeInOut)),
+      child: Container(
+        width: 13,
+        height: 13,
+        decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+      ),
+    ),
+  );
 }
 
 /// Texte dont chaque morceau ajouté apparaît en fondu.
@@ -538,13 +652,128 @@ class _StreamTextState extends State<_StreamText> with SingleTickerProviderState
     final t = widget.text;
     if (marks.isEmpty) return Text(t, style: widget.style);
     final color = widget.style.color!;
-    return Text.rich(TextSpan(style: widget.style, children: [
-      TextSpan(text: t.substring(0, marks.first.$1)),
-      for (var i = 0; i < marks.length; i++)
-        TextSpan(
-          text: t.substring(marks[i].$1, i + 1 < marks.length ? marks[i + 1].$1 : t.length),
-          style: TextStyle(color: color.withValues(alpha: ((now - marks[i].$2).inMicroseconds / fade.inMicroseconds).clamp(0, 1))),
+    return Text.rich(
+      TextSpan(
+        style: widget.style,
+        children: [
+          TextSpan(text: t.substring(0, marks.first.$1)),
+          for (var i = 0; i < marks.length; i++)
+            TextSpan(
+              text: t.substring(marks[i].$1, i + 1 < marks.length ? marks[i + 1].$1 : t.length),
+              style: TextStyle(color: color.withValues(alpha: ((now - marks[i].$2).inMicroseconds / fade.inMicroseconds).clamp(0, 1))),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModelSheet extends StatelessWidget {
+  const _ModelSheet({required this.current});
+  final String current;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final providers = {for (final m in models) m.provider};
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Modèle',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
+          ),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              children: [
+                for (final p in providers) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 10,
+                          backgroundColor: c.onSurface,
+                          child: Text(
+                            p[0],
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.surface),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          p,
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(16)),
+                    child: Column(
+                      children: [
+                        for (final (i, m) in models.where((m) => m.provider == p).indexed) ...[
+                          if (i > 0) Divider(height: 1, indent: 16, color: c.outline.withValues(alpha: .15)),
+                          _ModelRow(m, selected: m.id == current),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModelRow extends StatelessWidget {
+  const _ModelRow(this.m, {required this.selected});
+  final Model m;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: () => Navigator.of(context).pop(m.id),
+      highlightColor: c.onSurface.withValues(alpha: .06),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    m.name,
+                    style: TextStyle(fontSize: 16, fontWeight: selected ? FontWeight.w600 : FontWeight.w500, color: c.onSurface),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(m.desc, style: TextStyle(fontSize: 13, color: c.outline)),
+                ],
+              ),
+            ),
+            AnimatedOpacity(
+              opacity: selected ? 1 : 0,
+              duration: const Duration(milliseconds: 150),
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+                child: Icon(CupertinoIcons.checkmark, size: 13, color: c.onPrimary),
+              ),
+            ),
+          ],
         ),
-    ]));
+      ),
+    );
   }
 }
