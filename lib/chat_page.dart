@@ -79,6 +79,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         if (chat.msgs.isEmpty && !r.models.any((m) => m.id == chat.model)) chat.model = settings.model;
       });
     } catch (e) {
+      debugPrint('Models: $e');
       models.value = (
         list: models.value.list,
         loading: false,
