@@ -1,30 +1,21 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:herapp/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('envoi puis réponse en flux', (t) async {
+    await t.pumpWidget(const App());
+    expect(find.text('Par quoi commençons-nous ?'), findsOneWidget);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await t.enterText(find.byType(EditableText).last, 'Salut');
+    await t.pump();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump();
+    expect(find.text('Salut'), findsWidgets);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await t.pump(const Duration(seconds: 10));
+    await t.pump(const Duration(seconds: 1));
+    expect(find.textContaining('Bien reçu'), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.arrow_2_circlepath), findsOneWidget);
   });
 }
