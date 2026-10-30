@@ -1,0 +1,61 @@
+{
+  "@@locale": "en",
+  "newChat": "New chat",
+  "emptyHeadline": "How can I help?",
+  "composerHint": "Ask anything",
+  "search": "Search",
+  "chats": "Chats",
+  "settings": "Settings",
+  "model": "Model",
+  "done": "Done",
+  "appearance": "Appearance",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "general": "General",
+  "haptics": "Haptic feedback",
+  "hermesServer": "Hermes server",
+  "hermesServerFooter": "Address the app will send messages to.",
+  "wireguard": "WireGuard",
+  "wgConfig": "Configuration",
+  "wgImport": "Import",
+  "wgUse": "Route through WireGuard",
+  "wgConnected": "Connected",
+  "wgConnecting": "Connecting…",
+  "wgError": "Error: {message}",
+  "@wgError": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "wgUnavailable": "Not available on this platform",
+  "wgRemove": "Remove configuration",
+  "wgFooter": "All of the app's network traffic goes through the tunnel. If the tunnel is on but down, the app can't communicate.",
+  "wgInvalidFile": "This file isn't a WireGuard configuration.",
+  "serverTest": "Test connection",
+  "serverReachable": "Reachable · HTTP {status} · {ms} ms",
+  "@serverReachable": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      },
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "serverUnreachable": "Unreachable: {message}",
+  "@serverUnreachable": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "serverInvalidUrl": "Invalid address",
+  "serverBlocked": "Blocked: the WireGuard tunnel isn't connected",
+  "serverTimeout": "no response after 15 s",
+  "viaWireguard": "via WireGuard"
+}

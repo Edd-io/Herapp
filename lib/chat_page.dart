@@ -6,12 +6,13 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import 'hermes.dart';
+import 'l10n/app_localizations.dart';
 import 'settings.dart';
 
 class Chat {
   final msgs = <Msg>[];
   String model = settings.model;
-  String get title => msgs.isEmpty ? 'Nouveau chat' : msgs.first.text;
+  String get title => msgs.isEmpty ? '' : msgs.first.text; // only non-empty chats are listed
 }
 
 class ChatPage extends StatefulWidget {
@@ -29,7 +30,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   final scroll = ScrollController();
   late final drawer = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
   StreamSubscription<String>? sub;
-  Msg? fresh; // dernier message utilisateur, animé à l'arrivée
+  Msg? fresh; // latest user message, animated on arrival
   bool atBottom = true;
   String query = '';
 
@@ -112,7 +113,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     toBottom(jump: true);
   }
 
-  /// Feuille de choix du modèle, groupée par fournisseur.
+  /// Model picker sheet, grouped by provider.
   Future<void> pickModel() async {
     final c = Theme.of(context).colorScheme;
     final current = modelOf(chat.model).id;
@@ -206,7 +207,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               children: [
                 _IconBtn(onTap: openDrawer, child: _MenuIcon(c.onSurface)),
                 Expanded(
-                  // vide : pas de titre, la pastille au centre sert de sélecteur
+                  // empty: no title, the centered pill is the picker
                   child: chat.msgs.isEmpty
                       ? const SizedBox()
                       : Row(
@@ -237,36 +238,40 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           ),
           Expanded(
             child: chat.msgs.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Par quoi commençons-nous ?',
-                          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, color: c.onSurface),
-                        ),
-                        const SizedBox(height: 16),
-                        GestureDetector(
-                          onTap: pickModel,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(20)),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  modelOf(chat.model).name,
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(modelOf(chat.model).provider, style: TextStyle(fontSize: 15, color: c.outline)),
-                                const SizedBox(width: 6),
-                                Icon(CupertinoIcons.chevron_down, size: 13, color: c.outline),
-                              ],
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            AppLocalizations.of(context).emptyHeadline,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, color: c.onSurface),
+                          ),
+                          const SizedBox(height: 16),
+                          GestureDetector(
+                            onTap: pickModel,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(20)),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    modelOf(chat.model).name,
+                                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(modelOf(chat.model).provider, style: TextStyle(fontSize: 15, color: c.outline)),
+                                  const SizedBox(width: 6),
+                                  Icon(CupertinoIcons.chevron_down, size: 13, color: c.outline),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   )
                 : Stack(
@@ -397,7 +402,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    // centré dans 44 pt quand il n'y a qu'une ligne, grandit ensuite
+                    // centered in 44 pt while single-line, grows afterwards
                     child: Container(
                       constraints: const BoxConstraints(minHeight: 44),
                       alignment: Alignment.centerLeft,
@@ -412,7 +417,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                           isDense: true,
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                          hintText: 'Poser une question',
+                          hintText: AppLocalizations.of(context).composerHint,
                           hintStyle: TextStyle(fontSize: 17, color: c.outline),
                         ),
                       ),
@@ -503,7 +508,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                           isDense: true,
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                          hintText: 'Rechercher',
+                          hintText: AppLocalizations.of(context).search,
                           hintStyle: TextStyle(fontSize: 16, color: c.outline),
                         ),
                       ),
@@ -512,11 +517,11 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 ),
               ),
             ),
-            tile('Nouveau chat', icon: CupertinoIcons.square_pencil, onTap: newChat),
+            tile(AppLocalizations.of(context).newChat, icon: CupertinoIcons.square_pencil, onTap: newChat),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
               child: Text(
-                'Chats',
+                AppLocalizations.of(context).chats,
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
               ),
             ),
@@ -527,7 +532,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               ),
             ),
             tile(
-              'Paramètres',
+              AppLocalizations.of(context).settings,
               icon: CupertinoIcons.gear,
               onTap: () => showCupertinoSheet(context: context, builder: (_) => const SettingsSheet()),
             ),
@@ -549,7 +554,7 @@ class _IconBtn extends StatelessWidget {
   Widget build(BuildContext context) => CupertinoButton(padding: EdgeInsets.all(small ? 6 : 14), onPressed: onTap, child: child);
 }
 
-/// Icône menu à deux traits inégaux.
+/// Menu icon with two uneven bars.
 class _MenuIcon extends StatelessWidget {
   const _MenuIcon(this.color);
   final Color color;
@@ -573,7 +578,7 @@ class _MenuIcon extends StatelessWidget {
   }
 }
 
-/// Point pulsant affiché en attendant le premier morceau de réponse.
+/// Pulsing dot shown while waiting for the first reply chunk.
 class _PulseDot extends StatefulWidget {
   const _PulseDot(this.color);
   final Color color;
@@ -605,7 +610,7 @@ class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixi
   );
 }
 
-/// Texte dont chaque morceau ajouté apparaît en fondu.
+/// Text whose newly appended chunks fade in.
 class _StreamText extends StatefulWidget {
   const _StreamText(this.text, {required this.style});
   final String text;
@@ -617,9 +622,9 @@ class _StreamText extends StatefulWidget {
 
 class _StreamTextState extends State<_StreamText> with SingleTickerProviderStateMixin {
   static const fade = Duration(milliseconds: 350);
-  final marks = <(int, Duration)>[]; // (début du morceau, instant d'arrivée)
+  final marks = <(int, Duration)>[]; // (chunk start, arrival time)
   Duration now = Duration.zero;
-  Ticker? ticker; // créé seulement si le texte grandit
+  Ticker? ticker; // created only if the text grows
 
   void _tick(Duration elapsed) {
     setState(() {
@@ -682,7 +687,7 @@ class _ModelSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Modèle',
+            AppLocalizations.of(context).model,
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
           ),
           Flexible(

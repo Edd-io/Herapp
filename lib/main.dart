@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import 'chat_page.dart';
+import 'l10n/app_localizations.dart';
 import 'settings.dart';
+import 'wireguard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await settings.load();
+  await vpn.load();
   runApp(const App());
 }
 
@@ -27,7 +30,9 @@ class App extends StatelessWidget {
       title: 'Hermes',
       debugShowCheckedModeBanner: false,
       themeMode: settings.theme,
-      // surface = fond, surfaceContainerHighest = bulles/composer, surfaceContainerLow = sidebar
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      // surface = background, surfaceContainerHighest = bubbles/composer, surfaceContainerLow = sidebar
       theme: _theme(
         const ColorScheme.light(
           surface: Colors.white,
