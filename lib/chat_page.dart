@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,12 @@ import 'package:flutter/services.dart';
 import 'hermes.dart';
 import 'l10n/app_localizations.dart';
 import 'settings.dart';
+
+/// Server model loader, swappable in tests.
+var fetchModels = hermesModels;
+
+/// Server models; `error` is null on success, '' when no server is set, 'restart' when the server must be restarted.
+typedef Models = ({List<Model> list, bool loading, String? error});
 
 class Chat {
   final msgs = <Msg>[];
@@ -28,6 +36,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   final input = TextEditingController();
   final focus = FocusNode();
   final scroll = ScrollController();
+  final models = ValueNotifier<Models>((list: const [], loading: false, error: null));
   late final drawer = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
   StreamSubscription<String>? sub;
   Msg? fresh; // latest user message, animated on arrival
@@ -44,7 +53,46 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       final b = scroll.position.extentAfter < 40;
       if (b != atBottom) setState(() => atBottom = b);
     });
+    loadModels();
   }
+
+  /// Refreshes the server's model list; a choice the server no longer offers falls back to its default.
+  Future<void> loadModels() async {
+    final base = Uri.tryParse(settings.url);
+    if (base == null || !base.hasAuthority) {
+      models.value = (list: const [], loading: false, error: '');
+      return;
+    }
+    models.value = (list: models.value.list, loading: true, error: null);
+    try {
+      final r = await fetchModels(
+        base,
+        user: settings.auth ? settings.user : null,
+        password: settings.password,
+      ).timeout(const Duration(seconds: 20));
+      models.value = (list: r.models, loading: false, error: null);
+      if (!r.models.any((m) => m.id == settings.model)) {
+        settings.model = r.models.any((m) => m.id == r.current) ? r.current : r.models.firstOrNull?.id ?? '';
+      }
+      if (!mounted) return;
+      setState(() {
+        if (chat.msgs.isEmpty && !r.models.any((m) => m.id == chat.model)) chat.model = settings.model;
+      });
+    } catch (e) {
+      models.value = (
+        list: models.value.list,
+        loading: false,
+        error: switch (e) {
+          // Hermes updated on disk but not restarted: it refuses to list models
+          HttpException(:final message) when message.startsWith('Restart required') => 'restart',
+          HttpException(:final message) => message,
+          _ => '$e',
+        },
+      );
+    }
+  }
+
+  String providerOf(String id) => models.value.list.where((m) => m.id == id).firstOrNull?.provider ?? '';
 
   @override
   void dispose() {
@@ -53,6 +101,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     input.dispose();
     focus.dispose();
     scroll.dispose();
+    models.dispose();
     super.dispose();
   }
 
@@ -116,7 +165,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   /// Model picker sheet, grouped by provider.
   Future<void> pickModel() async {
     final c = Theme.of(context).colorScheme;
-    final current = modelOf(chat.model).id;
+    loadModels();
     final id = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -125,7 +174,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       backgroundColor: c.surface,
       barrierColor: Colors.black.withValues(alpha: .4),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      builder: (context) => _ModelSheet(current: current),
+      builder: (context) => _ModelSheet(models: models, current: chat.model),
     );
     if (id == null || !mounted) return;
     settings.haptic();
@@ -220,7 +269,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(
-                                modelOf(chat.model).name,
+                                modelName(chat.model),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(fontSize: 17, color: c.outline),
@@ -258,13 +307,19 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    modelOf(chat.model).name,
-                                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
+                                  Flexible(
+                                    child: Text(
+                                      chat.model.isEmpty ? AppLocalizations.of(context).model : modelName(chat.model),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
+                                    ),
                                   ),
                                   const SizedBox(width: 6),
-                                  Text(modelOf(chat.model).provider, style: TextStyle(fontSize: 15, color: c.outline)),
-                                  const SizedBox(width: 6),
+                                  if (providerOf(chat.model) case final p when p.isNotEmpty) ...[
+                                    Text(p, style: TextStyle(fontSize: 15, color: c.outline)),
+                                    const SizedBox(width: 6),
+                                  ],
                                   Icon(CupertinoIcons.chevron_down, size: 13, color: c.outline),
                                 ],
                               ),
@@ -534,7 +589,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             tile(
               AppLocalizations.of(context).settings,
               icon: CupertinoIcons.gear,
-              onTap: () => showCupertinoSheet(context: context, builder: (_) => const SettingsSheet()),
+              onTap: () async {
+                await showCupertinoSheet(context: context, builder: (_) => const SettingsSheet());
+                loadModels(); // server, auth or tunnel may have changed
+              },
             ),
             const SizedBox(height: 8),
           ],
@@ -674,65 +732,95 @@ class _StreamTextState extends State<_StreamText> with SingleTickerProviderState
 }
 
 class _ModelSheet extends StatelessWidget {
-  const _ModelSheet({required this.current});
+  const _ModelSheet({required this.models, required this.current});
+  final ValueListenable<Models> models;
   final String current;
 
   @override
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
-    final providers = {for (final m in models) m.provider};
+    final l = AppLocalizations.of(context);
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            AppLocalizations.of(context).model,
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
-          ),
-          Flexible(
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              children: [
-                for (final p in providers) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 10,
-                          backgroundColor: c.onSurface,
-                          child: Text(
-                            p[0],
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.surface),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          p,
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
-                        ),
-                      ],
-                    ),
+      child: ValueListenableBuilder<Models>(
+        valueListenable: models,
+        builder: (context, m, _) {
+          final providers = {for (final x in m.list) x.provider};
+          final note = switch (m) {
+            (list: [], loading: true, error: _) => const Center(child: CupertinoActivityIndicator()),
+            (list: [], loading: _, error: '') => Text(l.modelsNoServer, textAlign: TextAlign.center),
+            (list: [], loading: _, error: 'restart') => Text(l.modelsRestart, textAlign: TextAlign.center),
+            (list: [], loading: _, error: final String e) => Text(l.modelsFailed(e), textAlign: TextAlign.center),
+            (list: [], loading: _, error: _) => Text(l.modelsNone, textAlign: TextAlign.center),
+            _ => null,
+          };
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    l.model,
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
                   ),
-                  Container(
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(16)),
-                    child: Column(
-                      children: [
-                        for (final (i, m) in models.where((m) => m.provider == p).indexed) ...[
-                          if (i > 0) Divider(height: 1, indent: 16, color: c.outline.withValues(alpha: .15)),
-                          _ModelRow(m, selected: m.id == current),
-                        ],
-                      ],
-                    ),
-                  ),
+                  // refreshing an already shown list
+                  if (m.loading && m.list.isNotEmpty) ...[const SizedBox(width: 8), const CupertinoActivityIndicator(radius: 8)],
                 ],
-              ],
-            ),
-          ),
-        ],
+              ),
+              if (note != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(32, 32, 32, 48),
+                  child: DefaultTextStyle.merge(
+                    style: TextStyle(fontSize: 15, color: c.outline),
+                    child: note,
+                  ),
+                ),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  children: [
+                    for (final p in providers) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 10,
+                              backgroundColor: c.onSurface,
+                              child: Text(
+                                p.isEmpty ? '' : p[0].toUpperCase(),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.surface),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              p,
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(16)),
+                        child: Column(
+                          children: [
+                            for (final (i, x) in m.list.where((x) => x.provider == p).indexed) ...[
+                              if (i > 0) Divider(height: 1, indent: 16, color: c.outline.withValues(alpha: .15)),
+                              _ModelRow(x, selected: x.id == current),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -750,20 +838,13 @@ class _ModelRow extends StatelessWidget {
       onTap: () => Navigator.of(context).pop(m.id),
       highlightColor: c.onSurface.withValues(alpha: .06),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    m.name,
-                    style: TextStyle(fontSize: 16, fontWeight: selected ? FontWeight.w600 : FontWeight.w500, color: c.onSurface),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(m.desc, style: TextStyle(fontSize: 13, color: c.outline)),
-                ],
+              child: Text(
+                m.name,
+                style: TextStyle(fontSize: 16, fontWeight: selected ? FontWeight.w600 : FontWeight.w500, color: c.onSurface),
               ),
             ),
             AnimatedOpacity(

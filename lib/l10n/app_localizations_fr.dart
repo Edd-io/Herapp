@@ -161,4 +161,20 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get serverTunnelFailed =>
       'le tunnel WireGuard n’arrive pas à joindre le serveur';
+
+  @override
+  String get modelsNoServer =>
+      'Renseigne l\'adresse de ton serveur Hermes dans les réglages pour voir ses modèles.';
+
+  @override
+  String modelsFailed(String message) {
+    return 'Impossible de charger les modèles du serveur.\n$message';
+  }
+
+  @override
+  String get modelsNone => 'Aucun modèle n\'est configuré sur le serveur.';
+
+  @override
+  String get modelsRestart =>
+      'Hermes a été mis à jour mais tourne encore sur l\'ancienne version. Redémarre le serveur Hermes pour voir ses modèles.';
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:herapp/chat_page.dart';
+import 'package:herapp/hermes.dart';
 import 'package:herapp/main.dart';
 import 'package:herapp/settings.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -29,21 +31,40 @@ void main() {
     expect(find.byIcon(CupertinoIcons.arrow_2_circlepath), findsOneWidget);
   });
 
-  testWidgets('model can be picked while the chat is empty', (t) async {
+  testWidgets('server models can be picked while the chat is empty', (t) async {
+    settings.url = 'https://hermes.test';
+    addTearDown(() => fetchModels = hermesModels);
+    fetchModels = (base, {user, password}) async => (
+      models: <Model>[
+        (provider: 'Anthropic', name: 'claude-sonnet-5-5', id: 'anthropic/claude-sonnet-5-5'),
+        (provider: 'OpenRouter', name: 'openai/gpt-5', id: 'openrouter/openai/gpt-5'),
+      ],
+      current: 'anthropic/claude-sonnet-5-5',
+    );
     await t.pumpWidget(const App());
+    await t.pumpAndSettle();
+    expect(settings.model, 'anthropic/claude-sonnet-5-5'); // server default
+
     await t.tap(find.text('Anthropic')); // pill under the headline
     await t.pumpAndSettle();
-    await t.tap(find.text('GPT-5').last);
+    await t.tap(find.text('openai/gpt-5').last);
     await t.pumpAndSettle();
-    expect(settings.model, 'openai/gpt-5');
-    expect(find.text('OpenAI'), findsOneWidget);
+    expect(settings.model, 'openrouter/openai/gpt-5');
+    expect(find.text('OpenRouter'), findsOneWidget);
 
     await t.enterText(find.byType(EditableText).last, 'Salut');
     await t.pumpAndSettle();
     await t.tap(find.byIcon(CupertinoIcons.arrow_up));
     await t.pump(const Duration(seconds: 10));
-    expect(find.textContaining('(GPT-5)'), findsOneWidget);
-    expect(find.text('GPT-5'), findsOneWidget); // title shown, pill gone
+    expect(find.textContaining('(openai/gpt-5)'), findsOneWidget);
+    expect(find.text('openai/gpt-5'), findsOneWidget); // title shown, pill gone
+  });
+
+  testWidgets('picker explains a missing server', (t) async {
+    await t.pumpWidget(const App());
+    await t.tap(find.text('Model'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Set your Hermes server address'), findsOneWidget);
   });
 
   testWidgets('settings change the theme and persist', (t) async {

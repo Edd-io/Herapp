@@ -44,4 +44,39 @@ void main() {
     final bad = await hermesLogin(client, base, 'alice', 'wrong');
     expect((bad.ok, bad.status), (false, 401));
   });
+
+  test('model options become a flat list keyed by provider', () {
+    // shape of /api/model/options (trimmed)
+    const body =
+        '{"model":"claude-sonnet-5-5","provider":"anthropic","providers":['
+        '{"slug":"anthropic","name":"Anthropic","is_current":true,"models":["claude-sonnet-5-5","claude-haiku-5-5"]},'
+        '{"slug":"openrouter","name":"OpenRouter","models":["openai/gpt-5"]},'
+        '{"slug":"nous","name":"Nous Portal","authenticated":false,"models":["hermes-4"]}]}';
+    final r = parseModelOptions(body)!;
+    expect(r.current, 'anthropic/claude-sonnet-5-5');
+    expect(r.models.map((m) => m.id), ['anthropic/claude-sonnet-5-5', 'anthropic/claude-haiku-5-5', 'openrouter/openai/gpt-5']);
+    expect(r.models.last.provider, 'OpenRouter');
+    expect(modelName(r.models.last.id), 'openai/gpt-5');
+    expect(parseModelOptions('{"detail":"Unauthorized"}'), isNull);
+  });
+
+  test('models are fetched with the sign-in cookie', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((req) async {
+      if (req.uri.path == '/auth/password-login') {
+        req.response.cookies.add(Cookie('session', 'abc'));
+      } else if (req.uri.path == '/api/model/options' && req.cookies.any((c) => c.value == 'abc')) {
+        req.response.write('{"model":"m","provider":"p","providers":[{"slug":"p","name":"P","models":["m"]}]}');
+      } else {
+        req.response.statusCode = 401;
+      }
+      await req.response.close();
+    });
+    addTearDown(server.close);
+    final base = Uri.parse('http://127.0.0.1:${server.port}');
+
+    final r = await hermesModels(base, user: 'alice', password: 'right');
+    expect((r.current, r.models.single.provider), ('p/m', 'P'));
+    expect(hermesModels(base), throwsA(isA<HttpException>())); // no session
+  });
 }

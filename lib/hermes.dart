@@ -7,20 +7,70 @@ class Msg {
   String text;
 }
 
-typedef Model = ({String provider, String name, String desc, String id});
+/// A model offered by the Hermes server; [id] = "providerSlug/model".
+typedef Model = ({String provider, String name, String id});
 
-// ponytail: hardcoded list, replace with the one exposed by Hermes
-const models = <Model>[
-  (provider: 'Anthropic', name: 'Claude Opus 5.5', desc: 'Most capable, deep reasoning', id: 'anthropic/claude-opus-5-5'),
-  (provider: 'Anthropic', name: 'Claude Sonnet 5.5', desc: 'Balance of speed and quality', id: 'anthropic/claude-sonnet-5-5'),
-  (provider: 'Anthropic', name: 'Claude Haiku 5.5', desc: 'Fast and lightweight', id: 'anthropic/claude-haiku-5-5'),
-  (provider: 'OpenAI', name: 'GPT-5', desc: 'OpenAI flagship model', id: 'openai/gpt-5'),
-  (provider: 'Google', name: 'Gemini 2.5 Pro', desc: 'Very long context, multimodal', id: 'google/gemini-2.5-pro'),
-  (provider: 'Nous Research', name: 'Hermes 4 405B', desc: 'Open-weight, agent-oriented', id: 'nousresearch/hermes-4-405b'),
-  (provider: 'Local', name: 'Ollama', desc: 'Runs on your machine', id: 'ollama/default'),
-];
+/// Display name of a model id, readable even before the server list is loaded.
+String modelName(String id) => id.substring(id.indexOf('/') + 1);
 
-Model modelOf(String id) => models.firstWhere((m) => m.id == id, orElse: () => models.first);
+/// Models from the server's `/api/model/options`, plus its default model id.
+/// Null if [body] isn't that payload.
+({List<Model> models, String current})? parseModelOptions(String body) {
+  try {
+    final j = jsonDecode(body);
+    if (j is! Map || j['providers'] is! List) return null;
+    return (
+      models: [
+        for (final p in (j['providers'] as List).whereType<Map>())
+          if (p['authenticated'] != false)
+            for (final m in (p['models'] as List? ?? []).whereType<String>())
+              (provider: '${p['name'] ?? p['slug']}', name: m, id: '${p['slug']}/$m'),
+      ],
+      current: j['model'] is String && j['provider'] is String && j['model'] != '' ? '${j['provider']}/${j['model']}' : '',
+    );
+  } on FormatException {
+    return null;
+  }
+}
+
+/// Fetches the models the server can use. Signs in when [user] is set; otherwise
+/// reuses the session token a loopback dashboard injects into its page.
+// ponytail: signs in on every call, keep the session cookie once the chat needs it too
+Future<({List<Model> models, String current})> hermesModels(Uri base, {String? user, String? password}) async {
+  final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+  try {
+    var cookies = <Cookie>[];
+    String? token;
+    if (user != null) {
+      final login = await hermesLogin(client, base, user, password ?? '');
+      if (!login.ok) throw HttpException('sign-in failed (HTTP ${login.status})');
+      cookies = login.cookies;
+    } else {
+      final page = await client.getUrl(base).then((r) => r.close()).then((r) => r.transform(utf8.decoder).join());
+      token = RegExp(r'__HERMES_SESSION_TOKEN__\s*=\s*"([^"]+)"').firstMatch(page)?.group(1);
+    }
+    final req = await client.getUrl(_at(base, '/api/model/options'));
+    req.cookies.addAll(cookies);
+    if (token != null) req.headers.set('X-Hermes-Session-Token', token);
+    final res = await req.close();
+    final body = await res.transform(utf8.decoder).join();
+    final r = res.statusCode == 200 ? parseModelOptions(body) : null;
+    if (r == null) throw HttpException(_detail(body) ?? 'model list unavailable (HTTP ${res.statusCode})');
+    return r;
+  } finally {
+    client.close(force: true);
+  }
+}
+
+/// The `detail` message of a FastAPI error body, if any.
+String? _detail(String body) {
+  try {
+    final j = jsonDecode(body);
+    return j is Map && j['detail'] is String ? j['detail'] as String : null;
+  } on FormatException {
+    return null;
+  }
+}
 
 Uri _at(Uri base, String path) => base.replace(path: '${base.path.replaceAll(RegExp(r'/+$'), '')}$path');
 
@@ -60,7 +110,7 @@ Future<HermesLogin> hermesLogin(HttpClient client, Uri base, String user, String
 Stream<String> hermes(List<Msg> history, String model) async* {
   await Future.delayed(const Duration(milliseconds: 700));
   final reply =
-      'Got it (${modelOf(model).name}): "${history.last.text}". I\'m not connected yet, '
+      'Got it (${modelName(model)}): "${history.last.text}". I\'m not connected yet, '
       'but once Hermes is hooked up, its replies will stream in here '
       'with the same progressive fade as this demo.';
   for (final word in reply.split(' ')) {

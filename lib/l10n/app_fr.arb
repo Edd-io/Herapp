@@ -43,5 +43,9 @@
   "serverAuthOk": "Hermes {version} · connecté · {ms} ms",
   "serverAuthRateLimited": "Hermes {version} · trop de tentatives, réessaie plus tard",
   "serverAuthFailed": "Hermes {version} · échec de la connexion (HTTP {status})",
-  "serverTunnelFailed": "le tunnel WireGuard n’arrive pas à joindre le serveur"
+  "serverTunnelFailed": "le tunnel WireGuard n’arrive pas à joindre le serveur",
+  "modelsNoServer": "Renseigne l'adresse de ton serveur Hermes dans les réglages pour voir ses modèles.",
+  "modelsFailed": "Impossible de charger les modèles du serveur.\n{message}",
+  "modelsNone": "Aucun modèle n'est configuré sur le serveur.",
+  "modelsRestart": "Hermes a été mis à jour mais tourne encore sur l'ancienne version. Redémarre le serveur Hermes pour voir ses modèles."
 }

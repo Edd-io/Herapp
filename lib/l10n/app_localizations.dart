@@ -361,6 +361,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'the WireGuard tunnel can\'t reach the server'**
   String get serverTunnelFailed;
+
+  /// No description provided for @modelsNoServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Set your Hermes server address in Settings to see its models.'**
+  String get modelsNoServer;
+
+  /// No description provided for @modelsFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the server\'s models.\n{message}'**
+  String modelsFailed(String message);
+
+  /// No description provided for @modelsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No model is configured on the server.'**
+  String get modelsNone;
+
+  /// No description provided for @modelsRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes was updated but is still running the old version. Restart the Hermes server to see its models.'**
+  String get modelsRestart;
 }
 
 class _AppLocalizationsDelegate

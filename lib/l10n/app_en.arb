@@ -115,5 +115,16 @@
       }
     }
   },
-  "serverTunnelFailed": "the WireGuard tunnel can't reach the server"
+  "serverTunnelFailed": "the WireGuard tunnel can't reach the server",
+  "modelsNoServer": "Set your Hermes server address in Settings to see its models.",
+  "modelsFailed": "Couldn't load the server's models.\n{message}",
+  "modelsNone": "No model is configured on the server.",
+  "@modelsFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "modelsRestart": "Hermes was updated but is still running the old version. Restart the Hermes server to see its models."
 }
