@@ -1,12 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'hermes.dart';
 import 'l10n/app_localizations.dart';
 import 'wireguard.dart';
 
@@ -15,8 +18,12 @@ final settings = Settings();
 /// Persisted settings, read synchronously after [load].
 class Settings extends ChangeNotifier {
   late SharedPreferences _p;
+  static const _secure = FlutterSecureStorage();
 
-  Future<void> load() async => _p = await SharedPreferences.getInstance();
+  Future<void> load() async {
+    _p = await SharedPreferences.getInstance();
+    password = await _secure.read(key: 'hermes_password') ?? '';
+  }
 
   ThemeMode get theme => ThemeMode.values[_p.getInt('theme') ?? 0];
   set theme(ThemeMode v) => _save(_p.setInt('theme', v.index));
@@ -31,6 +38,19 @@ class Settings extends ChangeNotifier {
   /// Hermes server address, read by hermes.dart once hooked up.
   String get url => _p.getString('url') ?? '';
   set url(String v) => _save(_p.setString('url', v.trim()));
+
+  bool get auth => _p.getBool('auth') ?? false;
+  set auth(bool v) => _save(_p.setBool('auth', v));
+
+  String get user => _p.getString('user') ?? '';
+  set user(String v) => _save(_p.setString('user', v.trim()));
+
+  /// Kept in the Keychain, not in preferences.
+  String password = '';
+  Future<void> setPassword(String v) {
+    password = v;
+    return _secure.write(key: 'hermes_password', value: v);
+  }
 
   void _save(Future<bool> _) => notifyListeners();
 
@@ -48,11 +68,13 @@ class SettingsSheet extends StatefulWidget {
 
 class _SettingsSheetState extends State<SettingsSheet> {
   final url = TextEditingController(text: settings.url);
+  final user = TextEditingController(text: settings.user);
+  final password = TextEditingController(text: settings.password);
   String? importError;
   bool testing = false;
   (bool ok, String text)? testResult;
 
-  /// GET on the server URL; any HTTP response means reachable (Hermes API not known yet).
+  /// Checks the URL answers like a Hermes server (GET /api/status, no auth needed).
   Future<void> testServer() async {
     final l = AppLocalizations.of(context);
     final uri = Uri.tryParse(settings.url);
@@ -69,12 +91,28 @@ class _SettingsSheetState extends State<SettingsSheet> {
     final sw = Stopwatch()..start();
     (bool, String) result;
     try {
-      final res = await (await client.getUrl(uri)).close().timeout(const Duration(seconds: 15));
-      await res.drain<void>();
-      final text = l.serverReachable(res.statusCode, sw.elapsedMilliseconds);
-      result = (true, vpn.running ? '$text · ${l.viaWireguard}' : text);
+      final res = await (await client.getUrl(hermesStatusUri(uri))).close().timeout(const Duration(seconds: 15));
+      final body = await res.transform(utf8.decoder).join().timeout(const Duration(seconds: 15));
+      final st = res.statusCode == 200 ? hermesStatus(body) : null;
+      if (st == null) {
+        result = (false, l.serverNotHermes(res.statusCode));
+      } else if (!settings.auth) {
+        result = st.authRequired ? (false, l.serverAuthRequired(st.version)) : (true, l.serverHermes(st.version, sw.elapsedMilliseconds));
+      } else {
+        final r = await hermesLogin(client, uri, settings.user, settings.password).timeout(const Duration(seconds: 15));
+        result = switch (r.status) {
+          _ when r.ok => (true, l.serverAuthOk(st.version, sw.elapsedMilliseconds)),
+          401 => (false, l.serverAuthRejected(st.version)),
+          429 => (false, l.serverAuthRateLimited(st.version)),
+          _ => (false, l.serverAuthFailed(st.version, r.status)),
+        };
+      }
+      if (vpn.running) result = (result.$1, '${result.$2} · ${l.viaWireguard}');
     } on TimeoutException {
       result = (false, l.serverUnreachable(l.serverTimeout));
+    } on HttpException catch (e) {
+      // "Proxy failed to establish tunnel" = our WireGuard proxy answered 502
+      result = (false, l.serverUnreachable(e.message.contains('Proxy failed') ? l.serverTunnelFailed : e.message));
     } on SocketException catch (e) {
       result = (false, l.serverUnreachable(e.osError?.message ?? e.message));
     } catch (e) {
@@ -88,6 +126,10 @@ class _SettingsSheetState extends State<SettingsSheet> {
         testResult = result;
       });
     }
+  }
+
+  void clearTest() {
+    if (testResult != null) setState(() => testResult = null);
   }
 
   Future<void> importConfig() async {
@@ -108,6 +150,8 @@ class _SettingsSheetState extends State<SettingsSheet> {
   @override
   void dispose() {
     url.dispose();
+    user.dispose();
+    password.dispose();
     super.dispose();
   }
 
@@ -116,12 +160,28 @@ class _SettingsSheetState extends State<SettingsSheet> {
     final c = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context);
     final label = TextStyle(fontSize: 17, color: c.onSurface);
-    Widget section(String title, List<Widget> children, {String? footer}) => CupertinoListSection.insetGrouped(
+    Widget section(String title, List<Widget> children, {String? footer, (bool, String)? status}) => CupertinoListSection.insetGrouped(
       backgroundColor: c.surface,
       decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
       separatorColor: c.outline.withValues(alpha: .2),
       header: Text(title.toUpperCase(), style: TextStyle(fontSize: 13, color: c.outline)),
-      footer: footer == null ? null : Text(footer, style: TextStyle(fontSize: 13, color: c.outline)),
+      footer: footer == null && status == null
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // status line (e.g. connection test result) sits above the hint, outside the card
+                if (status != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      status.$2,
+                      style: TextStyle(fontSize: 13, color: status.$1 ? CupertinoColors.systemGreen : CupertinoColors.systemRed),
+                    ),
+                  ),
+                if (footer != null) Text(footer, style: TextStyle(fontSize: 13, color: c.outline)),
+              ],
+            ),
       children: children,
     );
 
@@ -184,34 +244,74 @@ class _SettingsSheetState extends State<SettingsSheet> {
                   trailing: CupertinoSwitch(value: settings.haptics, onChanged: (v) => settings.haptics = v),
                 ),
               ]),
-              section(l.hermesServer, [
-                CupertinoListTile(
-                  title: CupertinoTextField.borderless(
-                    controller: url,
-                    placeholder: 'https://hermes.example.com',
-                    keyboardType: TextInputType.url,
-                    autocorrect: false,
-                    padding: EdgeInsets.zero,
-                    style: label,
-                    onChanged: (v) {
-                      settings.url = v;
-                      if (testResult != null) setState(() => testResult = null);
-                    },
+              section(
+                l.hermesServer,
+                [
+                  CupertinoListTile(
+                    title: CupertinoTextField.borderless(
+                      controller: url,
+                      placeholder: 'https://hermes.example.com',
+                      keyboardType: TextInputType.url,
+                      autocorrect: false,
+                      padding: EdgeInsets.zero,
+                      style: label,
+                      onChanged: (v) {
+                        settings.url = v;
+                        clearTest();
+                      },
+                    ),
                   ),
-                ),
-                CupertinoListTile(
-                  title: Text(l.serverTest, style: label),
-                  subtitle: testResult == null
-                      ? null
-                      : Text(
-                          testResult!.$2,
-                          maxLines: 3,
-                          style: TextStyle(color: testResult!.$1 ? CupertinoColors.systemGreen : CupertinoColors.systemRed),
-                        ),
-                  trailing: testing ? const CupertinoActivityIndicator() : null,
-                  onTap: testing ? null : testServer,
-                ),
-              ], footer: l.hermesServerFooter),
+                  CupertinoListTile(
+                    title: Text(l.hermesAuth, style: label),
+                    trailing: CupertinoSwitch(
+                      value: settings.auth,
+                      onChanged: (v) {
+                        settings.auth = v;
+                        clearTest();
+                      },
+                    ),
+                  ),
+                  if (settings.auth) ...[
+                    CupertinoListTile(
+                      title: CupertinoTextField.borderless(
+                        controller: user,
+                        placeholder: l.hermesUser,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        textCapitalization: TextCapitalization.none,
+                        padding: EdgeInsets.zero,
+                        style: label,
+                        onChanged: (v) {
+                          settings.user = v;
+                          clearTest();
+                        },
+                      ),
+                    ),
+                    CupertinoListTile(
+                      title: CupertinoTextField.borderless(
+                        controller: password,
+                        placeholder: l.hermesPassword,
+                        obscureText: true,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        padding: EdgeInsets.zero,
+                        style: label,
+                        onChanged: (v) {
+                          settings.setPassword(v);
+                          clearTest();
+                        },
+                      ),
+                    ),
+                  ],
+                  CupertinoListTile(
+                    title: Text(l.serverTest, style: label),
+                    trailing: testing ? const CupertinoActivityIndicator() : null,
+                    onTap: testing ? null : testServer,
+                  ),
+                ],
+                footer: l.hermesServerFooter,
+                status: testResult,
+              ),
               section(l.wireguard, [
                 CupertinoListTile(
                   title: Text(l.wgConfig, style: label),

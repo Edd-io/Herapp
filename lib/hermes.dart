@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 class Msg {
   Msg(this.user, this.text);
   final bool user;
@@ -18,6 +21,39 @@ const models = <Model>[
 ];
 
 Model modelOf(String id) => models.firstWhere((m) => m.id == id, orElse: () => models.first);
+
+Uri _at(Uri base, String path) => base.replace(path: '${base.path.replaceAll(RegExp(r'/+$'), '')}$path');
+
+/// Status endpoint a Hermes server answers without authentication.
+Uri hermesStatusUri(Uri base) => _at(base, '/api/status');
+
+/// Outcome of [hermesLogin], with the HTTP status for unexpected answers.
+typedef HermesLogin = ({bool ok, int status, List<Cookie> cookies});
+
+/// Signs in like Hermes' web login form ("basic" provider): JSON POST, session cookie on success.
+/// 401 = wrong credentials, 429 = rate limited.
+Future<HermesLogin> hermesLogin(HttpClient client, Uri base, String user, String password) async {
+  final req = await client.postUrl(_at(base, '/auth/password-login'));
+  req.headers.contentType = ContentType.json;
+  req.write(jsonEncode({'provider': 'basic', 'username': user, 'password': password, 'next': ''}));
+  final res = await req.close();
+  await res.drain<void>();
+  return (ok: res.statusCode == 200, status: res.statusCode, cookies: res.cookies);
+}
+
+/// Parsed Hermes `/api/status` payload, null if [body] isn't one.
+({String version, bool authRequired})? hermesStatus(String body) {
+  try {
+    final j = jsonDecode(body);
+    // keys specific to Hermes, so any other JSON API with a "version" field is rejected
+    if (j is Map && j['version'] is String && j.containsKey('can_update_hermes') && j.containsKey('gateway_state')) {
+      return (version: j['version'] as String, authRequired: j['auth_required'] == true);
+    }
+  } on FormatException {
+    // not JSON: not Hermes
+  }
+  return null;
+}
 
 /// Hermes hook-up point: takes the history, returns the reply chunk by chunk.
 // ponytail: fake reply, replace with the network call to Hermes (SSE / websocket)

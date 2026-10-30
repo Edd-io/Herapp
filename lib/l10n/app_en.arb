@@ -35,17 +35,6 @@
   "wgFooter": "All of the app's network traffic goes through the tunnel. If the tunnel is on but down, the app can't communicate.",
   "wgInvalidFile": "This file isn't a WireGuard configuration.",
   "serverTest": "Test connection",
-  "serverReachable": "Reachable · HTTP {status} · {ms} ms",
-  "@serverReachable": {
-    "placeholders": {
-      "status": {
-        "type": "int"
-      },
-      "ms": {
-        "type": "int"
-      }
-    }
-  },
   "serverUnreachable": "Unreachable: {message}",
   "@serverUnreachable": {
     "placeholders": {
@@ -57,5 +46,74 @@
   "serverInvalidUrl": "Invalid address",
   "serverBlocked": "Blocked: the WireGuard tunnel isn't connected",
   "serverTimeout": "no response after 15 s",
-  "viaWireguard": "via WireGuard"
+  "viaWireguard": "via WireGuard",
+  "serverHermes": "Hermes {version} · {ms} ms",
+  "@serverHermes": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "serverNotHermes": "Reachable, but not a Hermes server (HTTP {status})",
+  "@serverNotHermes": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "hermesAuth": "Authentication",
+  "hermesUser": "Username",
+  "hermesPassword": "Password",
+  "serverAuthRequired": "Hermes {version} · sign-in required, turn on authentication",
+  "@serverAuthRequired": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "serverAuthRejected": "Hermes {version} · credentials rejected",
+  "@serverAuthRejected": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "serverAuthOk": "Hermes {version} · signed in · {ms} ms",
+  "@serverAuthOk": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "serverAuthRateLimited": "Hermes {version} · too many attempts, try again later",
+  "@serverAuthRateLimited": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "serverAuthFailed": "Hermes {version} · sign-in failed (HTTP {status})",
+  "@serverAuthFailed": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "serverTunnelFailed": "the WireGuard tunnel can't reach the server"
 }

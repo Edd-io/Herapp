@@ -62,7 +62,8 @@ import 'app_localizations_fr.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -70,7 +71,8 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -82,15 +84,19 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[Locale('en'), Locale('fr')];
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('fr'),
+  ];
 
   /// No description provided for @newChat.
   ///
@@ -260,12 +266,6 @@ abstract class AppLocalizations {
   /// **'Test connection'**
   String get serverTest;
 
-  /// No description provided for @serverReachable.
-  ///
-  /// In en, this message translates to:
-  /// **'Reachable · HTTP {status} · {ms} ms'**
-  String serverReachable(int status, int ms);
-
   /// No description provided for @serverUnreachable.
   ///
   /// In en, this message translates to:
@@ -295,9 +295,76 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'via WireGuard'**
   String get viaWireguard;
+
+  /// No description provided for @serverHermes.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes {version} · {ms} ms'**
+  String serverHermes(String version, int ms);
+
+  /// No description provided for @serverNotHermes.
+  ///
+  /// In en, this message translates to:
+  /// **'Reachable, but not a Hermes server (HTTP {status})'**
+  String serverNotHermes(int status);
+
+  /// No description provided for @hermesAuth.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication'**
+  String get hermesAuth;
+
+  /// No description provided for @hermesUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get hermesUser;
+
+  /// No description provided for @hermesPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get hermesPassword;
+
+  /// No description provided for @serverAuthRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes {version} · sign-in required, turn on authentication'**
+  String serverAuthRequired(String version);
+
+  /// No description provided for @serverAuthRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes {version} · credentials rejected'**
+  String serverAuthRejected(String version);
+
+  /// No description provided for @serverAuthOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes {version} · signed in · {ms} ms'**
+  String serverAuthOk(String version, int ms);
+
+  /// No description provided for @serverAuthRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes {version} · too many attempts, try again later'**
+  String serverAuthRateLimited(String version);
+
+  /// No description provided for @serverAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes {version} · sign-in failed (HTTP {status})'**
+  String serverAuthFailed(String version, int status);
+
+  /// No description provided for @serverTunnelFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'the WireGuard tunnel can\'t reach the server'**
+  String get serverTunnelFailed;
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -306,7 +373,8 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['en', 'fr'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['en', 'fr'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;

@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:herapp/main.dart';
 import 'package:herapp/settings.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    FlutterSecureStorage.setMockInitialValues({});
     await settings.load();
   });
 
@@ -68,7 +70,7 @@ void main() {
     expect(find.text('Poser une question'), findsOneWidget);
   });
 
-  testWidgets('server test reports invalid address and reachability', (t) async {
+  testWidgets('server test rejects invalid addresses and non-Hermes servers', (t) async {
     settings.url = 'not a url';
     await t.pumpWidget(const App());
     await t.tapAt(const Offset(30, 50)); // menu icon
@@ -83,6 +85,6 @@ void main() {
     settings.url = 'https://example.com'; // flutter_test's fake HttpClient answers 400
     await t.tap(find.text('Test connection'));
     await t.pumpAndSettle();
-    expect(find.textContaining('Reachable · HTTP 400'), findsOneWidget);
+    expect(find.text('Reachable, but not a Hermes server (HTTP 400)'), findsOneWidget);
   });
 }

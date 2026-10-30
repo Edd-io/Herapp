@@ -54,7 +54,8 @@ class AppLocalizationsFr extends AppLocalizations {
   String get hermesServer => 'Serveur Hermes';
 
   @override
-  String get hermesServerFooter => 'Adresse à laquelle l’app enverra les messages.';
+  String get hermesServerFooter =>
+      'Adresse à laquelle l’app enverra les messages.';
 
   @override
   String get wireguard => 'WireGuard';
@@ -86,18 +87,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get wgRemove => 'Supprimer la configuration';
 
   @override
-  String get wgFooter => 'Tout le trafic réseau de l’app passe par le tunnel. Tunnel activé mais coupé : l’app ne communique plus.';
+  String get wgFooter =>
+      'Tout le trafic réseau de l’app passe par le tunnel. Tunnel activé mais coupé : l’app ne communique plus.';
 
   @override
-  String get wgInvalidFile => 'Ce fichier n’est pas une configuration WireGuard.';
+  String get wgInvalidFile =>
+      'Ce fichier n’est pas une configuration WireGuard.';
 
   @override
   String get serverTest => 'Tester la connexion';
-
-  @override
-  String serverReachable(int status, int ms) {
-    return 'Joignable · HTTP $status · $ms ms';
-  }
 
   @override
   String serverUnreachable(String message) {
@@ -115,4 +113,52 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get viaWireguard => 'via WireGuard';
+
+  @override
+  String serverHermes(String version, int ms) {
+    return 'Hermes $version · $ms ms';
+  }
+
+  @override
+  String serverNotHermes(int status) {
+    return 'Joignable, mais ce n’est pas un serveur Hermes (HTTP $status)';
+  }
+
+  @override
+  String get hermesAuth => 'Authentification';
+
+  @override
+  String get hermesUser => 'Identifiant';
+
+  @override
+  String get hermesPassword => 'Mot de passe';
+
+  @override
+  String serverAuthRequired(String version) {
+    return 'Hermes $version · connexion requise, active l’authentification';
+  }
+
+  @override
+  String serverAuthRejected(String version) {
+    return 'Hermes $version · identifiants refusés';
+  }
+
+  @override
+  String serverAuthOk(String version, int ms) {
+    return 'Hermes $version · connecté · $ms ms';
+  }
+
+  @override
+  String serverAuthRateLimited(String version) {
+    return 'Hermes $version · trop de tentatives, réessaie plus tard';
+  }
+
+  @override
+  String serverAuthFailed(String version, int status) {
+    return 'Hermes $version · échec de la connexion (HTTP $status)';
+  }
+
+  @override
+  String get serverTunnelFailed =>
+      'le tunnel WireGuard n’arrive pas à joindre le serveur';
 }

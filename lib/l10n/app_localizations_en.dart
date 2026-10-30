@@ -96,11 +96,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serverTest => 'Test connection';
 
   @override
-  String serverReachable(int status, int ms) {
-    return 'Reachable · HTTP $status · $ms ms';
-  }
-
-  @override
   String serverUnreachable(String message) {
     return 'Unreachable: $message';
   }
@@ -116,4 +111,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get viaWireguard => 'via WireGuard';
+
+  @override
+  String serverHermes(String version, int ms) {
+    return 'Hermes $version · $ms ms';
+  }
+
+  @override
+  String serverNotHermes(int status) {
+    return 'Reachable, but not a Hermes server (HTTP $status)';
+  }
+
+  @override
+  String get hermesAuth => 'Authentication';
+
+  @override
+  String get hermesUser => 'Username';
+
+  @override
+  String get hermesPassword => 'Password';
+
+  @override
+  String serverAuthRequired(String version) {
+    return 'Hermes $version · sign-in required, turn on authentication';
+  }
+
+  @override
+  String serverAuthRejected(String version) {
+    return 'Hermes $version · credentials rejected';
+  }
+
+  @override
+  String serverAuthOk(String version, int ms) {
+    return 'Hermes $version · signed in · $ms ms';
+  }
+
+  @override
+  String serverAuthRateLimited(String version) {
+    return 'Hermes $version · too many attempts, try again later';
+  }
+
+  @override
+  String serverAuthFailed(String version, int status) {
+    return 'Hermes $version · sign-in failed (HTTP $status)';
+  }
+
+  @override
+  String get serverTunnelFailed =>
+      'the WireGuard tunnel can\'t reach the server';
 }
