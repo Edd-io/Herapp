@@ -220,4 +220,167 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get quotaFooter =>
       'Utilisation remontée par Hermes pour les abonnements. Tire vers le bas pour actualiser.';
+
+  @override
+  String get deleteChat => 'Supprimer le chat';
+
+  @override
+  String get deleteChatMessage =>
+      'Ce chat sera supprimé définitivement de Hermes.';
+
+  @override
+  String get cancel => 'Annuler';
+
+  @override
+  String deleteFailed(String message) {
+    return 'Impossible de supprimer le chat.\n$message';
+  }
+
+  @override
+  String get cron => 'Tâches planifiées';
+
+  @override
+  String get cronEmpty => 'Aucune tâche planifiée.';
+
+  @override
+  String cronNext(String time) {
+    return 'Prochaine exécution dans $time';
+  }
+
+  @override
+  String cronLast(String time) {
+    return 'Dernière exécution il y a $time';
+  }
+
+  @override
+  String cronLastFailed(String error) {
+    return 'Dernière exécution en échec : $error';
+  }
+
+  @override
+  String get cronCompleted => 'Terminée';
+
+  @override
+  String get cronRunning => 'En cours…';
+
+  @override
+  String get cronRunNow => 'Lancer maintenant';
+
+  @override
+  String cronStarted(String name) {
+    return '« $name » lancée';
+  }
+
+  @override
+  String cronActionFailed(String message) {
+    return 'Impossible de modifier la tâche.\n$message';
+  }
+
+  @override
+  String get cronFooter =>
+      'Tâches que Hermes exécute tout seul. Tire vers le bas pour actualiser.';
+
+  @override
+  String get cronNew => 'Nouvelle tâche';
+
+  @override
+  String get cronEdit => 'Modifier la tâche';
+
+  @override
+  String get cronSave => 'Enregistrer';
+
+  @override
+  String get cronGeneral => 'Général';
+
+  @override
+  String get cronName => 'Nom';
+
+  @override
+  String get cronSchedule => 'Planification';
+
+  @override
+  String get cronScheduleHint =>
+      '0 9 * * *, every 30m, every monday 9am, ou une date comme 2026-11-02T08:00';
+
+  @override
+  String get cronRepeat => 'Répétitions';
+
+  @override
+  String get cronRepeatHint => 'forever, once ou un nombre';
+
+  @override
+  String cronRepeatDone(int count) {
+    return '$count exécutions jusqu’ici';
+  }
+
+  @override
+  String get cronTask => 'Tâche';
+
+  @override
+  String get cronPrompt => 'Prompt';
+
+  @override
+  String get cronScript => 'Script';
+
+  @override
+  String get cronScriptHint => 'Nom d’un script du dossier des scripts cron';
+
+  @override
+  String get cronNoAgent => 'Script seul, sans IA';
+
+  @override
+  String get cronSkills => 'Skills';
+
+  @override
+  String get cronListHint => 'Séparés par des virgules';
+
+  @override
+  String get cronModelSection => 'Modèle';
+
+  @override
+  String get cronModel => 'Modèle';
+
+  @override
+  String get cronProvider => 'Fournisseur';
+
+  @override
+  String get cronBaseUrl => 'URL de base';
+
+  @override
+  String get cronServerDefault => 'Défaut du serveur';
+
+  @override
+  String get cronDelivery => 'Livraison';
+
+  @override
+  String get cronDeliver => 'Livrer à';
+
+  @override
+  String get cronFailureDeliver => 'En cas d’échec, livrer à';
+
+  @override
+  String get cronFailureHint => 'Comme ci-dessus';
+
+  @override
+  String get cronAdvanced => 'Avancé';
+
+  @override
+  String get cronWorkdir => 'Dossier de travail';
+
+  @override
+  String get cronToolsets => 'Toolsets';
+
+  @override
+  String get cronContextFrom => 'Contexte des tâches';
+
+  @override
+  String get cronContextHint =>
+      'Ids des tâches dont la dernière sortie est transmise à celle-ci';
+
+  @override
+  String get cronDelete => 'Supprimer la tâche';
+
+  @override
+  String get cronDeleteMessage =>
+      'Cette tâche sera supprimée définitivement de Hermes.';
 }

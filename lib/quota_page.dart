@@ -6,6 +6,14 @@ import 'hermes.dart';
 import 'l10n/app_localizations.dart';
 import 'settings.dart';
 
+/// "4h 12min"-style text for [d] (its absolute value), at least one minute.
+String durationText(AppLocalizations l, Duration d) {
+  d = d.abs();
+  if (d.inDays > 0) return l.durationDays(d.inDays, d.inHours % 24);
+  if (d.inHours > 0) return l.durationHours(d.inHours, d.inMinutes % 60);
+  return l.durationMinutes(d.inMinutes < 1 ? 1 : d.inMinutes);
+}
+
 /// Usage of every subscription provider the Hermes server reports.
 class QuotaPage extends StatefulWidget {
   const QuotaPage({super.key});
@@ -140,12 +148,7 @@ class _QuotaTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context);
-    String until(DateTime t) {
-      final d = t.difference(DateTime.now());
-      if (d.inDays > 0) return l.durationDays(d.inDays, d.inHours % 24);
-      if (d.inHours > 0) return l.durationHours(d.inHours, d.inMinutes % 60);
-      return l.durationMinutes(d.inMinutes < 1 ? 1 : d.inMinutes);
-    }
+    String until(DateTime t) => durationText(l, t.difference(DateTime.now()));
 
     final small = TextStyle(fontSize: 13, color: c.outline);
     final pct = NumberFormat.percentPattern(Localizations.localeOf(context).toString());

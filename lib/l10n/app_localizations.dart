@@ -445,6 +445,294 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Usage reported by Hermes for subscription providers. Pull down to refresh.'**
   String get quotaFooter;
+
+  /// No description provided for @deleteChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete chat'**
+  String get deleteChat;
+
+  /// No description provided for @deleteChatMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This chat will be deleted from Hermes for good.'**
+  String get deleteChatMessage;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @deleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete the chat.\n{message}'**
+  String deleteFailed(String message);
+
+  /// No description provided for @cron.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled jobs'**
+  String get cron;
+
+  /// No description provided for @cronEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No scheduled jobs.'**
+  String get cronEmpty;
+
+  /// No description provided for @cronNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next run in {time}'**
+  String cronNext(String time);
+
+  /// No description provided for @cronLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Last run {time} ago'**
+  String cronLast(String time);
+
+  /// No description provided for @cronLastFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last run failed: {error}'**
+  String cronLastFailed(String error);
+
+  /// No description provided for @cronCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get cronCompleted;
+
+  /// No description provided for @cronRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running…'**
+  String get cronRunning;
+
+  /// No description provided for @cronRunNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Run now'**
+  String get cronRunNow;
+
+  /// No description provided for @cronStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” started'**
+  String cronStarted(String name);
+
+  /// No description provided for @cronActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update the job.\n{message}'**
+  String cronActionFailed(String message);
+
+  /// No description provided for @cronFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Jobs Hermes runs on its own. Pull down to refresh.'**
+  String get cronFooter;
+
+  /// No description provided for @cronNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New job'**
+  String get cronNew;
+
+  /// No description provided for @cronEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit job'**
+  String get cronEdit;
+
+  /// No description provided for @cronSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get cronSave;
+
+  /// No description provided for @cronGeneral.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get cronGeneral;
+
+  /// No description provided for @cronName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get cronName;
+
+  /// No description provided for @cronSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get cronSchedule;
+
+  /// No description provided for @cronScheduleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'0 9 * * *, every 30m, every monday 9am, or a date like 2026-11-02T08:00'**
+  String get cronScheduleHint;
+
+  /// No description provided for @cronRepeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get cronRepeat;
+
+  /// No description provided for @cronRepeatHint.
+  ///
+  /// In en, this message translates to:
+  /// **'forever, once or a number'**
+  String get cronRepeatHint;
+
+  /// No description provided for @cronRepeatDone.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} runs so far'**
+  String cronRepeatDone(int count);
+
+  /// No description provided for @cronTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get cronTask;
+
+  /// No description provided for @cronPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt'**
+  String get cronPrompt;
+
+  /// No description provided for @cronScript.
+  ///
+  /// In en, this message translates to:
+  /// **'Script'**
+  String get cronScript;
+
+  /// No description provided for @cronScriptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Name of a script in the cron scripts folder'**
+  String get cronScriptHint;
+
+  /// No description provided for @cronNoAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Script only, no AI'**
+  String get cronNoAgent;
+
+  /// No description provided for @cronSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills'**
+  String get cronSkills;
+
+  /// No description provided for @cronListHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Comma-separated'**
+  String get cronListHint;
+
+  /// No description provided for @cronModelSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get cronModelSection;
+
+  /// No description provided for @cronModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get cronModel;
+
+  /// No description provided for @cronProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get cronProvider;
+
+  /// No description provided for @cronBaseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get cronBaseUrl;
+
+  /// No description provided for @cronServerDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Server default'**
+  String get cronServerDefault;
+
+  /// No description provided for @cronDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery'**
+  String get cronDelivery;
+
+  /// No description provided for @cronDeliver.
+  ///
+  /// In en, this message translates to:
+  /// **'Deliver to'**
+  String get cronDeliver;
+
+  /// No description provided for @cronFailureDeliver.
+  ///
+  /// In en, this message translates to:
+  /// **'On failure, deliver to'**
+  String get cronFailureDeliver;
+
+  /// No description provided for @cronFailureHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as above'**
+  String get cronFailureHint;
+
+  /// No description provided for @cronAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get cronAdvanced;
+
+  /// No description provided for @cronWorkdir.
+  ///
+  /// In en, this message translates to:
+  /// **'Working directory'**
+  String get cronWorkdir;
+
+  /// No description provided for @cronToolsets.
+  ///
+  /// In en, this message translates to:
+  /// **'Toolsets'**
+  String get cronToolsets;
+
+  /// No description provided for @cronContextFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Context from jobs'**
+  String get cronContextFrom;
+
+  /// No description provided for @cronContextHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Job ids whose latest output is given to this one'**
+  String get cronContextHint;
+
+  /// No description provided for @cronDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete job'**
+  String get cronDelete;
+
+  /// No description provided for @cronDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This job will be deleted from Hermes for good.'**
+  String get cronDeleteMessage;
 }
 
 class _AppLocalizationsDelegate

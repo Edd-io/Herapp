@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
+import 'cron_page.dart';
 import 'hermes.dart';
 import 'l10n/app_localizations.dart';
 import 'quota_page.dart';
@@ -15,9 +17,19 @@ import 'settings.dart';
 typedef Models = ({List<Model> list, bool loading, String? error});
 
 class Chat {
+  Chat({this.stored = '', this.name = ''}) : loaded = stored.isEmpty;
   final msgs = <Msg>[];
   String model = settings.model;
-  String get title => msgs.isEmpty ? '' : msgs.first.text; // only non-empty chats are listed
+  String stored; // server session id, '' until the first message creates it
+  String name; // server title
+  bool loaded; // transcript fetched (always for a chat started here)
+  bool loading = false;
+  double? context; // share of the context window the server reports, null until known
+  // runtime session on the current gateway connection, and the model it runs
+  Gateway? on;
+  String live = '';
+  String applied = '';
+  String get title => name.isNotEmpty ? name : msgs.firstOrNull?.text ?? ''; // only titled chats are listed
 }
 
 class ChatPage extends StatefulWidget {
@@ -28,19 +40,18 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin {
-  final chats = [Chat()];
+  var chats = [Chat()];
   late Chat chat = chats.first;
   final input = TextEditingController();
   final focus = FocusNode();
   final scroll = ScrollController();
   final models = ValueNotifier<Models>((list: const [], loading: false, error: null));
   late final drawer = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-  StreamSubscription<String>? sub;
+  StreamSubscription<GatewayEvent>? sub; // events of the running turn
+  bool streaming = false;
   Msg? fresh; // latest user message, animated on arrival
   bool atBottom = true;
   String query = '';
-
-  bool get streaming => sub != null;
 
   @override
   void initState() {
@@ -51,6 +62,79 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       if (b != atBottom) setState(() => atBottom = b);
     });
     loadModels();
+    loadSessions();
+  }
+
+  /// Lists the server's stored conversations in the sidebar, after the chats not saved there yet.
+  Future<void> loadSessions() async {
+    try {
+      final g = await gateway();
+      if (g == null) return;
+      final rows = parseSessions(await g.call('session.list', {'limit': 50}));
+      if (!mounted) return;
+      final known = {for (final c in chats) c.stored: c};
+      setState(() {
+        chats = [
+          ...chats.where((c) => c.stored.isEmpty),
+          for (final r in rows) (known[r.id]?..name = r.title) ?? Chat(stored: r.id, name: r.title),
+          // the server's list is the truth; only the open chat stays if it's missing from it
+          if (chat.stored.isNotEmpty && !rows.any((r) => r.id == chat.stored)) chat,
+        ];
+      });
+    } catch (e) {
+      debugPrint('Sessions: $e');
+    }
+  }
+
+  /// Attaches [c] to a runtime session on [g]: creates it on the first message, resumes it after a
+  /// reconnect, and switches its model when another one was picked.
+  Future<String> attach(Gateway g, Chat c) async {
+    if (!identical(c.on, g)) {
+      final created = c.stored.isEmpty;
+      final r = created
+          ? await g.call('session.create', {
+              if (c.model.contains('/')) ...{'provider': c.model.substring(0, c.model.indexOf('/')), 'model': modelName(c.model)},
+            })
+          : await g.call('session.resume', {'session_id': c.stored, 'lazy': true, 'omit_messages': true});
+      c
+        ..stored = '${r['stored_session_id'] ?? c.stored}'
+        ..live = '${r['session_id']}'
+        ..on = g
+        ..applied = created ? c.model : c.applied;
+    }
+    if (c.model.contains('/') && c.model != c.applied) {
+      final provider = c.model.substring(0, c.model.indexOf('/'));
+      await g.call('config.set', {'key': 'model', 'value': '${modelName(c.model)} --provider $provider', 'session_id': c.live});
+      c.applied = c.model;
+    }
+    return c.live;
+  }
+
+  /// Fetches a stored conversation's transcript, model and context usage.
+  Future<void> open(Chat c) async {
+    setState(() => c.loading = true);
+    try {
+      final g = await gateway();
+      if (g == null) throw StateError('no server');
+      final r = await g.call('session.resume', {'session_id': c.stored, 'lazy': true, 'inline_images': false});
+      final info = r['info'] is Map ? r['info'] as Map : const {};
+      c
+        ..msgs.clear()
+        ..msgs.addAll(transcript(r['messages']))
+        ..live = '${r['session_id']}'
+        ..on = g
+        ..loaded = true;
+      if (info case {'provider': final String p, 'model': final String m} when p.isNotEmpty && m.isNotEmpty) {
+        c.model = c.applied = '$p/$m';
+      }
+      c.context = contextOf(await g.call('session.usage', {'session_id': c.live}).catchError((Object _) => const {}));
+    } catch (e) {
+      debugPrint('Session: $e');
+      if (mounted) c.msgs.add(Msg(false, '⚠️ ${serverErrorText(AppLocalizations.of(context), e is StateError ? null : e)}'));
+    }
+    if (!mounted) return;
+    setState(() => c.loading = false);
+    if (identical(c, chat)) toBottom(jump: true);
   }
 
   /// Refreshes the server's model list; a choice the server no longer offers falls back to its default.
@@ -104,34 +188,74 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     respond();
   }
 
-  void respond() {
+  /// Sends the last user message to Hermes and streams the reply in; [again] replaces the previous reply.
+  Future<void> respond({bool again = false}) async {
+    final c = chat;
+    final prompt = c.msgs.last.text;
+    final turn = c.msgs.where((m) => m.user).length - 1; // the server's user-turn ordinal
     final reply = Msg(false, '');
-    final history = List.of(chat.msgs);
-    setState(() => chat.msgs.add(reply));
+    setState(() {
+      c.msgs.add(reply);
+      streaming = true;
+    });
     toBottom();
-    sub = hermes(history, chat.model).listen(
-      (chunk) {
-        setState(() => reply.text += chunk);
-        if (atBottom) toBottom(jump: true);
-      },
-      onDone: stop,
-      onError: (Object e) {
-        reply.text += '\n\n⚠️ $e';
-        stop();
-      },
-    );
+    void fail(Object? e) {
+      if (!identical(c, chat) || !streaming) return;
+      reply.text += '${reply.text.isEmpty ? '' : '\n\n'}⚠️ ${e is String ? e : serverErrorText(AppLocalizations.of(context), e)}';
+      stop();
+    }
+
+    try {
+      final g = await gateway();
+      if (g == null) return fail(null); // no server set
+      final sid = await attach(g, c);
+      if (!identical(c, chat) || !streaming) return;
+      sub = g.events.listen((e) {
+        if (e.type == 'session.title' && e.payload['session_id'] == c.stored && e.payload['title'] is String) {
+          setState(() => c.name = e.payload['title'] as String);
+        }
+        if (e.session != sid) return;
+        switch (e.type) {
+          case 'message.delta' when e.payload['text'] is String:
+            setState(() => reply.text += e.payload['text'] as String);
+            if (atBottom) toBottom(jump: true);
+          case 'session.usage':
+            setState(() => c.context = contextOf(e.payload['usage']) ?? c.context);
+          case 'message.complete':
+            final p = e.payload;
+            c.context = contextOf(p['usage']) ?? c.context;
+            if (reply.text.trim().isEmpty && p['text'] is String) reply.text = p['text'] as String;
+            if (p['status'] == 'error') return fail('${p['error'] ?? p['failure_reason'] ?? 'error'}');
+            stop();
+          case 'error':
+            fail('${e.payload['message']}');
+        }
+      }, onDone: () => fail(const HttpException('connection to Hermes lost')));
+      await g.call('prompt.submit', {
+        'session_id': sid,
+        'text': prompt,
+        if (again) ...{'truncate_before_user_ordinal': turn, 'confirm_truncate': true},
+      });
+    } catch (e) {
+      debugPrint('Chat: $e');
+      fail(e);
+    }
   }
 
   void stop() {
+    final g = chat.on;
+    if (streaming && g != null && !g.closed && chat.live.isNotEmpty) g.call('session.interrupt', {'session_id': chat.live}).ignore();
     sub?.cancel();
+    sub = null;
     if (chat.msgs.isNotEmpty && !chat.msgs.last.user && chat.msgs.last.text.isEmpty) chat.msgs.removeLast();
-    setState(() => sub = null);
+    setState(() => streaming = false);
+    loadSessions(); // a first message adds the chat to the server's list
   }
 
   void regenerate() {
     stop();
     setState(() => chat.msgs.removeLast());
-    respond();
+    respond(again: true);
   }
 
   void newChat() {
@@ -141,10 +265,48 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     closeDrawer();
   }
 
+  /// Asks, then deletes [c] from the server (a chat never sent is only dropped); false if kept.
+  Future<bool> confirmDelete(Chat c) async {
+    final l = AppLocalizations.of(context);
+    final ok = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+        message: Text(l.deleteChatMessage),
+        actions: [
+          CupertinoActionSheetAction(isDestructiveAction: true, onPressed: () => Navigator.pop(context, true), child: Text(l.deleteChat)),
+        ],
+        cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, false), child: Text(l.cancel)),
+      ),
+    );
+    if (ok != true || c.stored.isEmpty) return ok == true;
+    try {
+      final g = await gateway();
+      if (g == null) throw const HttpException('no server');
+      await g.call('session.delete', {'session_id': c.stored});
+      return true;
+    } catch (e) {
+      debugPrint('Delete: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.deleteFailed(e is HttpException ? e.message : '$e'))));
+      }
+      return false;
+    }
+  }
+
+  void deleted(Chat c) {
+    if (identical(c, chat)) {
+      stop();
+      chats.insert(0, chat = Chat());
+    }
+    setState(() => chats.remove(c));
+  }
+
   void select(Chat c) {
     stop();
     setState(() => chat = c);
     closeDrawer();
+    if (!c.loaded && !c.loading) open(c);
     toBottom(jump: true);
   }
 
@@ -169,6 +331,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   void openDrawer() {
     focus.unfocus();
+    loadSessions();
     drawer.animateTo(1, curve: Curves.easeOutCubic);
   }
 
@@ -272,7 +435,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             ),
           ),
           Expanded(
-            child: chat.msgs.isEmpty
+            child: chat.loading
+                ? const Center(child: CupertinoActivityIndicator())
+                : chat.msgs.isEmpty
                 ? Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Center(
@@ -458,7 +623,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                     textScaler: MediaQuery.textScalerOf(context),
                     maxLines: 1,
                   )..layout(maxWidth: box.maxWidth - (showRing ? 8 + 20 + 12 : 0) - 36)).didExceedMaxLines;
-                  final ring = _ContextRing(contextUse([for (final m in chat.msgs) m.text, input.text].join()));
+                  final ring = _ContextRing(chat.context ?? contextUse([for (final m in chat.msgs) m.text, input.text].join()));
                   final sendBtn = AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
                     transitionBuilder: (child, a) => ScaleTransition(scale: a, child: child),
@@ -540,7 +705,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   Widget _sidebar(ColorScheme c) {
     final q = query.toLowerCase();
-    final listed = chats.where((ch) => ch.msgs.isNotEmpty && ch.title.toLowerCase().contains(q));
+    final listed = chats.where((ch) => ch.title.isNotEmpty && ch.title.toLowerCase().contains(q));
     Widget tile(String label, {IconData? icon, bool selected = false, required VoidCallback onTap}) => GestureDetector(
       onTap: onTap,
       child: Container(
@@ -607,6 +772,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const QuotaPage()));
               },
             ),
+            tile(
+              AppLocalizations.of(context).cron,
+              icon: CupertinoIcons.clock,
+              onTap: () {
+                closeDrawer();
+                Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const CronPage()));
+              },
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
               child: Text(
@@ -617,7 +790,23 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
-                children: [for (final ch in listed) tile(ch.title, selected: identical(ch, chat), onTap: () => select(ch))],
+                children: [
+                  for (final ch in listed)
+                    // swipe left to delete, as in iOS lists
+                    Dismissible(
+                      key: ObjectKey(ch),
+                      direction: DismissDirection.endToStart,
+                      confirmDismiss: (_) => confirmDelete(ch),
+                      onDismissed: (_) => deleted(ch),
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 24),
+                        color: const Color(0xFF9E1B1B), // darker than systemRed
+                        child: const Icon(CupertinoIcons.trash, color: CupertinoColors.white, size: 20),
+                      ),
+                      child: tile(ch.title, selected: identical(ch, chat), onTap: () => select(ch)),
+                    ),
+                ],
               ),
             ),
             tile(
@@ -625,7 +814,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               icon: CupertinoIcons.gear,
               onTap: () async {
                 await showCupertinoSheet(context: context, builder: (_) => const SettingsSheet());
-                loadModels(); // server, auth or tunnel may have changed
+                // server, auth or tunnel may have changed
+                dropGateway();
+                loadModels();
+                loadSessions();
               },
             ),
             const SizedBox(height: 8),

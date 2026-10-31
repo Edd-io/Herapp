@@ -67,6 +67,50 @@ Future<ModelOptions?> serverOptions() async {
   return fetchModels(base, user: settings.auth ? settings.user : null, password: settings.password).timeout(const Duration(seconds: 20));
 }
 
+/// REST call to the configured server, through the tunnel; null if no server is set.
+/// [body] is sent as JSON.
+Future<String?> serverApi(String method, String path, {Object? body}) async {
+  final base = Uri.tryParse(settings.url);
+  if (base == null || !base.hasAuthority) return null;
+  if (vpn.enabled) await vpn.ready;
+  return callApi(
+    base,
+    method,
+    path,
+    body: body,
+    user: settings.auth ? settings.user : null,
+    password: settings.password,
+  ).timeout(const Duration(seconds: 20));
+}
+
+Future<Gateway?>? _gateway;
+
+/// The shared chat connection to the configured server, reopened once lost; null if no server is set.
+Future<Gateway?> gateway() async {
+  final current = _gateway;
+  if (current != null) {
+    final g = await current.catchError((Object _) => null);
+    if (g != null && !g.closed) return g;
+    if (!identical(_gateway, current)) return gateway(); // another caller is already reconnecting
+  }
+  return (_gateway = () async {
+    final base = Uri.tryParse(settings.url);
+    if (base == null || !base.hasAuthority) return null;
+    if (vpn.enabled) await vpn.ready;
+    return connectGateway(
+      base,
+      user: settings.auth ? settings.user : null,
+      password: settings.password,
+    ).timeout(const Duration(seconds: 20));
+  }());
+}
+
+/// Closes the chat connection, e.g. after the server, sign-in or tunnel changed.
+void dropGateway() {
+  _gateway?.then((g) => g?.close(), onError: (Object _) {});
+  _gateway = null;
+}
+
 /// User-facing text for a [serverOptions] failure; null [e] = no server set.
 String serverErrorText(AppLocalizations l, Object? e) => switch (e) {
   null => l.serverNotSet,

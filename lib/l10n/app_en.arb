@@ -184,5 +184,102 @@
         "type": "int"
       }
     }
+  },
+  "deleteChat": "Delete chat",
+  "deleteChatMessage": "This chat will be deleted from Hermes for good.",
+  "cancel": "Cancel",
+  "deleteFailed": "Couldn't delete the chat.\n{message}",
+  "@deleteFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "cron": "Scheduled jobs",
+  "cronEmpty": "No scheduled jobs.",
+  "cronNext": "Next run in {time}",
+  "@cronNext": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "cronLast": "Last run {time} ago",
+  "@cronLast": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "cronLastFailed": "Last run failed: {error}",
+  "@cronLastFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "cronCompleted": "Done",
+  "cronRunning": "Running…",
+  "cronRunNow": "Run now",
+  "cronStarted": "“{name}” started",
+  "@cronStarted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cronActionFailed": "Couldn't update the job.\n{message}",
+  "@cronActionFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "cronFooter": "Jobs Hermes runs on its own. Pull down to refresh.",
+  "cronNew": "New job",
+  "cronEdit": "Edit job",
+  "cronSave": "Save",
+  "cronGeneral": "General",
+  "cronName": "Name",
+  "cronSchedule": "Schedule",
+  "cronScheduleHint": "0 9 * * *, every 30m, every monday 9am, or a date like 2026-11-02T08:00",
+  "cronRepeat": "Repeat",
+  "cronRepeatHint": "forever, once or a number",
+  "cronRepeatDone": "{count} runs so far",
+  "cronTask": "Task",
+  "cronPrompt": "Prompt",
+  "cronScript": "Script",
+  "cronScriptHint": "Name of a script in the cron scripts folder",
+  "cronNoAgent": "Script only, no AI",
+  "cronSkills": "Skills",
+  "cronListHint": "Comma-separated",
+  "cronModelSection": "Model",
+  "cronModel": "Model",
+  "cronProvider": "Provider",
+  "cronBaseUrl": "Base URL",
+  "cronServerDefault": "Server default",
+  "cronDelivery": "Delivery",
+  "cronDeliver": "Deliver to",
+  "cronFailureDeliver": "On failure, deliver to",
+  "cronFailureHint": "Same as above",
+  "cronAdvanced": "Advanced",
+  "cronWorkdir": "Working directory",
+  "cronToolsets": "Toolsets",
+  "cronContextFrom": "Context from jobs",
+  "cronContextHint": "Job ids whose latest output is given to this one",
+  "cronDelete": "Delete job",
+  "cronDeleteMessage": "This job will be deleted from Hermes for good.",
+  "@cronRepeatDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }
