@@ -3,7 +3,9 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:herapp/agents_page.dart';
 import 'package:herapp/cron_page.dart';
 import 'package:herapp/hermes.dart';
 import 'package:herapp/main.dart';
@@ -104,6 +106,60 @@ void main() {
     expect(calls.where((c) => c.$1 == 'prompt.submit').last.$2, containsPair('truncate_before_user_ordinal', 0));
     expect(find.textContaining('Hello there'), findsOneWidget); // replaced, not appended
     expect(calls.where((c) => c.$1 == 'session.create'), hasLength(1));
+  });
+
+  testWidgets('Enter sends, Shift+Enter keeps typing', (t) async {
+    final calls = fakeServer(replies);
+    await t.pumpWidget(const App());
+    await t.showKeyboard(find.byType(EditableText).last);
+    t.testTextInput.updateEditingValue(const TextEditingValue(text: 'Two', selection: TextSelection.collapsed(offset: 3)));
+    await t.sendKeyDownEvent(LogicalKeyboardKey.shift);
+    await t.sendKeyEvent(LogicalKeyboardKey.enter);
+    await t.sendKeyUpEvent(LogicalKeyboardKey.shift);
+    await t.pump();
+    expect(calls.where((c) => c.$1 == 'prompt.submit'), isEmpty);
+    await t.sendKeyEvent(LogicalKeyboardKey.enter);
+    await t.pump(const Duration(seconds: 10));
+    expect(calls.where((c) => c.$1 == 'prompt.submit').single.$2, {'session_id': 'rt', 'text': 'Two'});
+  });
+
+  testWidgets('a skill is picked after / and the server expands it', (t) async {
+    final calls = fakeServer((method, params, emit) {
+      switch (method) {
+        case 'complete.slash':
+          return {
+            'items': [
+              {'text': '/github', 'display': '/github', 'meta': 'GitHub via gh CLI', 'kind': 'skill'},
+              {'text': '/help', 'display': '/help', 'meta': 'Show commands', 'kind': 'command'},
+            ],
+          };
+        case 'command.dispatch':
+          return {'type': 'skill', 'message': 'SKILL BODY\n\nlist my PRs', 'name': 'github'};
+      }
+      return replies(method, params, emit);
+    });
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, '/gi');
+    await t.pumpAndSettle();
+    expect(find.text('GitHub via gh CLI'), findsOneWidget);
+    expect(find.text('/help'), findsNothing); // commands aren't offered, only skills
+    await t.tap(find.text('/github'));
+    await t.pumpAndSettle();
+    expect(t.widget<EditableText>(find.byType(EditableText).last).controller.text, '/github ');
+    expect(find.text('GitHub via gh CLI'), findsNothing);
+
+    await t.enterText(find.byType(EditableText).last, '/github list my PRs');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 10));
+    expect(calls.where((c) => c.$1 == 'command.dispatch').single.$2, {'name': 'github', 'arg': 'list my PRs', 'session_id': 'rt'});
+    expect(calls.where((c) => c.$1 == 'prompt.submit').single.$2, {
+      'session_id': 'rt',
+      'text': 'SKILL BODY\n\nlist my PRs',
+      'title_preview': '/github list my PRs',
+    });
+    expect(find.text('/github list my PRs'), findsWidgets); // the bubble (and title) show what was typed
+    expect(find.textContaining('Hello there'), findsOneWidget);
   });
 
   testWidgets('tool calls show and a command waits for approval', (t) async {
@@ -225,8 +281,9 @@ void main() {
     addTearDown(() => fetchModels = hermesModels);
     fetchModels = (base, {user, password}) async => (
       models: <Model>[
-        (provider: 'Anthropic', name: 'claude-sonnet-5-5', id: 'anthropic/claude-sonnet-5-5'),
-        (provider: 'OpenRouter', name: 'openai/gpt-5', id: 'openrouter/openai/gpt-5'),
+        (provider: 'Anthropic', name: 'claude-sonnet-5-5', id: 'anthropic/claude-sonnet-5-5', reasoning: true),
+        (provider: 'OpenRouter', name: 'openai/gpt-5', id: 'openrouter/openai/gpt-5', reasoning: true),
+        (provider: 'OpenRouter', name: 'plain', id: 'openrouter/plain', reasoning: false),
       ],
       current: 'anthropic/claude-sonnet-5-5',
       quotas: <Quota>[],
@@ -242,11 +299,25 @@ void main() {
     expect(settings.model, 'openrouter/openai/gpt-5');
     expect(find.text('OpenRouter'), findsOneWidget);
 
+    // the effort is picked on top of the same sheet, kept for the next chats
+    await t.tap(find.text('OpenRouter'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('High'));
+    await t.pumpAndSettle();
+    expect(settings.effort, 'high');
+    await t.tap(find.text('openai/gpt-5').last);
+    await t.pumpAndSettle();
+    expect(find.text('OpenRouter · High'), findsOneWidget);
+
     await t.enterText(find.byType(EditableText).last, 'Salut');
     await t.pumpAndSettle();
     await t.tap(find.byIcon(CupertinoIcons.arrow_up));
     await t.pump(const Duration(seconds: 10));
-    expect(calls.firstWhere((c) => c.$1 == 'session.create').$2, {'provider': 'openrouter', 'model': 'openai/gpt-5'});
+    expect(calls.firstWhere((c) => c.$1 == 'session.create').$2, {
+      'provider': 'openrouter',
+      'model': 'openai/gpt-5',
+      'reasoning_effort': 'high',
+    });
     expect(find.text('openai/gpt-5'), findsOneWidget); // title shown, pill gone
   });
 
@@ -279,7 +350,9 @@ void main() {
     expect(find.text('Copilot'), findsOneWidget);
   });
 
-  testWidgets('cron page lists jobs, pauses and runs them', (t) async {
+  testWidgets('script jobs list under agents, pause and run', (t) async {
+    t.platformDispatcher.accessibilityFeaturesTestValue = FakeAccessibilityFeatures(disableAnimations: true); // still characters
+    addTearDown(t.platformDispatcher.clearAccessibilityFeaturesTestValue);
     fakeServer((_, _, _) => null);
     addTearDown(() => callApi = hermesApi);
     final posts = <String>[];
@@ -290,13 +363,13 @@ void main() {
         paused = path.endsWith('/pause');
         return '{}';
       }
-      return '[{"id":"j1","name":"Morning digest","schedule_display":"0 7 * * *","enabled":${!paused},'
+      return '[{"id":"j1","name":"Morning digest","no_agent":true,"schedule_display":"0 7 * * *","enabled":${!paused},'
           '"state":"${paused ? 'paused' : 'scheduled'}","next_run_at":"${DateTime.now().add(const Duration(hours: 2, minutes: 30)).toIso8601String()}"}]';
     };
     await t.pumpWidget(const App());
     await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
     await t.pumpAndSettle();
-    await t.tap(find.text('Scheduled jobs'));
+    await t.tap(find.text('Agents'));
     await t.pumpAndSettle();
     expect(find.text('Morning digest'), findsOneWidget);
     expect(find.text('0 7 * * *'), findsOneWidget);
@@ -314,6 +387,8 @@ void main() {
   });
 
   testWidgets('a cron job is edited, created and deleted', (t) async {
+    t.platformDispatcher.accessibilityFeaturesTestValue = FakeAccessibilityFeatures(disableAnimations: true); // still characters
+    addTearDown(t.platformDispatcher.clearAccessibilityFeaturesTestValue);
     fakeServer((_, _, _) => null);
     addTearDown(() => callApi = hermesApi);
     final sent = <(String, String, Object?)>[];
@@ -329,14 +404,19 @@ void main() {
       if (path == '/api/sessions/cron_j1_1/messages') {
         return '{"messages":[{"role":"user","content":"Summarize the night"},{"role":"assistant","content":"All quiet overnight."}]}';
       }
+      if (path.endsWith('blueprints')) return '{"blueprints":[]}';
+      if (path == '/api/files/read' && query?['path'] == '/home/alice/.hermes/cron/output/j1/x.md') {
+        final doc = base64Encode(utf8.encode('# Cron Job: Morning digest\n\n**Job ID:** j1\n\n---\n\n3 new mails\nfrom Bob and Ann'));
+        return '{"name":"x.md","mime_type":"text/markdown","data_url":"data:text/markdown;base64,$doc"}';
+      }
       if (path.endsWith('delivery-targets')) return '{"targets":[{"id":"local","name":"Local"},{"id":"discord","name":"Discord"}]}';
-      return '[{"id":"j1","name":"Morning digest","schedule":{"kind":"cron","expr":"0 7 * * *","display":"0 7 * * *"},'
+      return '[{"id":"j1","name":"Morning digest","no_agent":true,"hermes_home":"/home/alice/.hermes","schedule":{"kind":"cron","expr":"0 7 * * *","display":"0 7 * * *"},'
           '"repeat":{"times":null,"completed":4},"prompt":"Summarize the night","deliver":"local","enabled":true,"state":"scheduled"}]';
     };
     await t.pumpWidget(const App());
     await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
     await t.pumpAndSettle();
-    await t.tap(find.text('Scheduled jobs'));
+    await t.tap(find.text('Agents'));
     await t.pumpAndSettle();
 
     // run history: an agent run opens on its reply, a script run shows its output
@@ -345,6 +425,11 @@ void main() {
     await t.tap(find.text('Run history'));
     await t.pumpAndSettle();
     expect(find.text('OK — 3 new mails'), findsOneWidget);
+    await t.tap(find.text('OK — 3 new mails'));
+    await t.pumpAndSettle();
+    expect(find.text('3 new mails\nfrom Bob and Ann'), findsOneWidget); // the whole output, not the list's preview
+    await t.tap(find.byIcon(CupertinoIcons.chevron_back));
+    await t.pumpAndSettle();
     await t.tap(find.text('Morning digest'));
     await t.pumpAndSettle();
     expect(find.text('All quiet overnight.'), findsOneWidget);
@@ -369,10 +454,12 @@ void main() {
     expect(sent.single.$3, {
       'updates': {'schedule': 'every 2h', 'deliver': 'discord'},
     });
-    expect(find.text('Scheduled jobs'), findsOneWidget); // back on the list
+    expect(find.text('SCRIPTS'), findsOneWidget); // back on the list
 
     // create
     await t.tap(find.byIcon(CupertinoIcons.add));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Start from scratch'));
     await t.pumpAndSettle();
     await t.enterText(find.byType(TextField).at(0), 'Weekly report');
     await t.enterText(find.byType(TextField).at(1), 'every monday 9am');
@@ -398,6 +485,8 @@ void main() {
     await t.tap(find.text('Morning digest'));
     await t.pumpAndSettle();
     await t.scrollUntilVisible(find.text('Delete job'), 200, scrollable: form);
+    await t.drag(form, const Offset(0, -300)); // clear of the screen's bottom edge
+    await t.pumpAndSettle();
     await t.tap(find.text('Delete job'));
     await t.pumpAndSettle();
     await t.tap(find.text('Delete job').last); // the confirmation
@@ -452,5 +541,238 @@ void main() {
     await t.tap(find.text('Test connection'));
     await t.pumpAndSettle();
     expect(find.text('Reachable, but not a Hermes server (HTTP 400)'), findsOneWidget);
+  });
+
+  testWidgets('agents page shows the kanban workers', (t) async {
+    t.platformDispatcher.accessibilityFeaturesTestValue = FakeAccessibilityFeatures(disableAnimations: true); // still characters
+    addTearDown(t.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    fakeServer((_, _, _) => null);
+    addTearDown(() => callApi = hermesApi);
+    final started = DateTime.now().subtract(const Duration(minutes: 25)).millisecondsSinceEpoch / 1000;
+    callApi = (base, method, path, {query, body, user, password}) async {
+      if (path == '/api/plugins/kanban/board') {
+        return '{"columns":[{"name":"ready","tasks":[{"id":"t1","title":"Fix the map","status":"ready","consecutive_failures":1,'
+            '"last_failure_error":"worker exited 1"}]},{"name":"running","tasks":[{"id":"t2","title":"Build the bridge",'
+            '"status":"running","current_run_started_at":$started,"last_heartbeat_at":$started}]},{"name":"done","tasks":[]}]}';
+      }
+      return '[]';
+    };
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Agents'));
+    await t.pumpAndSettle();
+    expect(find.text('WORKERS'), findsOneWidget);
+    expect(find.text('Build the bridge'), findsOneWidget);
+    expect(find.text('Working for 25 min'), findsOneWidget);
+    expect(find.text('No sign of life for 25 min'), findsOneWidget);
+    expect(find.text('Failed: worker exited 1'), findsOneWidget);
+    expect(find.text('1 ready'), findsOneWidget); // empty columns aren't counted
+  });
+
+  testWidgets('a wide window keeps the menu beside the chat and its pages', (t) async {
+    t.view.physicalSize = const Size(1400, 900);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    fakeServer((_, _, _) => null);
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async => path.endsWith('/board') ? '{"columns":[]}' : '[]';
+    await t.pumpWidget(const App());
+    await t.pumpAndSettle();
+    expect(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), findsNothing);
+    await t.tap(find.text('Kanban'));
+    await t.pumpAndSettle();
+    expect(find.text('Nothing is waiting for you.'), findsOneWidget);
+    expect(find.text('New chat'), findsOneWidget); // the menu stays
+    await t.tap(find.text('New chat'));
+    await t.pumpAndSettle();
+    expect(find.text('Nothing is waiting for you.'), findsNothing); // back to the chat
+  });
+
+  testWidgets('a kanban card in review is answered and approved', (t) async {
+    fakeServer((_, _, _) => null);
+    addTearDown(() => callApi = hermesApi);
+    final sent = <(String, String, Object?)>[];
+    callApi = (base, method, path, {query, body, user, password}) async {
+      if (method != 'GET') {
+        sent.add((method, path, body));
+        return '{}';
+      }
+      if (path == '/api/plugins/kanban/board') {
+        return '{"columns":[{"name":"review","tasks":[{"id":"t1","title":"Check the bridge","status":"review","comment_count":1}]},'
+            '{"name":"todo","tasks":[{"id":"t2","title":"Plain","status":"todo"}]}]}';
+      }
+      if (path == '/api/plugins/kanban/tasks/t1') {
+        return '{"task":{"id":"t1","title":"Check the bridge","status":"review","body":"Look at the arch"},'
+            '"comments":[{"author":"planner","body":"Ready for you","created_at":1793350000}],"events":[]}';
+      }
+      return '[]';
+    };
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Kanban'));
+    await t.pumpAndSettle();
+    expect(find.text('YOUR TURN'), findsOneWidget);
+    expect(find.text('Plain'), findsNothing);
+    await t.tap(find.text('Check the bridge'));
+    await t.pumpAndSettle();
+    expect(find.text('Look at the arch'), findsOneWidget);
+    expect(find.text('Ready for you'), findsOneWidget);
+    await t.enterText(find.byType(TextField), 'Looks good');
+    await t.tap(find.byIcon(CupertinoIcons.checkmark_seal));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Approve'));
+    await t.pumpAndSettle();
+    expect([for (final (m, p, b) in sent) (m, p, jsonEncode(b))], [
+      ('POST', '/api/plugins/kanban/tasks/t1/comments', '{"body":"Looks good"}'),
+      ('PATCH', '/api/plugins/kanban/tasks/t1', '{"status":"done"}'),
+    ]);
+    expect(find.text('YOUR TURN'), findsOneWidget); // back on the refreshed list
+  });
+
+  testWidgets('agents show with a character, go quiet and team up', (t) async {
+    t.platformDispatcher.accessibilityFeaturesTestValue = FakeAccessibilityFeatures(disableAnimations: true); // still characters
+    addTearDown(t.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    fakeServer((_, _, _) => null);
+    addTearDown(() => callApi = hermesApi);
+    final sent = <(String, String, Object?)>[];
+    var prompt = 'Summarize the night';
+    callApi = (base, method, path, {query, body, user, password}) async {
+      if (method != 'GET') {
+        sent.add((method, path, body));
+        if (body case {'updates': {'prompt': final String p}}) prompt = p;
+        return '{}';
+      }
+      if (path.endsWith('/runs')) return '{"runs":[{"id":"cron_a1_1","source":"cron","title":"Night","preview":"Summarize the night"}]}';
+      if (path.startsWith('/api/sessions/')) {
+        return '{"messages":[{"role":"user","content":"Summarize the night"},{"role":"assistant","content":"All quiet."}]}';
+      }
+      return jsonEncode([
+        {'id': 'a1', 'name': 'Night owl', 'prompt': prompt, 'enabled': true, 'state': 'scheduled'},
+        {'id': 'a2', 'name': 'Mail watch', 'prompt': 'Check mail', 'enabled': false, 'state': 'paused'},
+        {'id': 's1', 'name': 'Backup', 'no_agent': true, 'script': 'backup.sh'}, // a script, not an agent
+      ]);
+    };
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Agents'));
+    await t.pumpAndSettle();
+    expect(find.text('Night owl'), findsOneWidget);
+    expect(find.text('Asleep'), findsOneWidget); // the paused one
+    expect(find.text('Backup'), findsOneWidget); // a script, listed apart
+    expect(find.byType(Critter), findsNWidgets(2));
+
+    await t.tap(find.text('Night owl'));
+    await t.pumpAndSettle();
+    expect(find.text('All quiet.'), findsOneWidget); // its last reply
+    final page = find.descendant(of: find.byType(AgentPage), matching: find.byType(Scrollable)).first;
+    final quiet = find.descendant(
+      of: find.ancestor(of: find.text('Speaks only when it matters'), matching: find.byType(Row)).first,
+      matching: find.byType(CupertinoSwitch),
+    );
+    await t.scrollUntilVisible(find.text('Speaks only when it matters'), 200, scrollable: page);
+    await t.drag(page, const Offset(0, -200)); // clear of the screen edge
+    await t.pumpAndSettle();
+    await t.tap(quiet);
+    await t.pumpAndSettle();
+    expect(sent.last.$3, {
+      'updates': {'prompt': 'Summarize the night$quietRule'},
+    });
+    expect(t.widget<CupertinoSwitch>(quiet).value, isTrue);
+
+    await t.scrollUntilVisible(find.text('No one'), 200, scrollable: page);
+    await t.tap(find.text('No one'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Mail watch'));
+    await t.tap(find.text('Save'));
+    await t.pumpAndSettle();
+    expect(sent.last.$3, {
+      'updates': {
+        'context_from': ['a2'],
+      },
+    });
+
+    // its own model and effort
+    addTearDown(() => fetchModels = hermesModels);
+    fetchModels = (base, {user, password}) async => (
+      models: <Model>[(provider: 'Anthropic', name: 'claude-sonnet-5-5', id: 'anthropic/claude-sonnet-5-5', reasoning: true)],
+      current: '',
+      quotas: <Quota>[],
+    );
+    await t.scrollUntilVisible(find.text('Model'), -200, scrollable: page);
+    await t.drag(page, const Offset(0, 150)); // clear of the header
+    await t.pumpAndSettle();
+    await t.tap(find.text('Model'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('High'));
+    await t.pumpAndSettle();
+    expect(sent.last.$3, {
+      'updates': {'reasoning_effort': 'high'},
+    });
+    await t.tap(find.text('claude-sonnet-5-5'));
+    await t.pumpAndSettle();
+    expect(sent.last.$3, {
+      'updates': {'provider': 'anthropic', 'model': 'claude-sonnet-5-5'},
+    });
+  });
+
+  testWidgets('vault lists accounts, adds a login and removes one', (t) async {
+    final items = [
+      {
+        'id': 'v1',
+        'kind': 'login',
+        'label': 'Forge',
+        'origin': 'https://forge.test',
+        'identifier': 'alice',
+        'has_otp': true,
+        'backend': 'local',
+      },
+    ];
+    final calls = fakeServer((method, params, emit) {
+      switch (method) {
+        case 'vault.list':
+          return {'items': items};
+        case 'vault.add':
+          items.add({'id': 'v2', 'kind': 'login', 'label': params['label'], 'origin': params['origin'], 'backend': 'local'});
+          return {'id': 'v2'};
+        case 'vault.remove':
+          items.removeWhere((i) => i['id'] == params['id']);
+          return {'removed': true};
+      }
+      return null;
+    });
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Vault'));
+    await t.pumpAndSettle();
+    expect(find.text('Forge'), findsOneWidget);
+    expect(find.text('alice · forge.test'), findsOneWidget);
+    expect(find.text('2FA'), findsOneWidget);
+
+    await t.tap(find.byIcon(CupertinoIcons.add));
+    await t.pumpAndSettle();
+    final fields = find.byType(TextField);
+    await t.enterText(fields.at(0), 'Wiki');
+    await t.enterText(fields.at(1), 'wiki.test');
+    await t.enterText(fields.at(2), 'alice@wiki.test');
+    await t.enterText(fields.at(3), 'test-password');
+    await t.pump();
+    expect(t.widget<TextField>(fields.at(3)).obscureText, isTrue);
+    await t.tap(find.text('Save'));
+    await t.pumpAndSettle();
+    final add = calls.lastWhere((c) => c.$1 == 'vault.add').$2;
+    expect((add['kind'], add['label'], add['origin']), ('login', 'Wiki', 'https://wiki.test')); // a bare site gets https://
+    expect(add['secret'], {'identifier_type': 'email', 'identifier': 'alice@wiki.test', 'password': 'test-password'});
+    expect(find.text('Wiki'), findsOneWidget); // back on the refreshed list
+
+    await t.drag(find.text('Forge'), const Offset(-600, 0));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Remove the account'));
+    await t.pumpAndSettle();
+    expect((calls.last.$1, calls.last.$2['id']), ('vault.remove', 'v1'));
+    expect(find.text('Forge'), findsNothing);
   });
 }

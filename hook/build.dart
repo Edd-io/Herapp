@@ -38,6 +38,9 @@ void main(List<String> args) => build(args, (input, output) async {
       ]);
     case OS.macOS:
       final min = '-mmacosx-version-min=${code.macOS.targetVersion}';
+      // Xcode's build environment hides the SDK from a bare clang: name it, as for iOS
+      final sysroot = await _run('xcrun', ['--sdk', 'macosx', '--show-sdk-path']);
+      final clang = await _run('xcrun', ['--sdk', 'macosx', '-f', 'clang']);
       await _run(
         'go',
         [...go, '-buildmode=c-shared', '-o', lib.toFilePath(), '.'],
@@ -46,6 +49,7 @@ void main(List<String> args) => build(args, (input, output) async {
           'CGO_ENABLED': '1',
           'GOOS': 'darwin',
           'GOARCH': arch,
+          'CC': '$clang -isysroot $sysroot -arch ${arch == 'amd64' ? 'x86_64' : 'arm64'}',
           'CGO_CFLAGS': min,
           'CGO_LDFLAGS': '$min -Wl,-install_name,@rpath/libwg.dylib -Wl,-headerpad_max_install_names',
         },

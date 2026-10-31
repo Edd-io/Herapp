@@ -1,26 +1,30 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:file_selector/file_selector.dart';
+import 'package:image_picker/image_picker.dart';
 
-import 'cron_page.dart';
+import 'agents_page.dart';
 import 'hermes.dart';
+import 'kanban_page.dart';
 import 'l10n/app_localizations.dart';
+import 'memory_page.dart';
+import 'model_sheet.dart';
 import 'quota_page.dart';
 import 'settings.dart';
-
-/// Server models; [error] is the failure to show (see [serverErrorText]), null when the list loaded.
-typedef Models = ({List<Model> list, bool loading, String? error});
+import 'vault_page.dart';
 
 class Chat {
   Chat({this.stored = '', this.name = ''}) : loaded = stored.isEmpty;
   final msgs = <Msg>[];
   String model = settings.model;
+  late String effort = stored.isEmpty ? settings.effort : ''; // a reopened chat keeps the effort it ran with
   String stored; // server session id, '' until the first message creates it
   String name; // server title
   bool loaded; // transcript fetched (always for a chat started here)
@@ -45,7 +49,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   var chats = [Chat()];
   late Chat chat = chats.first;
   final input = TextEditingController();
-  final focus = FocusNode();
+  late final focus = FocusNode(onKeyEvent: enterKey);
   final scroll = ScrollController();
   final models = ValueNotifier<Models>((list: const [], loading: false, error: null));
   late final drawer = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
@@ -54,11 +58,20 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   Msg? fresh; // latest user message, animated on arrival
   bool atBottom = true;
   String query = '';
+  List<Found> found = []; // conversations whose messages match [query]
+  final pending = <Attachment>[]; // photos and files for the next message
+  final pane = GlobalKey<NavigatorState>();
+  final paneRefresh = ValueNotifier(0);
+  List<Slash> slashes = []; // skills matching the `/` being typed
+  String slashFor = '';
 
   @override
   void initState() {
     super.initState();
-    input.addListener(() => setState(() {}));
+    input.addListener(() {
+      setState(() {});
+      complete();
+    });
     scroll.addListener(() {
       final b = scroll.position.extentAfter < 40;
       if (b != atBottom) setState(() => atBottom = b);
@@ -97,6 +110,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       final r = created
           ? await g.call('session.create', {
               if (c.model.contains('/')) ...{'provider': c.model.substring(0, c.model.indexOf('/')), 'model': modelName(c.model)},
+              if (c.effort.isNotEmpty && thinks(c.model)) 'reasoning_effort': c.effort,
             })
           : await g.call('session.resume', {'session_id': c.stored, 'lazy': true, 'omit_messages': true});
       c
@@ -182,10 +196,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   String providerOf(String id) => models.value.list.where((m) => m.id == id).firstOrNull?.provider ?? '';
 
+  /// Whether [id] takes a reasoning effort (assumed while the list is unknown).
+  bool thinks(String id) => models.value.list.where((m) => m.id == id).firstOrNull?.reasoning ?? true;
+
   @override
   void dispose() {
     sub?.cancel();
     drawer.dispose();
+    paneRefresh.dispose();
     input.dispose();
     focus.dispose();
     scroll.dispose();
@@ -193,23 +211,98 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     super.dispose();
   }
 
+  /// A keyboard's Enter sends the message; Shift+Enter, or Enter finishing an IME composition, types as usual.
+  KeyEventResult enterKey(FocusNode _, KeyEvent e) {
+    if (e is KeyUpEvent || (e.logicalKey != LogicalKeyboardKey.enter && e.logicalKey != LogicalKeyboardKey.numpadEnter)) {
+      return KeyEventResult.ignored;
+    }
+    if (HardwareKeyboard.instance.isShiftPressed || input.value.composing.isValid) return KeyEventResult.ignored;
+    send();
+    return KeyEventResult.handled;
+  }
+
   void send() {
     final text = input.text.trim();
-    if (text.isEmpty || streaming) return;
+    if ((text.isEmpty && pending.isEmpty) || streaming) return;
     settings.haptic();
     input.clear();
-    final m = Msg(true, text);
+    final m = Msg(true, text, null, [...pending]);
     setState(() {
+      pending.clear();
       chat.msgs.add(m);
       fresh = m;
     });
     respond();
   }
 
+  /// Offers the server's skills while a `/name` is typed at the start of the message.
+  void complete() {
+    final t = input.text;
+    if (!t.startsWith('/') || t.contains(RegExp(r'\s'))) {
+      slashFor = '';
+      if (slashes.isNotEmpty) setState(() => slashes = []);
+      return;
+    }
+    if (t == slashFor) return;
+    slashFor = t;
+    () async {
+      try {
+        final g = await gateway();
+        if (g == null) return;
+        final r = await g.call('complete.slash', {'text': t, if (identical(chat.on, g) && chat.live.isNotEmpty) 'session_id': chat.live});
+        if (mounted && input.text == t) setState(() => slashes = parseSlash(r).where((s) => s.skill).take(8).toList());
+      } catch (e) {
+        debugPrint('Slash: $e');
+      }
+    }();
+  }
+
+  void pickSlash(Slash s) {
+    settings.haptic();
+    input.value = TextEditingValue(
+      text: '${s.text.startsWith('/') ? s.text : '/${s.text}'} ',
+      selection: TextSelection.collapsed(offset: s.text.length + (s.text.startsWith('/') ? 1 : 2)),
+    );
+  }
+
+  /// Adds photos (library or camera) or files to the next message.
+  Future<void> attachFiles() async {
+    final l = AppLocalizations.of(context);
+    final from = await showChoices<String>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        actions: [
+          CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'photos'), child: Text(l.attachPhotos)),
+          CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'camera'), child: Text(l.attachCamera)),
+          CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'files'), child: Text(l.attachFiles)),
+        ],
+        cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(context), child: Text(l.cancel)),
+      ),
+    );
+    try {
+      final picked = switch (from) {
+        'photos' => [for (final x in await ImagePicker().pickMultiImage(imageQuality: 85, maxWidth: 2048)) (x, true)],
+        'camera' => [
+          if (await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 85, maxWidth: 2048) case final x?) (x, true),
+        ],
+        'files' => [for (final x in await openFiles()) (x, false)],
+        _ => const <(XFile, bool)>[],
+      };
+      for (final (x, image) in picked) {
+        final bytes = await x.readAsBytes();
+        final looksImage = image || RegExp(r'\.(png|jpe?g|gif|webp|heic)$', caseSensitive: false).hasMatch(x.name);
+        if (mounted) setState(() => pending.add((name: x.name, bytes: bytes, image: looksImage)));
+      }
+    } catch (e) {
+      debugPrint('Attach: $e');
+    }
+  }
+
   /// Sends the last user message to Hermes and streams the reply in; [again] replaces the previous reply.
   Future<void> respond({bool again = false}) async {
     final c = chat;
-    final prompt = c.msgs.last.text;
+    final asked = c.msgs.last;
+    var prompt = asked.text;
     final turn = c.msgs.where((m) => m.user).length - 1; // the server's user-turn ordinal
     final reply = Msg(false, '');
     setState(() {
@@ -270,9 +363,40 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             fail('${e.payload['message']}');
         }
       }, onDone: () => fail(const HttpException('connection to Hermes lost')));
+      // photos are queued for this turn; a file is staged in the workspace and named in the prompt
+      final notes = <String>[];
+      for (final f in asked.files.where((f) => f.bytes != null)) {
+        final r = f.image
+            ? await g.call('image.attach_bytes', {'session_id': sid, 'content_base64': base64Encode(f.bytes!), 'filename': f.name})
+            : await g.call('file.attach', {
+                'session_id': sid,
+                'name': f.name,
+                'data_url': 'data:application/octet-stream;base64,${base64Encode(f.bytes!)}',
+              });
+        if (!f.image || prompt.isEmpty) notes.add('${r[f.image ? 'text' : 'ref_text'] ?? ''}');
+      }
+      prompt = [prompt, ...notes].where((t) => t.trim().isNotEmpty).join('\n\n');
+      // a `/skill` is expanded by the server into the skill's instructions
+      var typed = '';
+      if (RegExp(r'^/([\w-]+)\s*([\s\S]*)$').firstMatch(asked.text) case final cmd?) {
+        try {
+          final d = await g.call('command.dispatch', {'name': cmd[1], 'arg': cmd[2]!.trim(), 'session_id': sid});
+          if (d['message'] case final String body when body.trim().isNotEmpty && (d['type'] == 'skill' || d['type'] == 'send')) {
+            typed = asked.text;
+            prompt = [body, ...notes].join('\n\n');
+          } else if (d['output'] case final String out) {
+            setState(() => reply.text = out);
+            return stop();
+          }
+        } on HttpException catch (e) {
+          debugPrint('Dispatch: ${e.message}'); // not a skill: sent as typed
+        }
+        if (!identical(c, chat) || !streaming) return;
+      }
       await g.call('prompt.submit', {
         'session_id': sid,
         'text': prompt,
+        if (typed.isNotEmpty) 'title_preview': typed,
         if (again) ...{'truncate_before_user_ordinal': turn, 'confirm_truncate': true},
       });
     } catch (e) {
@@ -319,7 +443,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   /// Asks, then deletes [c] from the server (a chat never sent is only dropped); false if kept.
   Future<bool> confirmDelete(Chat c) async {
     final l = AppLocalizations.of(context);
-    final ok = await showCupertinoModalPopup<bool>(
+    final ok = await showChoices<bool>(
       context: context,
       builder: (context) => CupertinoActionSheet(
         title: Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -371,17 +495,13 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   /// Model picker sheet, grouped by provider.
   Future<void> pickModel() async {
-    final c = Theme.of(context).colorScheme;
     loadModels();
-    final id = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      backgroundColor: c.surface,
-      barrierColor: Colors.black.withValues(alpha: .4),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      builder: (context) => _ModelSheet(models: models, current: chat.model),
+    final id = await showModelSheet(
+      context,
+      models: models,
+      current: chat.model,
+      effort: chat.effort,
+      onEffort: (e) => setState(() => chat.effort = settings.effort = e),
     );
     if (id == null || !mounted) return;
     settings.haptic();
@@ -394,7 +514,23 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     drawer.animateTo(1, curve: Curves.easeOutCubic);
   }
 
-  void closeDrawer() => drawer.animateTo(0, curve: Curves.easeOutCubic);
+  /// Hides the menu; on a wide window, where it stays, closes the page beside it instead.
+  void closeDrawer() {
+    drawer.animateTo(0, curve: Curves.easeOutCubic);
+    pane.currentState?.popUntil((r) => r.isFirst);
+  }
+
+  bool get wide => MediaQuery.sizeOf(context).width >= wideWidth;
+
+  /// Opens a menu [page]: over everything on a phone, beside the menu on a wide window.
+  void show(Widget page) => (wide ? pane.currentState! : Navigator.of(context)).push(CupertinoPageRoute<void>(builder: (_) => page));
+
+  // the chat as rebuilt by every setState, for the wide window's pane where pages open beside the menu
+  @override
+  void setState(VoidCallback fn) {
+    super.setState(fn);
+    paneRefresh.value++;
+  }
 
   void toBottom({bool jump = false}) => WidgetsBinding.instance.addPostFrameCallback((_) {
     if (!scroll.hasClients) return;
@@ -407,48 +543,67 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     final c = Theme.of(context).colorScheme;
     final screen = MediaQuery.sizeOf(context).width;
     final width = screen * .82;
-    final main = _main(c);
+    late final main = _main(c); // the wide layout builds it in its pane
     final sidebar = _sidebar(c);
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: Theme.of(context).brightness == Brightness.dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: c.surfaceContainerLow,
-        body: GestureDetector(
-          onHorizontalDragStart: (_) => focus.unfocus(),
-          onHorizontalDragUpdate: (d) => drawer.value += d.primaryDelta! / width,
-          onHorizontalDragEnd: (d) {
-            final v = d.primaryVelocity ?? 0;
-            (v.abs() > 300 ? v > 0 : drawer.value > .5) ? openDrawer() : closeDrawer();
-          },
-          child: AnimatedBuilder(
-            animation: drawer,
-            builder: (context, _) {
-              final x = drawer.value * width;
-              return Stack(
+        // a wide window keeps the menu beside the chat, as desktop chat apps do
+        body: wide
+            ? Row(
                 children: [
-                  Positioned(left: x - width, top: 0, bottom: 0, width: width, child: sidebar),
-                  Positioned(
-                    left: x,
-                    top: 0,
-                    bottom: 0,
-                    width: screen,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        main,
-                        if (drawer.value > 0)
-                          GestureDetector(
-                            onTap: closeDrawer,
-                            child: ColoredBox(color: Colors.black.withValues(alpha: .25 * drawer.value)),
-                          ),
-                      ],
+                  SizedBox(width: 300, child: sidebar),
+                  Expanded(
+                    // menu pages open here, beside the menu
+                    child: Navigator(
+                      key: pane,
+                      onGenerateRoute: (_) => PageRouteBuilder<void>(
+                        pageBuilder: (context, _, _) => ValueListenableBuilder(
+                          valueListenable: paneRefresh,
+                          builder: (context, _, _) => _main(Theme.of(context).colorScheme),
+                        ),
+                      ),
                     ),
                   ),
                 ],
-              );
-            },
-          ),
-        ),
+              )
+            : GestureDetector(
+                onHorizontalDragStart: (_) => focus.unfocus(),
+                onHorizontalDragUpdate: (d) => drawer.value += d.primaryDelta! / width,
+                onHorizontalDragEnd: (d) {
+                  final v = d.primaryVelocity ?? 0;
+                  (v.abs() > 300 ? v > 0 : drawer.value > .5) ? openDrawer() : closeDrawer();
+                },
+                child: AnimatedBuilder(
+                  animation: drawer,
+                  builder: (context, _) {
+                    final x = drawer.value * width;
+                    return Stack(
+                      children: [
+                        Positioned(left: x - width, top: 0, bottom: 0, width: width, child: sidebar),
+                        Positioned(
+                          left: x,
+                          top: 0,
+                          bottom: 0,
+                          width: screen,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              main,
+                              if (drawer.value > 0)
+                                GestureDetector(
+                                  onTap: closeDrawer,
+                                  child: ColoredBox(color: Colors.black.withValues(alpha: .25 * drawer.value)),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
       ),
     );
   }
@@ -462,7 +617,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             height: 52,
             child: Row(
               children: [
-                _IconBtn(onTap: openDrawer, child: _MenuIcon(c.onSurface)),
+                if (wide) const SizedBox(width: 52) else _IconBtn(onTap: openDrawer, child: _MenuIcon(c.onSurface)),
                 Expanded(
                   // empty: no title, the centered pill is the picker
                   child: chat.msgs.isEmpty
@@ -527,7 +682,12 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
                                         ),
-                                        if (providerOf(chat.model) case final p when p.isNotEmpty)
+                                        if ([
+                                              providerOf(chat.model),
+                                              if (chat.effort.isNotEmpty && thinks(chat.model))
+                                                effortText(AppLocalizations.of(context), chat.effort),
+                                            ].where((t) => t.isNotEmpty).join(' · ')
+                                            case final p when p.isNotEmpty)
                                           Text(
                                             p,
                                             maxLines: 1,
@@ -549,12 +709,17 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                   )
                 : Stack(
                     children: [
-                      ListView.builder(
-                        controller: scroll,
-                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                        itemCount: chat.msgs.length,
-                        itemBuilder: (_, i) => _message(c, chat.msgs[i], i == chat.msgs.length - 1),
+                      LayoutBuilder(
+                        builder: (context, box) {
+                          final side = math.max(16.0, (box.maxWidth - 760) / 2); // a readable column, scrollable edge to edge
+                          return ListView.builder(
+                            controller: scroll,
+                            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                            padding: EdgeInsets.fromLTRB(side, 8, side, 24),
+                            itemCount: chat.msgs.length,
+                            itemBuilder: (_, i) => _message(c, chat.msgs[i], i == chat.msgs.length - 1),
+                          );
+                        },
                       ),
                       Positioned(
                         bottom: 12,
@@ -587,7 +752,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                     ],
                   ),
           ),
-          _composer(c),
+          readable(_composer(c), width: 792),
         ],
       ),
     ),
@@ -602,7 +767,19 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           margin: const EdgeInsets.only(left: 64, top: 12, bottom: 12),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
-          child: Text(m.text, style: body.copyWith(color: c.onSurface)),
+          child: m.files.isEmpty
+              ? Text(m.text, style: body.copyWith(color: c.onSurface))
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Wrap(spacing: 6, runSpacing: 6, alignment: WrapAlignment.end, children: [for (final f in m.files) _Attachment(f)]),
+                    if (m.text.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(m.text, style: body.copyWith(color: c.onSurface)),
+                      ),
+                  ],
+                ),
         ),
       );
       if (!identical(m, fresh)) return bubble;
@@ -728,17 +905,82 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   }
 
   Widget _composer(ColorScheme c) {
-    final hasText = input.text.trim().isNotEmpty;
+    final hasText = input.text.trim().isNotEmpty || pending.isNotEmpty;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (slashes.isNotEmpty) _slashList(c),
+        if (pending.isNotEmpty)
+          SizedBox(
+            height: 76,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              children: [
+                for (final f in pending)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _Attachment(f, onRemove: () => setState(() => pending.remove(f))),
+                  ),
+              ],
+            ),
+          ),
+        _composerRow(c, hasText),
+      ],
+    );
+  }
+
+  /// The skills matching what's typed, above the composer.
+  Widget _slashList(ColorScheme c) => Container(
+    margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+    constraints: const BoxConstraints(maxHeight: 260),
+    decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(16)),
+    child: ListView(
+      shrinkWrap: true,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      children: [
+        for (final s in slashes)
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => pickSlash(s),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    s.display.startsWith('/') ? s.display : '/${s.display}',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.onSurface),
+                  ),
+                  if (s.meta.isNotEmpty)
+                    Text(
+                      s.meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, color: c.outline),
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+
+  Widget _composerRow(ColorScheme c, bool hasText) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(color: c.surfaceContainerHighest, shape: BoxShape.circle),
-            child: Icon(CupertinoIcons.add, size: 22, color: c.onSurface),
+          GestureDetector(
+            onTap: streaming ? null : attachFiles,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(color: c.surfaceContainerHighest, shape: BoxShape.circle),
+              child: Icon(CupertinoIcons.add, size: 22, color: c.onSurface),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -836,6 +1078,25 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
+  /// Searches the conversations' content for [q] once typing pauses.
+  Future<void> search(String q) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (q != query || !mounted) return;
+    if (q.trim().length < 2) return setState(() => found = []);
+    try {
+      final body = await serverApi('GET', '/api/sessions/search', query: {'q': q.trim(), 'limit': '20'});
+      if (mounted && q == query) setState(() => found = body == null ? [] : parseFound(body));
+    } catch (e) {
+      debugPrint('Search: $e');
+    }
+  }
+
+  void openFound(Found f) {
+    final known = chats.where((ch) => ch.stored == f.id).firstOrNull;
+    if (known == null) setState(() => chats.add(Chat(stored: f.id, name: f.title)));
+    select(known ?? chats.last);
+  }
+
   Widget _sidebar(ColorScheme c) {
     final q = query.toLowerCase();
     final listed = chats.where((ch) => ch.title.isNotEmpty && ch.title.toLowerCase().contains(q));
@@ -881,7 +1142,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
-                        onChanged: (v) => setState(() => query = v),
+                        onChanged: (v) {
+                          setState(() => query = v);
+                          search(v);
+                        },
                         style: TextStyle(fontSize: 16, color: c.onSurface),
                         decoration: InputDecoration(
                           isDense: true,
@@ -902,15 +1166,39 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               icon: CupertinoIcons.gauge,
               onTap: () {
                 closeDrawer();
-                Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const QuotaPage()));
+                show(const QuotaPage());
               },
             ),
             tile(
-              AppLocalizations.of(context).cron,
-              icon: CupertinoIcons.clock,
+              AppLocalizations.of(context).agents,
+              icon: CupertinoIcons.sparkles,
               onTap: () {
                 closeDrawer();
-                Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const CronPage()));
+                show(const AgentsPage());
+              },
+            ),
+            tile(
+              AppLocalizations.of(context).kanban,
+              icon: CupertinoIcons.square_split_2x1,
+              onTap: () {
+                closeDrawer();
+                show(const KanbanPage());
+              },
+            ),
+            tile(
+              AppLocalizations.of(context).memory,
+              icon: CupertinoIcons.lightbulb,
+              onTap: () {
+                closeDrawer();
+                show(const MemoryPage());
+              },
+            ),
+            tile(
+              AppLocalizations.of(context).vault,
+              icon: CupertinoIcons.lock_shield,
+              onTap: () {
+                closeDrawer();
+                show(const VaultPage());
               },
             ),
             Padding(
@@ -939,6 +1227,51 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                       ),
                       child: tile(ch.title, selected: identical(ch, chat), onTap: () => select(ch)),
                     ),
+                  if (found.where((f) => query.trim().length >= 2 && !listed.any((ch) => ch.stored == f.id)).toList() case final more
+                      when more.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
+                      child: Text(
+                        AppLocalizations.of(context).searchInMessages,
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
+                      ),
+                    ),
+                    for (final f in more)
+                      GestureDetector(
+                        onTap: () => openFound(f),
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                f.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 16, color: c.onSurface),
+                              ),
+                              const SizedBox(height: 2),
+                              Text.rich(
+                                TextSpan(
+                                  children: [
+                                    // the server marks the hits >>>like this<<<
+                                    for (final (i, part) in f.snippet.split(RegExp('>>>|<<<')).indexed)
+                                      TextSpan(
+                                        text: part,
+                                        style: i.isOdd ? TextStyle(fontWeight: FontWeight.w600, color: c.onSurface) : null,
+                                      ),
+                                  ],
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 13, color: c.outline),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 ],
               ),
             ),
@@ -946,7 +1279,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               AppLocalizations.of(context).settings,
               icon: CupertinoIcons.gear,
               onTap: () async {
-                await showCupertinoSheet(context: context, builder: (_) => const SettingsSheet());
+                await showPageSheet<void>(context, (_) => const SettingsSheet());
                 // server, auth or tunnel may have changed
                 dropGateway();
                 loadModels();
@@ -957,6 +1290,65 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A photo's thumbnail, or a file's name; [onRemove] adds the button that takes it off a draft.
+class _Attachment extends StatelessWidget {
+  const _Attachment(this.file, {this.onRemove});
+  final Attachment file;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final bytes = file.bytes;
+    final tile = file.image && bytes != null
+        ? ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.memory(bytes, width: 64, height: 64, fit: BoxFit.cover, cacheWidth: 192),
+          )
+        : Container(
+            height: 64,
+            constraints: const BoxConstraints(maxWidth: 180, minWidth: 64),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(12)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(file.image ? CupertinoIcons.photo : CupertinoIcons.doc, size: 20, color: c.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    file.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: c.onSurface),
+                  ),
+                ),
+              ],
+            ),
+          );
+    if (onRemove == null) return tile;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        tile,
+        Positioned(
+          top: -6,
+          right: -6,
+          child: GestureDetector(
+            onTap: onRemove,
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(color: c.onSurface, shape: BoxShape.circle),
+              child: Icon(CupertinoIcons.xmark, size: 12, color: c.surface),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1191,137 +1583,6 @@ class _ContextRing extends StatelessWidget {
             backgroundColor: c.outline.withValues(alpha: .25),
             color: v > .9 ? Colors.red : c.onSurfaceVariant,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ModelSheet extends StatelessWidget {
-  const _ModelSheet({required this.models, required this.current});
-  final ValueListenable<Models> models;
-  final String current;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = Theme.of(context).colorScheme;
-    final l = AppLocalizations.of(context);
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .8),
-      child: ValueListenableBuilder<Models>(
-        valueListenable: models,
-        builder: (context, m, _) {
-          final providers = {for (final x in m.list) x.provider};
-          final note = switch (m) {
-            (list: [], loading: true, error: _) => const Center(child: CupertinoActivityIndicator()),
-            (list: [], loading: _, error: final String e) => Text(e, textAlign: TextAlign.center),
-            (list: [], loading: _, error: _) => Text(l.modelsNone, textAlign: TextAlign.center),
-            _ => null,
-          };
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    l.model,
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
-                  ),
-                  // refreshing an already shown list
-                  if (m.loading && m.list.isNotEmpty) ...[const SizedBox(width: 8), const CupertinoActivityIndicator(radius: 8)],
-                ],
-              ),
-              if (note != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 32, 32, 48),
-                  child: DefaultTextStyle.merge(
-                    style: TextStyle(fontSize: 15, color: c.outline),
-                    child: note,
-                  ),
-                ),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  children: [
-                    for (final p in providers) ...[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 10,
-                              backgroundColor: c.onSurface,
-                              child: Text(
-                                p.isEmpty ? '' : p[0].toUpperCase(),
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.surface),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              p,
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(16)),
-                        child: Column(
-                          children: [
-                            for (final (i, x) in m.list.where((x) => x.provider == p).indexed) ...[
-                              if (i > 0) Divider(height: 1, indent: 16, color: c.outline.withValues(alpha: .15)),
-                              _ModelRow(x, selected: x.id == current),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ModelRow extends StatelessWidget {
-  const _ModelRow(this.m, {required this.selected});
-  final Model m;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: () => Navigator.of(context).pop(m.id),
-      highlightColor: c.onSurface.withValues(alpha: .06),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                m.name,
-                style: TextStyle(fontSize: 16, fontWeight: selected ? FontWeight.w600 : FontWeight.w500, color: c.onSurface),
-              ),
-            ),
-            AnimatedOpacity(
-              opacity: selected ? 1 : 0,
-              duration: const Duration(milliseconds: 150),
-              child: Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
-                child: Icon(CupertinoIcons.checkmark, size: 13, color: c.onPrimary),
-              ),
-            ),
-          ],
         ),
       ),
     );

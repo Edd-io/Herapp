@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'chat_page.dart';
@@ -30,6 +32,7 @@ class App extends StatelessWidget {
       title: 'Hermes',
       debugShowCheckedModeBanner: false,
       themeMode: settings.theme,
+      locale: settings.language.isEmpty ? null : Locale(settings.language),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       // surface = background, surfaceContainerHighest = bubbles/composer, surfaceContainerLow = sidebar
@@ -57,6 +60,17 @@ class App extends StatelessWidget {
           onPrimary: Colors.black,
         ),
       ),
+      // sizes are set for a phone held close; a computer screen sits further away and its UI runs smaller.
+      // A window has no safe area: an inset of its own keeps the content off its edges, through every SafeArea.
+      builder: Platform.isMacOS || Platform.isWindows || Platform.isLinux
+          ? (context, child) {
+              const edges = EdgeInsets.fromLTRB(4, 12, 12, 16);
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(.9), padding: edges, viewPadding: edges),
+                child: child!,
+              );
+            }
+          : null,
       home: const ChatPage(),
     ),
   );

@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 class Msg {
-  Msg(this.user, this.text, [List<Tool>? tools]) : tools = tools ?? [];
+  Msg(this.user, this.text, [List<Tool>? tools, List<Attachment>? files]) : tools = tools ?? [], files = files ?? [];
   final bool user;
   String text;
+
+  /// What the user attached to this message.
+  final List<Attachment> files;
 
   /// The tools Hermes ran for this reply, in order.
   final List<Tool> tools;
@@ -13,6 +17,9 @@ class Msg {
   /// A command waiting for the user's approval: the server request [GatewayEvent.id] and its params.
   ({Object id, Map params})? ask;
 }
+
+/// A photo or file sent with a message; [bytes] is null for one read back from the server's history.
+typedef Attachment = ({String name, Uint8List? bytes, bool image});
 
 /// One tool call of a reply; [detail] is what it works on (a command, a path, a query).
 class Tool {
@@ -22,7 +29,8 @@ class Tool {
 }
 
 /// A model offered by the Hermes server; [id] = "providerSlug/model".
-typedef Model = ({String provider, String name, String id});
+/// A server model; [reasoning] is false for one that takes no reasoning effort.
+typedef Model = ({String provider, String name, String id, bool reasoning});
 
 /// Display name of a model id, readable even before the server list is loaded.
 String modelName(String id) => id.substring(id.indexOf('/') + 1);
@@ -107,7 +115,12 @@ ModelOptions? parseModelOptions(String body) {
       models: [
         for (final p in providers)
           for (final m in (p['models'] as List? ?? []).whereType<String>())
-            (provider: '${p['name'] ?? p['slug']}', name: m, id: '${p['slug']}/$m'),
+            (
+              provider: '${p['name'] ?? p['slug']}',
+              name: m,
+              id: '${p['slug']}/$m',
+              reasoning: ((p['capabilities'] as Map?)?[m] as Map?)?['reasoning'] != false,
+            ),
       ],
       current: j['model'] is String && j['provider'] is String && j['model'] != '' ? '${j['provider']}/${j['model']}' : '',
       quotas: mergeSameAccounts([for (final p in providers) ..._quotas(p)]),
@@ -119,7 +132,27 @@ ModelOptions? parseModelOptions(String body) {
 
 /// Signs in when [user] is set (session cookies); otherwise reads the session token a loopback
 /// dashboard injects into its page.
-Future<({List<Cookie> cookies, String? token})> _signIn(HttpClient client, Uri base, String? user, String? password) async {
+typedef _Auth = ({List<Cookie> cookies, String? token});
+
+/// Sign-ins kept per server and account: the dashboard rate-limits its login (HTTP 429).
+final _auths = <String, Future<_Auth>>{};
+
+/// Drops the kept sign-ins (the server settings changed).
+void forgetSignIns() => _auths.clear();
+
+/// The kept sign-in for [base], made with [client] on first use; [fresh] drops the kept one.
+Future<_Auth> _session(HttpClient client, Uri base, String? user, String? password, {bool fresh = false}) {
+  final key = '$base\n$user\n$password';
+  if (fresh) _auths.remove(key);
+  // a sign-in left hanging (tunnel down) must fail, or every later call would wait on it
+  return _auths[key] ??= _signIn(client, base, user, password).timeout(const Duration(seconds: 15))
+    ..catchError((Object _) {
+      _auths.remove(key); // a failed sign-in is retried next time
+      return (cookies: <Cookie>[], token: null);
+    });
+}
+
+Future<_Auth> _signIn(HttpClient client, Uri base, String? user, String? password) async {
   if (user != null) {
     final login = await hermesLogin(client, base, user, password ?? '');
     if (!login.ok) throw HttpException('sign-in failed (HTTP ${login.status})');
@@ -142,18 +175,21 @@ Future<String> hermesApi(
 }) async {
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
   try {
-    final auth = await _signIn(client, base, user, password);
-    final req = await client.openUrl(method, _at(base, path).replace(queryParameters: query));
-    req.cookies.addAll(auth.cookies);
-    if (auth.token != null) req.headers.set('X-Hermes-Session-Token', auth.token!);
-    if (body != null) {
-      req.headers.contentType = ContentType.json;
-      req.write(jsonEncode(body));
+    for (var fresh = false; ; fresh = true) {
+      final auth = await _session(client, base, user, password, fresh: fresh);
+      final req = await client.openUrl(method, _at(base, path).replace(queryParameters: query));
+      req.cookies.addAll(auth.cookies);
+      if (auth.token != null) req.headers.set('X-Hermes-Session-Token', auth.token!);
+      if (body != null) {
+        req.headers.contentType = ContentType.json;
+        req.write(jsonEncode(body));
+      }
+      final res = await req.close();
+      final text = await res.transform(utf8.decoder).join();
+      if (res.statusCode == 401 && !fresh) continue; // the kept sign-in expired: sign in again, once
+      if (res.statusCode ~/ 100 != 2) throw HttpException(_detail(text) ?? '$path failed (HTTP ${res.statusCode})');
+      return text;
     }
-    final res = await req.close();
-    final text = await res.transform(utf8.decoder).join();
-    if (res.statusCode ~/ 100 != 2) throw HttpException(_detail(text) ?? '$path failed (HTTP ${res.statusCode})');
-    return text;
   } finally {
     client.close(force: true);
   }
@@ -340,18 +376,21 @@ Future<Gateway> hermesGateway(Uri base, {String? user, String? password}) async 
   // a fresh client follows the tunnel's HttpOverrides (WebSocket's shared default client would not)
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
   try {
-    final auth = await _signIn(client, base, user, password);
+    var auth = await _session(client, base, user, password);
     var query = {'token': ?auth.token};
-    if (user != null) {
+    for (var fresh = false; user != null; fresh = true) {
+      if (fresh) auth = await _session(client, base, user, password, fresh: true);
       final req = await client.postUrl(_at(base, '/api/auth/ws-ticket'));
       req.cookies.addAll(auth.cookies);
       final res = await req.close();
       final body = await res.transform(utf8.decoder).join();
+      if (res.statusCode == 401 && !fresh) continue; // the kept sign-in expired
       final ticket = switch (_json(body)) {
         {'ticket': final String t} when res.statusCode == 200 => t,
         _ => throw HttpException(_detail(body) ?? 'chat unavailable (HTTP ${res.statusCode})'),
       };
       query = {'ticket': ticket};
+      break;
     }
     final url = _at(base, '/api/ws').replace(scheme: base.scheme == 'https' ? 'wss' : 'ws', queryParameters: query);
     final ws = await WebSocket.connect(url.toString(), customClient: client);
@@ -385,16 +424,105 @@ List<Msg> transcript(Object? messages) {
       tools.add(Tool('${m['tool_call_id'] ?? tools.length}', '${m['name'] ?? m['tool_name'] ?? 'tool'}', '', done: true));
     }
     if (m['role'] != 'user' && m['role'] != 'assistant') continue;
-    if ((m['text'] ?? m['content']) case final String t when t.trim().isNotEmpty) {
-      out.add(Msg(m['role'] == 'user', t, m['role'] == 'user' ? null : tools));
+    final user = m['role'] == 'user';
+    var text = '';
+    final files = <Attachment>[];
+    switch (m['text'] ?? m['content']) {
+      case final String t:
+        text = t;
+      case final List parts: // a message sent with images
+        for (final p in parts.whereType<Map>()) {
+          if (p['text'] is String) {
+            text += p['text'] as String;
+          } else if ('${p['type']}'.contains('image')) {
+            files.add((name: 'image', bytes: null, image: true));
+          }
+        }
+    }
+    if (user) {
+      // what the app sent along: an attached image's marker, a staged file's @file: reference
+      text = (skillInvocation(text) ?? text).replaceAllMapped(RegExp(r'\[User attached image: ([^\]]+)\]|@file:"([^"]+)"|@file:(\S+)'), (x) {
+        files.add((name: (x[1] ?? x[2] ?? x[3]!).split('/').last, bytes: null, image: x[1] != null));
+        return '';
+      }).trim();
+    }
+    if (text.trim().isNotEmpty || files.isNotEmpty) {
+      out.add(Msg(user, text, user ? null : tools, files));
       tools = [];
     }
   }
   return out;
 }
 
+/// The `/skill instruction` a skill-expanded user turn came from, null when [text] isn't one
+/// (the server stores the skill's whole body as the user's message).
+String? skillInvocation(String text) {
+  const prefix = '[IMPORTANT: The user has invoked the "', said = 'The user has provided the following instruction alongside the skill invocation: ';
+  if (!text.startsWith(prefix)) return null;
+  final name = text.substring(prefix.length).split('"').first;
+  final at = text.lastIndexOf(said);
+  final instruction = at < 0 ? '' : text.substring(at + said.length).split('\n\n[Runtime note:').first.trim();
+  final command = name.startsWith('/') ? name : '/$name';
+  return instruction.isEmpty ? command : '$command $instruction';
+}
+
+/// A `/` completion: a Hermes command or one of its skills.
+typedef Slash = ({String text, String display, String meta, bool skill});
+
+/// `complete.slash`.
+List<Slash> parseSlash(Map result) => [
+  if (result case {'items': final List items})
+    for (final i in items.whereType<Map>())
+      (text: '${i['text'] ?? ''}', display: '${i['display'] ?? i['text'] ?? ''}', meta: '${i['meta'] ?? ''}', skill: i['kind'] == 'skill'),
+];
+
+/// A task of the kanban board; [heartbeat] is a running worker's last sign of life.
+typedef KTask = ({String id, String title, DateTime? since, DateTime? heartbeat, String summary, String error});
+
+/// The kanban board as the workers see it: tasks per status, the ones running, the ones failing.
+typedef Board = ({Map<String, int> counts, List<KTask> running, List<KTask> failing});
+
+/// `/api/plugins/kanban/board`; null when the server has no kanban.
+Board? parseBoard(String body) {
+  if (_json(body) case {'columns': final List columns}) {
+    DateTime? at(Object? s) => s is num ? DateTime.fromMillisecondsSinceEpoch((s * 1000).round()) : null;
+    KTask task(Map t) => (
+      id: '${t['id']}',
+      title: '${t['title'] ?? ''}',
+      since: at(t['current_run_started_at'] ?? t['started_at']),
+      heartbeat: at(t['last_heartbeat_at']),
+      summary: '${t['latest_summary'] ?? ''}'.trim(),
+      error: '${t['last_failure_error'] ?? ''}'.trim(),
+    );
+    final counts = <String, int>{}, running = <KTask>[], failing = <KTask>[];
+    for (final c in columns.whereType<Map>()) {
+      final tasks = (c['tasks'] as List? ?? const []).whereType<Map>();
+      counts['${c['name']}'] = tasks.length;
+      for (final t in tasks) {
+        if (t['status'] == 'running') running.add(task(t));
+        if (t['status'] != 'done' && (t['consecutive_failures'] as num? ?? 0) > 0 && task(t).error.isNotEmpty) failing.add(task(t));
+      }
+    }
+    return (counts: counts, running: running, failing: failing);
+  }
+  return null;
+}
+
 /// One past run of a cron job; [session] runs (agent ones) have a transcript, the others only [preview].
 typedef CronRun = ({String id, String title, String preview, DateTime? at, bool active, bool session});
+
+/// Where a script run's whole output lies on the server (the runs list only gives 180 characters of it),
+/// null for a run with no output file.
+String? cronOutputPath(CronRun r, String hermesHome) => switch (RegExp(r'^cron_output:([^:]+):(.+)$').firstMatch(r.id)) {
+  final m? when hermesHome.isNotEmpty && !m[2]!.startsWith('exec:') => '$hermesHome/cron/output/${m[1]}/${m[2]}.md',
+  _ => null,
+};
+
+/// A script run's output file without the header Hermes writes above it (job, id, time, mode).
+String cronOutputText(String doc) {
+  final cut = doc.indexOf('\n---\n');
+  return (doc.startsWith('# Cron Job:') && cut >= 0 ? doc.substring(cut + 5) : doc).trim();
+}
 
 /// `/api/cron/jobs/{id}/runs`, newest first.
 List<CronRun> parseCronRuns(String body) => [
@@ -409,6 +537,31 @@ List<CronRun> parseCronRuns(String body) => [
         session: r['source'] != 'cron_output',
       ),
 ];
+
+/// An item of Hermes' vault, metadata only: the server never sends a password back.
+typedef VaultItem = ({String id, String kind, String label, String origin, String identifier, bool otp, String backend});
+
+/// `vault.list`.
+List<VaultItem> parseVault(Map result) => [
+  if (result case {'items': final List items})
+    for (final i in items.whereType<Map>())
+      if (i['id'] is String)
+        (
+          id: i['id'] as String,
+          kind: '${i['kind'] ?? 'login'}',
+          label: '${i['label'] ?? ''}',
+          origin: '${i['origin'] ?? ''}',
+          identifier: '${i['identifier'] ?? ''}',
+          otp: i['has_otp'] == true,
+          backend: '${i['backend'] ?? 'local'}',
+        ),
+];
+
+/// A site typed without a scheme ("github.com") as the vault wants it ("https://github.com").
+String vaultOrigin(String site) {
+  final s = site.trim();
+  return s.isEmpty || s.contains('://') ? s : 'https://$s';
+}
 
 /// Editable text of each cron job field, from the server's record ([raw] empty for a new job).
 Map<String, String> cronFormValues(Map raw) {
@@ -435,6 +588,7 @@ Map<String, String> cronFormValues(Map raw) {
     'model': text(raw['model']),
     'provider': text(raw['provider']),
     'base_url': text(raw['base_url']),
+    'reasoning_effort': text(raw['reasoning_effort']),
     'deliver': text(raw['deliver'] ?? 'local'),
     'failure_deliver': text(raw['failure_deliver']),
     'workdir': text(raw['workdir']),
@@ -462,3 +616,118 @@ Map<String, Object?> cronPayload(Map<String, String> values) => {
       _ => value.trim(),
     },
 };
+
+int _int(Object? v) => v is num ? v.round() : 0;
+double _num(Object? v) => v is num ? v.toDouble() : 0;
+DateTime? _epoch(Object? s) => s is num ? DateTime.fromMillisecondsSinceEpoch((s * 1000).round()) : null;
+
+/// Token use of one day or one model; [cost] is the billed cost, else Hermes' estimate.
+typedef UsageRow = ({String name, int input, int output, double cost, int sessions});
+
+/// `/api/analytics/usage`: per day (oldest first) and per model (busiest first), and the totals.
+typedef Usage = ({List<UsageRow> days, List<UsageRow> models, UsageRow total, int cache});
+
+Usage? parseUsage(String body) {
+  if (_json(body) case {'daily': final List daily, 'totals': final Map t} && final j) {
+    double cost(Object? actual, Object? estimated) => _num(actual) > 0 ? _num(actual) : _num(estimated);
+    UsageRow row(Map r, String name) => (
+      name: name,
+      input: _int(r['input_tokens']),
+      output: _int(r['output_tokens']),
+      cost: cost(r['actual_cost'], r['estimated_cost']),
+      sessions: _int(r['sessions']),
+    );
+    final models = [for (final m in (j['by_model'] as List? ?? const []).whereType<Map>()) row(m, '${m['model'] ?? ''}')]
+      ..sort((a, b) => (b.input + b.output).compareTo(a.input + a.output));
+    return (
+      days: [for (final d in daily.whereType<Map>()) row(d, '${d['day'] ?? ''}')],
+      models: models,
+      total: (
+        name: '',
+        input: _int(t['total_input']),
+        output: _int(t['total_output']),
+        cost: cost(t['total_actual_cost'], t['total_estimated_cost']),
+        sessions: _int(t['total_sessions']),
+      ),
+      cache: _int(t['total_cache_read']),
+    );
+  }
+  return null;
+}
+
+/// An entry of what Hermes remembers: of the user ([profile], USER.md) or its own notes (MEMORY.md).
+/// [id] carries a fingerprint, so it goes stale once the entry changes: reload after an edit.
+typedef Memory = ({String id, String title, bool profile, DateTime? at});
+
+/// The memory entries of `/api/learning/graph`, newest first.
+List<Memory> parseMemories(String body) => [
+  if (_json(body) case {'nodes': final List nodes})
+    for (final n in nodes.whereType<Map>())
+      if (n['kind'] == 'memory' && n['id'] is String)
+        (id: n['id'] as String, title: '${n['label'] ?? ''}', profile: n['memorySource'] == 'profile', at: _epoch(n['timestamp'])),
+]..sort((a, b) => (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)));
+
+/// A conversation whose content matches a search; [snippet] marks the hits with `>>>` and `<<<`.
+typedef Found = ({String id, String title, String snippet});
+
+/// `/api/sessions/search`, scheduled runs and subagents left out as in the sidebar.
+List<Found> parseFound(String body) => [
+  if (_json(body) case {'results': final List results})
+    for (final r in results.whereType<Map>())
+      if ((r['session_id'] ?? r['id']) is String && r['source'] != 'cron' && r['source'] != 'subagent')
+        (
+          id: (r['session_id'] ?? r['id']) as String,
+          title: '${(r['title'] ?? '') == '' ? r['preview'] ?? '' : r['title']}'.trim(),
+          snippet: '${r['snippet'] ?? ''}'.replaceAll(RegExp(r'\s+'), ' ').trim(),
+        ),
+];
+
+/// A Kanban card; [attention] says why it waits for the user ('' when it doesn't).
+typedef KCard = ({String id, String title, String status, String body, String summary, int comments, String attention, DateTime? at});
+
+KCard _kcard(Map t) {
+  final status = '${t['status'] ?? ''}';
+  final diagnostics = t['diagnostics'] is List ? (t['diagnostics'] as List).whereType<Map>() : const <Map>[];
+  return (
+    id: '${t['id']}',
+    title: '${t['title'] ?? ''}',
+    status: status,
+    body: '${t['body'] ?? ''}'.trim(),
+    summary: '${t['latest_summary'] ?? ''}'.trim(),
+    comments: _int(t['comment_count']),
+    attention: switch (status) {
+      'review' || 'blocked' => status,
+      'done' || 'archived' => '',
+      _ when diagnostics.isNotEmpty => '${diagnostics.first['title'] ?? 'diagnostic'}',
+      _ when '${t['title']}'.startsWith('[DEC]') => 'decision',
+      _ => '',
+    },
+    at: _epoch(t['created_at']),
+  );
+}
+
+/// The cards of a `/board` waiting for the user (to review, blocked, flagged, decisions), oldest first.
+List<KCard> parseAttention(String body) => [
+  if (_json(body) case {'columns': final List columns})
+    for (final c in columns.whereType<Map>())
+      for (final t in (c['tasks'] as List? ?? const []).whereType<Map>())
+        if (_kcard(t) case final k when k.attention.isNotEmpty) k,
+]..sort((a, b) => (a.at ?? DateTime(0)).compareTo(b.at ?? DateTime(0)));
+
+/// A comment on a card, or a step of its history ([event] then names its kind).
+typedef KNote = ({String author, String text, DateTime? at, String event});
+
+/// `/tasks/{id}`: the card in full and its comments, with the reviews and runs it went through.
+({KCard card, List<KNote> notes})? parseCard(String body) {
+  if (_json(body) case {'task': final Map t} && final j) {
+    final notes = <KNote>[
+      for (final c in (j['comments'] as List? ?? const []).whereType<Map>())
+        (author: '${c['author'] ?? ''}', text: '${c['body'] ?? ''}'.trim(), at: _epoch(c['created_at']), event: ''),
+      for (final e in (j['events'] as List? ?? const []).whereType<Map>())
+        if (e['payload'] case {'summary': final String s} when s.trim().isNotEmpty)
+          (author: '', text: s.trim(), at: _epoch(e['created_at']), event: '${e['kind'] ?? ''}'),
+    ]..sort((a, b) => (a.at ?? DateTime(0)).compareTo(b.at ?? DateTime(0)));
+    return (card: _kcard(t), notes: notes);
+  }
+  return null;
+}

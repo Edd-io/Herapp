@@ -37,10 +37,14 @@ void _stopSync() => _wgStop();
 
 final vpn = Vpn();
 
+/// The app's secrets store. On macOS the file-based keychain: the data protection one needs a signing
+/// team's keychain-access-groups entitlement, and fails with -34018 without it.
+const secureStorage = FlutterSecureStorage(mOptions: MacOsOptions(usesDataProtectionKeychain: false));
+
 /// In-app WireGuard tunnel: every `HttpClient` goes through the tunnel's local proxy.
 /// Tunnel on but not (yet) connected = traffic blocked, never sent in the clear.
 class Vpn extends ChangeNotifier {
-  static const _store = FlutterSecureStorage(); // the config contains a private key
+  static const _store = secureStorage; // the config contains a private key
   String? config;
   String name = '';
   bool enabled = false;

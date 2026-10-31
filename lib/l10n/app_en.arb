@@ -196,8 +196,6 @@
       }
     }
   },
-  "cron": "Scheduled jobs",
-  "cronEmpty": "No scheduled jobs.",
   "cronNext": "Next run in {time}",
   "@cronNext": {
     "placeholders": {
@@ -241,7 +239,6 @@
       }
     }
   },
-  "cronFooter": "Jobs Hermes runs on its own. Pull down to refresh.",
   "cronNew": "New job",
   "cronEdit": "Edit job",
   "cronSave": "Save",
@@ -300,5 +297,182 @@
         "type": "int"
       }
     }
-  }
+  },
+  "ok": "OK",
+  "agents": "Agents",
+  "agentNew": "New agent",
+  "agentsEmpty": "No agents yet. An agent works on its own on a schedule, and tells you what matters.",
+  "agentWorking": "Working on it…",
+  "agentDone": "Mission complete",
+  "agentAsleep": "Asleep",
+  "agentTrouble": "Ran into a problem",
+  "agentWakesIn": "Wakes up in {time}",
+  "agentIdle": "Ready",
+  "agentWake": "Wake up now",
+  "agentSaid": "Last word",
+  "agentSaidNothing": "Hasn't said anything yet.",
+  "agentMission": "Mission",
+  "agentRhythm": "Rhythm",
+  "agentActive": "Active",
+  "agentQuiet": "Speaks only when it matters",
+  "agentTeam": "Listens to",
+  "agentTeamNone": "No one",
+  "agentTeamAlone": "There's no other agent yet.",
+  "agentSettings": "All settings",
+  "agentBlank": "Start from scratch",
+  "agentBlankHint": "Your own mission, rhythm and model",
+  "agentCreate": "Create",
+  "@agentWakesIn": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "vault": "Vault",
+  "vaultAdd": "Add an account",
+  "vaultEmpty": "No accounts yet. Add the ones Hermes may sign in with for you.",
+  "vaultFooter": "Hermes can sign in to these sites for you. Passwords are encrypted on your server and never sent back to the app. Swipe left to remove an account.",
+  "vaultDelete": "Remove the account",
+  "vaultDeleteMessage": "Hermes will no longer be able to sign in with this account.",
+  "vaultTwoFactor": "2FA",
+  "vaultLabel": "Name",
+  "vaultLabelHint": "GitHub (work)",
+  "vaultSite": "Site",
+  "vaultEmail": "Email",
+  "vaultPhone": "Phone",
+  "vaultUsername": "Username",
+  "vaultPassword": "Password",
+  "vaultOtp": "Two-factor key (optional)",
+  "vaultOtpHint": "Base32 key or otpauth:// link",
+  "vaultOtpFooter": "The key shown when you set up an authenticator app. With it, Hermes generates the 6-digit codes itself.",
+  "agentScripts": "Scripts",
+  "attachPhotos": "Photos",
+  "attachCamera": "Take a photo",
+  "attachFiles": "Files",
+  "workers": "Workers",
+  "workersNone": "No worker running",
+  "workerRunning": "Working",
+  "workerSince": "Working for {time}",
+  "@workerSince": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "workerSilent": "No sign of life for {time}",
+  "@workerSilent": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "workerFailed": "Failed: {error}",
+  "@workerFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "kanbanReady": "{n} ready",
+  "@kanbanReady": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "kanbanTodo": "{n} to do",
+  "@kanbanTodo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "kanbanReview": "{n} in review",
+  "@kanbanReview": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "kanbanBlocked": "{n} blocked",
+  "@kanbanBlocked": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "kanbanDone": "{n} done",
+  "@kanbanDone": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "effort": "Effort",
+  "effortAuto": "Auto",
+  "effortMinimal": "Minimal",
+  "effortLow": "Low",
+  "effortMedium": "Medium",
+  "effortHigh": "High",
+  "effortXhigh": "Extra high",
+  "effortMax": "Max",
+  "usage": "Usage",
+  "usageDays": "{n} days",
+  "@usageDays": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "usageTokens": "Tokens",
+  "usageCost": "Estimated cost",
+  "usageSessions": "Conversations",
+  "usageByModel": "By model",
+  "usageCache": "Plus {n} tokens read from cache",
+  "@usageCache": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "memory": "Memory",
+  "memoryAboutYou": "About you",
+  "memoryNotes": "Its notes",
+  "memoryEmpty": "Hermes hasn't remembered anything yet.",
+  "memoryFooter": "Hermes writes these itself as you talk. Fix what's wrong, or swipe left to forget it.",
+  "memoryForget": "Forget",
+  "memoryForgetMessage": "Hermes will no longer know this.",
+  "searchInMessages": "In messages",
+  "kanban": "Kanban",
+  "kanbanYourTurn": "Your turn",
+  "kanbanNothing": "Nothing is waiting for you.",
+  "kanbanToReview": "To review",
+  "kanbanIsBlocked": "Blocked",
+  "kanbanDecision": "Decision",
+  "kanbanBoard": "Board",
+  "kanbanAdd": "New idea",
+  "kanbanTitle": "Title",
+  "kanbanDetails": "Details",
+  "kanbanAddFooter": "It goes to Triage, where the planner picks it up.",
+  "kanbanDescription": "Description",
+  "kanbanSummary": "Latest summary",
+  "kanbanHistory": "History",
+  "kanbanReplyHint": "Your answer…",
+  "kanbanApprove": "Approve",
+  "kanbanSendBack": "Send back",
+  "kanbanSendBackMessage": "The task goes back to Ready, with your comment if you wrote one.",
+  "kanbanReviewRequested": "Review requested",
+  "kanbanCompleted": "Completed",
+  "language": "Language"
 }

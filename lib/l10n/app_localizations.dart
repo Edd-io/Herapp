@@ -62,7 +62,8 @@ import 'app_localizations_fr.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -70,7 +71,8 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -82,15 +84,19 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[Locale('en'), Locale('fr')];
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('fr'),
+  ];
 
   /// No description provided for @newChat.
   ///
@@ -464,18 +470,6 @@ abstract class AppLocalizations {
   /// **'Couldn\'t delete the chat.\n{message}'**
   String deleteFailed(String message);
 
-  /// No description provided for @cron.
-  ///
-  /// In en, this message translates to:
-  /// **'Scheduled jobs'**
-  String get cron;
-
-  /// No description provided for @cronEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'No scheduled jobs.'**
-  String get cronEmpty;
-
   /// No description provided for @cronNext.
   ///
   /// In en, this message translates to:
@@ -523,12 +517,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t update the job.\n{message}'**
   String cronActionFailed(String message);
-
-  /// No description provided for @cronFooter.
-  ///
-  /// In en, this message translates to:
-  /// **'Jobs Hermes runs on its own. Pull down to refresh.'**
-  String get cronFooter;
 
   /// No description provided for @cronNew.
   ///
@@ -799,9 +787,610 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Checked before each run: when its output hasn\'t changed, the AI doesn\'t run. A script or a URL, not both, and not with Script only.'**
   String get cronMonitorHint;
+
+  /// No description provided for @ok.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get ok;
+
+  /// No description provided for @agents.
+  ///
+  /// In en, this message translates to:
+  /// **'Agents'**
+  String get agents;
+
+  /// No description provided for @agentNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New agent'**
+  String get agentNew;
+
+  /// No description provided for @agentsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No agents yet. An agent works on its own on a schedule, and tells you what matters.'**
+  String get agentsEmpty;
+
+  /// No description provided for @agentWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working on it…'**
+  String get agentWorking;
+
+  /// No description provided for @agentDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Mission complete'**
+  String get agentDone;
+
+  /// No description provided for @agentAsleep.
+  ///
+  /// In en, this message translates to:
+  /// **'Asleep'**
+  String get agentAsleep;
+
+  /// No description provided for @agentTrouble.
+  ///
+  /// In en, this message translates to:
+  /// **'Ran into a problem'**
+  String get agentTrouble;
+
+  /// No description provided for @agentWakesIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Wakes up in {time}'**
+  String agentWakesIn(String time);
+
+  /// No description provided for @agentIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get agentIdle;
+
+  /// No description provided for @agentWake.
+  ///
+  /// In en, this message translates to:
+  /// **'Wake up now'**
+  String get agentWake;
+
+  /// No description provided for @agentSaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Last word'**
+  String get agentSaid;
+
+  /// No description provided for @agentSaidNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Hasn\'t said anything yet.'**
+  String get agentSaidNothing;
+
+  /// No description provided for @agentMission.
+  ///
+  /// In en, this message translates to:
+  /// **'Mission'**
+  String get agentMission;
+
+  /// No description provided for @agentRhythm.
+  ///
+  /// In en, this message translates to:
+  /// **'Rhythm'**
+  String get agentRhythm;
+
+  /// No description provided for @agentActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get agentActive;
+
+  /// No description provided for @agentQuiet.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaks only when it matters'**
+  String get agentQuiet;
+
+  /// No description provided for @agentTeam.
+  ///
+  /// In en, this message translates to:
+  /// **'Listens to'**
+  String get agentTeam;
+
+  /// No description provided for @agentTeamNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No one'**
+  String get agentTeamNone;
+
+  /// No description provided for @agentTeamAlone.
+  ///
+  /// In en, this message translates to:
+  /// **'There\'s no other agent yet.'**
+  String get agentTeamAlone;
+
+  /// No description provided for @agentSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'All settings'**
+  String get agentSettings;
+
+  /// No description provided for @agentBlank.
+  ///
+  /// In en, this message translates to:
+  /// **'Start from scratch'**
+  String get agentBlank;
+
+  /// No description provided for @agentBlankHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own mission, rhythm and model'**
+  String get agentBlankHint;
+
+  /// No description provided for @agentCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get agentCreate;
+
+  /// No description provided for @vault.
+  ///
+  /// In en, this message translates to:
+  /// **'Vault'**
+  String get vault;
+
+  /// No description provided for @vaultAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an account'**
+  String get vaultAdd;
+
+  /// No description provided for @vaultEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts yet. Add the ones Hermes may sign in with for you.'**
+  String get vaultEmpty;
+
+  /// No description provided for @vaultFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes can sign in to these sites for you. Passwords are encrypted on your server and never sent back to the app. Swipe left to remove an account.'**
+  String get vaultFooter;
+
+  /// No description provided for @vaultDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the account'**
+  String get vaultDelete;
+
+  /// No description provided for @vaultDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes will no longer be able to sign in with this account.'**
+  String get vaultDeleteMessage;
+
+  /// No description provided for @vaultTwoFactor.
+  ///
+  /// In en, this message translates to:
+  /// **'2FA'**
+  String get vaultTwoFactor;
+
+  /// No description provided for @vaultLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get vaultLabel;
+
+  /// No description provided for @vaultLabelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub (work)'**
+  String get vaultLabelHint;
+
+  /// No description provided for @vaultSite.
+  ///
+  /// In en, this message translates to:
+  /// **'Site'**
+  String get vaultSite;
+
+  /// No description provided for @vaultEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get vaultEmail;
+
+  /// No description provided for @vaultPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get vaultPhone;
+
+  /// No description provided for @vaultUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get vaultUsername;
+
+  /// No description provided for @vaultPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get vaultPassword;
+
+  /// No description provided for @vaultOtp.
+  ///
+  /// In en, this message translates to:
+  /// **'Two-factor key (optional)'**
+  String get vaultOtp;
+
+  /// No description provided for @vaultOtpHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Base32 key or otpauth:// link'**
+  String get vaultOtpHint;
+
+  /// No description provided for @vaultOtpFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'The key shown when you set up an authenticator app. With it, Hermes generates the 6-digit codes itself.'**
+  String get vaultOtpFooter;
+
+  /// No description provided for @agentScripts.
+  ///
+  /// In en, this message translates to:
+  /// **'Scripts'**
+  String get agentScripts;
+
+  /// No description provided for @attachPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get attachPhotos;
+
+  /// No description provided for @attachCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get attachCamera;
+
+  /// No description provided for @attachFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get attachFiles;
+
+  /// No description provided for @workers.
+  ///
+  /// In en, this message translates to:
+  /// **'Workers'**
+  String get workers;
+
+  /// No description provided for @workersNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No worker running'**
+  String get workersNone;
+
+  /// No description provided for @workerRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Working'**
+  String get workerRunning;
+
+  /// No description provided for @workerSince.
+  ///
+  /// In en, this message translates to:
+  /// **'Working for {time}'**
+  String workerSince(String time);
+
+  /// No description provided for @workerSilent.
+  ///
+  /// In en, this message translates to:
+  /// **'No sign of life for {time}'**
+  String workerSilent(String time);
+
+  /// No description provided for @workerFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed: {error}'**
+  String workerFailed(String error);
+
+  /// No description provided for @kanbanReady.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} ready'**
+  String kanbanReady(int n);
+
+  /// No description provided for @kanbanTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} to do'**
+  String kanbanTodo(int n);
+
+  /// No description provided for @kanbanReview.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} in review'**
+  String kanbanReview(int n);
+
+  /// No description provided for @kanbanBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} blocked'**
+  String kanbanBlocked(int n);
+
+  /// No description provided for @kanbanDone.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} done'**
+  String kanbanDone(int n);
+
+  /// No description provided for @effort.
+  ///
+  /// In en, this message translates to:
+  /// **'Effort'**
+  String get effort;
+
+  /// No description provided for @effortAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get effortAuto;
+
+  /// No description provided for @effortMinimal.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimal'**
+  String get effortMinimal;
+
+  /// No description provided for @effortLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get effortLow;
+
+  /// No description provided for @effortMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get effortMedium;
+
+  /// No description provided for @effortHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get effortHigh;
+
+  /// No description provided for @effortXhigh.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra high'**
+  String get effortXhigh;
+
+  /// No description provided for @effortMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get effortMax;
+
+  /// No description provided for @usage.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get usage;
+
+  /// No description provided for @usageDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} days'**
+  String usageDays(int n);
+
+  /// No description provided for @usageTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens'**
+  String get usageTokens;
+
+  /// No description provided for @usageCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated cost'**
+  String get usageCost;
+
+  /// No description provided for @usageSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations'**
+  String get usageSessions;
+
+  /// No description provided for @usageByModel.
+  ///
+  /// In en, this message translates to:
+  /// **'By model'**
+  String get usageByModel;
+
+  /// No description provided for @usageCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Plus {n} tokens read from cache'**
+  String usageCache(String n);
+
+  /// No description provided for @memory.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory'**
+  String get memory;
+
+  /// No description provided for @memoryAboutYou.
+  ///
+  /// In en, this message translates to:
+  /// **'About you'**
+  String get memoryAboutYou;
+
+  /// No description provided for @memoryNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Its notes'**
+  String get memoryNotes;
+
+  /// No description provided for @memoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes hasn\'t remembered anything yet.'**
+  String get memoryEmpty;
+
+  /// No description provided for @memoryFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes writes these itself as you talk. Fix what\'s wrong, or swipe left to forget it.'**
+  String get memoryFooter;
+
+  /// No description provided for @memoryForget.
+  ///
+  /// In en, this message translates to:
+  /// **'Forget'**
+  String get memoryForget;
+
+  /// No description provided for @memoryForgetMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes will no longer know this.'**
+  String get memoryForgetMessage;
+
+  /// No description provided for @searchInMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'In messages'**
+  String get searchInMessages;
+
+  /// No description provided for @kanban.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanban'**
+  String get kanban;
+
+  /// No description provided for @kanbanYourTurn.
+  ///
+  /// In en, this message translates to:
+  /// **'Your turn'**
+  String get kanbanYourTurn;
+
+  /// No description provided for @kanbanNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is waiting for you.'**
+  String get kanbanNothing;
+
+  /// No description provided for @kanbanToReview.
+  ///
+  /// In en, this message translates to:
+  /// **'To review'**
+  String get kanbanToReview;
+
+  /// No description provided for @kanbanIsBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked'**
+  String get kanbanIsBlocked;
+
+  /// No description provided for @kanbanDecision.
+  ///
+  /// In en, this message translates to:
+  /// **'Decision'**
+  String get kanbanDecision;
+
+  /// No description provided for @kanbanBoard.
+  ///
+  /// In en, this message translates to:
+  /// **'Board'**
+  String get kanbanBoard;
+
+  /// No description provided for @kanbanAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'New idea'**
+  String get kanbanAdd;
+
+  /// No description provided for @kanbanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get kanbanTitle;
+
+  /// No description provided for @kanbanDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get kanbanDetails;
+
+  /// No description provided for @kanbanAddFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'It goes to Triage, where the planner picks it up.'**
+  String get kanbanAddFooter;
+
+  /// No description provided for @kanbanDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get kanbanDescription;
+
+  /// No description provided for @kanbanSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest summary'**
+  String get kanbanSummary;
+
+  /// No description provided for @kanbanHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get kanbanHistory;
+
+  /// No description provided for @kanbanReplyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your answer…'**
+  String get kanbanReplyHint;
+
+  /// No description provided for @kanbanApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get kanbanApprove;
+
+  /// No description provided for @kanbanSendBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Send back'**
+  String get kanbanSendBack;
+
+  /// No description provided for @kanbanSendBackMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The task goes back to Ready, with your comment if you wrote one.'**
+  String get kanbanSendBackMessage;
+
+  /// No description provided for @kanbanReviewRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Review requested'**
+  String get kanbanReviewRequested;
+
+  /// No description provided for @kanbanCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get kanbanCompleted;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -810,7 +1399,8 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['en', 'fr'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['en', 'fr'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;

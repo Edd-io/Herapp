@@ -101,12 +101,14 @@ void main() {
     expect(merged.first.windows.map((w) => w.label), ['Current session', 'Fable week']);
   });
 
-  test('models are fetched with the sign-in cookie', () async {
+  test('models are fetched with the sign-in cookie, signing in once', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    var logins = 0, cookie = 'abc';
     server.listen((req) async {
       if (req.uri.path == '/auth/password-login') {
-        req.response.cookies.add(Cookie('session', 'abc'));
-      } else if (req.uri.path == '/api/model/options' && req.cookies.any((c) => c.value == 'abc')) {
+        logins++;
+        req.response.cookies.add(Cookie('session', cookie));
+      } else if (req.uri.path == '/api/model/options' && req.cookies.any((c) => c.value == cookie)) {
         req.response.write('{"model":"m","provider":"p","providers":[{"slug":"p","name":"P","models":["m"]}]}');
       } else {
         req.response.statusCode = 401;
@@ -118,6 +120,11 @@ void main() {
 
     final r = await hermesModels(base, user: 'alice', password: 'right');
     expect((r.current, r.models.single.provider), ('p/m', 'P'));
+    await hermesModels(base, user: 'alice', password: 'right');
+    expect(logins, 1); // the dashboard rate-limits its login
+    cookie = 'def'; // the server forgot the session: sign in again, once
+    await hermesModels(base, user: 'alice', password: 'right');
+    expect(logins, 2);
     expect(hermesModels(base), throwsA(isA<HttpException>())); // no session
   });
 
@@ -198,6 +205,39 @@ void main() {
     expect(contextOf({'context_percent': null}), isNull);
   });
 
+  test('transcript shows a skill as typed and attachments apart', () {
+    const skill =
+        '[IMPORTANT: The user has invoked the "github" skill, indicating they want you to follow its instructions. '
+        'The full skill content is loaded below.]\n\nUse gh.\n\nThe user has provided the following instruction alongside the '
+        'skill invocation: list my PRs\n\n[Runtime note: cwd is /x]';
+    final msgs = transcript([
+      {'role': 'user', 'content': skill},
+      {'role': 'user', 'content': 'Read this\n\n@file:uploads/report.pdf'},
+      {
+        'role': 'user',
+        'content': [
+          {'type': 'text', 'text': 'What is it?'},
+          {'type': 'image_url', 'image_url': {'url': 'data:...'}},
+        ],
+      },
+    ]);
+    expect([for (final m in msgs) m.text], ['/github list my PRs', 'Read this', 'What is it?']);
+    expect([for (final m in msgs) for (final f in m.files) (f.name, f.image)], [('report.pdf', false), ('image', true)]);
+    expect(skillInvocation('plain'), isNull);
+  });
+
+  test('board lists running workers, failing tasks and counts', () {
+    final b = parseBoard(
+      '{"columns":[{"name":"todo","tasks":[{"id":"t1","title":"Fix","status":"todo","consecutive_failures":2,'
+      '"last_failure_error":"worker exited 1"}]},{"name":"running","tasks":[{"id":"t2","title":"Build","status":"running",'
+      '"current_run_started_at":1793350000,"last_heartbeat_at":1793350600,"latest_summary":" halfway "}]},{"name":"done","tasks":[]}]}',
+    )!;
+    expect(b.counts, {'todo': 1, 'running': 1, 'done': 0});
+    expect([for (final t in b.running) (t.id, t.summary, t.heartbeat!.difference(t.since!))], [('t2', 'halfway', const Duration(minutes: 10))]);
+    expect([for (final t in b.failing) (t.id, t.error)], [('t1', 'worker exited 1')]);
+    expect(parseBoard('{"detail":"Not Found"}'), isNull);
+  });
+
   test('cron jobs keep schedule, state, runs and the last error', () {
     const body =
         '[{"id":"a1","name":"Nightly summary","enabled":false,"state":"paused","schedule":{"kind":"cron","expr":"0 7 * * *",'
@@ -253,5 +293,54 @@ void main() {
       ],
     );
     expect(cronPayload({'repeat': ''})['repeat'], 'forever');
+  });
+
+  test('usage takes billed cost over the estimate and sorts models by tokens', () {
+    final u = parseUsage(
+      '{"daily":[{"day":"2026-10-29","input_tokens":100,"output_tokens":20,"estimated_cost":0.5,"actual_cost":0,"sessions":3}],'
+      '"by_model":[{"model":"small","input_tokens":10,"output_tokens":1,"estimated_cost":0},'
+      '{"model":"big","input_tokens":90,"output_tokens":19,"estimated_cost":0.5,"actual_cost":0.7,"sessions":2}],'
+      '"totals":{"total_input":100,"total_output":20,"total_cache_read":5000,"total_estimated_cost":0.5,'
+      '"total_actual_cost":0,"total_sessions":3}}',
+    )!;
+    expect([for (final m in u.models) (m.name, m.cost)], [('big', 0.7), ('small', 0.0)]);
+    expect((u.days.single.name, u.days.single.cost), ('2026-10-29', 0.5));
+    expect((u.total.input + u.total.output, u.total.sessions, u.cache), (120, 3, 5000));
+    expect(parseUsage('{"detail":"corrupt"}'), isNull);
+  });
+
+  test('memories are the graph\'s memory nodes, newest first', () {
+    final m = parseMemories(
+      '{"nodes":[{"id":"github","kind":"skill","label":"github"},'
+      '{"id":"memory:memory:0:aa","kind":"memory","memorySource":"memory","label":"Old note","timestamp":1793000000},'
+      '{"id":"memory:profile:1:bb","kind":"memory","memorySource":"profile","label":"Prefers French","timestamp":1793300000}]}',
+    );
+    expect([for (final x in m) (x.id, x.title, x.profile)], [('memory:profile:1:bb', 'Prefers French', true), ('memory:memory:0:aa', 'Old note', false)]);
+  });
+
+  test('search keeps chats, not runs or subagents', () {
+    final f = parseFound(
+      '{"results":[{"session_id":"s1","title":"","preview":"Plan the trip","snippet":"...the >>>trip<<<\\n to Lyon...","source":"webui"},'
+      '{"session_id":"s2","title":"Sub","snippet":"x","source":"subagent"},{"id":"s3","title":"Cron","source":"cron"}]}',
+    );
+    expect([for (final x in f) (x.id, x.title, x.snippet)], [('s1', 'Plan the trip', '...the >>>trip<<< to Lyon...')]);
+  });
+
+  test('cards waiting for the user, and a card\'s history', () {
+    final a = parseAttention(
+      '{"columns":[{"name":"todo","tasks":[{"id":"d","title":"[DEC] Pick a name","status":"todo","created_at":3},'
+      '{"id":"t","title":"Plain","status":"todo","created_at":1},'
+      '{"id":"f","title":"Stuck","status":"todo","created_at":2,"diagnostics":[{"title":"Blocked for 90h"}]}]},'
+      '{"name":"review","tasks":[{"id":"r","title":"Check","status":"review","created_at":0,"comment_count":2}]},'
+      '{"name":"done","tasks":[{"id":"x","title":"[DEC] Old","status":"done"}]}]}',
+    );
+    expect([for (final k in a) (k.id, k.attention)], [('r', 'review'), ('f', 'Blocked for 90h'), ('d', 'decision')]);
+    final d = parseCard(
+      '{"task":{"id":"r","title":"Check","status":"review","body":"Do it"},'
+      '"comments":[{"author":"alice","body":"Looks wrong","created_at":20}],'
+      '"events":[{"kind":"review_requested","created_at":10,"payload":{"summary":"commit 63dcb66"}},{"kind":"commented","created_at":20,"payload":{"len":11}}]}',
+    )!;
+    expect(d.card.body, 'Do it');
+    expect([for (final n in d.notes) (n.event, n.author, n.text)], [('review_requested', '', 'commit 63dcb66'), ('', 'alice', 'Looks wrong')]);
   });
 }

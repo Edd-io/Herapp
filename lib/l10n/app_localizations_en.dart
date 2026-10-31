@@ -157,7 +157,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get serverTunnelFailed => 'the WireGuard tunnel can\'t reach the server';
+  String get serverTunnelFailed =>
+      'the WireGuard tunnel can\'t reach the server';
 
   @override
   String get modelsNone => 'No model is configured on the server.';
@@ -171,7 +172,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serverNotSet => 'Set your Hermes server address in Settings.';
 
   @override
-  String get serverRestart => 'Hermes was updated but is still running the old version. Restart the Hermes server.';
+  String get serverRestart =>
+      'Hermes was updated but is still running the old version. Restart the Hermes server.';
 
   @override
   String serverLoadFailed(String message) {
@@ -213,13 +215,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get quotaFooter => 'Usage reported by Hermes for subscription providers. Pull down to refresh.';
+  String get quotaFooter =>
+      'Usage reported by Hermes for subscription providers. Pull down to refresh.';
 
   @override
   String get deleteChat => 'Delete chat';
 
   @override
-  String get deleteChatMessage => 'This chat will be deleted from Hermes for good.';
+  String get deleteChatMessage =>
+      'This chat will be deleted from Hermes for good.';
 
   @override
   String get cancel => 'Cancel';
@@ -228,12 +232,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String deleteFailed(String message) {
     return 'Couldn\'t delete the chat.\n$message';
   }
-
-  @override
-  String get cron => 'Scheduled jobs';
-
-  @override
-  String get cronEmpty => 'No scheduled jobs.';
 
   @override
   String cronNext(String time) {
@@ -270,9 +268,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get cronFooter => 'Jobs Hermes runs on its own. Pull down to refresh.';
-
-  @override
   String get cronNew => 'New job';
 
   @override
@@ -291,7 +286,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cronSchedule => 'Schedule';
 
   @override
-  String get cronScheduleHint => '0 9 * * *, every 30m, every monday 9am, or a date like 2026-11-02T08:00';
+  String get cronScheduleHint =>
+      '0 9 * * *, every 30m, every monday 9am, or a date like 2026-11-02T08:00';
 
   @override
   String get cronRepeat => 'Repeat';
@@ -365,13 +361,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cronContextFrom => 'Context from jobs';
 
   @override
-  String get cronContextHint => 'Job ids whose latest output is given to this one';
+  String get cronContextHint =>
+      'Job ids whose latest output is given to this one';
 
   @override
   String get cronDelete => 'Delete job';
 
   @override
-  String get cronDeleteMessage => 'This job will be deleted from Hermes for good.';
+  String get cronDeleteMessage =>
+      'This job will be deleted from Hermes for good.';
 
   @override
   String get approvalTitle => 'Hermes wants to run a command';
@@ -390,7 +388,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String toolsUsed(int count) {
-    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count actions', one: '1 action');
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count actions',
+      one: '1 action',
+    );
     return '$_temp0';
   }
 
@@ -412,4 +415,334 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get cronMonitorHint =>
       'Checked before each run: when its output hasn\'t changed, the AI doesn\'t run. A script or a URL, not both, and not with Script only.';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get agents => 'Agents';
+
+  @override
+  String get agentNew => 'New agent';
+
+  @override
+  String get agentsEmpty =>
+      'No agents yet. An agent works on its own on a schedule, and tells you what matters.';
+
+  @override
+  String get agentWorking => 'Working on it…';
+
+  @override
+  String get agentDone => 'Mission complete';
+
+  @override
+  String get agentAsleep => 'Asleep';
+
+  @override
+  String get agentTrouble => 'Ran into a problem';
+
+  @override
+  String agentWakesIn(String time) {
+    return 'Wakes up in $time';
+  }
+
+  @override
+  String get agentIdle => 'Ready';
+
+  @override
+  String get agentWake => 'Wake up now';
+
+  @override
+  String get agentSaid => 'Last word';
+
+  @override
+  String get agentSaidNothing => 'Hasn\'t said anything yet.';
+
+  @override
+  String get agentMission => 'Mission';
+
+  @override
+  String get agentRhythm => 'Rhythm';
+
+  @override
+  String get agentActive => 'Active';
+
+  @override
+  String get agentQuiet => 'Speaks only when it matters';
+
+  @override
+  String get agentTeam => 'Listens to';
+
+  @override
+  String get agentTeamNone => 'No one';
+
+  @override
+  String get agentTeamAlone => 'There\'s no other agent yet.';
+
+  @override
+  String get agentSettings => 'All settings';
+
+  @override
+  String get agentBlank => 'Start from scratch';
+
+  @override
+  String get agentBlankHint => 'Your own mission, rhythm and model';
+
+  @override
+  String get agentCreate => 'Create';
+
+  @override
+  String get vault => 'Vault';
+
+  @override
+  String get vaultAdd => 'Add an account';
+
+  @override
+  String get vaultEmpty =>
+      'No accounts yet. Add the ones Hermes may sign in with for you.';
+
+  @override
+  String get vaultFooter =>
+      'Hermes can sign in to these sites for you. Passwords are encrypted on your server and never sent back to the app. Swipe left to remove an account.';
+
+  @override
+  String get vaultDelete => 'Remove the account';
+
+  @override
+  String get vaultDeleteMessage =>
+      'Hermes will no longer be able to sign in with this account.';
+
+  @override
+  String get vaultTwoFactor => '2FA';
+
+  @override
+  String get vaultLabel => 'Name';
+
+  @override
+  String get vaultLabelHint => 'GitHub (work)';
+
+  @override
+  String get vaultSite => 'Site';
+
+  @override
+  String get vaultEmail => 'Email';
+
+  @override
+  String get vaultPhone => 'Phone';
+
+  @override
+  String get vaultUsername => 'Username';
+
+  @override
+  String get vaultPassword => 'Password';
+
+  @override
+  String get vaultOtp => 'Two-factor key (optional)';
+
+  @override
+  String get vaultOtpHint => 'Base32 key or otpauth:// link';
+
+  @override
+  String get vaultOtpFooter =>
+      'The key shown when you set up an authenticator app. With it, Hermes generates the 6-digit codes itself.';
+
+  @override
+  String get agentScripts => 'Scripts';
+
+  @override
+  String get attachPhotos => 'Photos';
+
+  @override
+  String get attachCamera => 'Take a photo';
+
+  @override
+  String get attachFiles => 'Files';
+
+  @override
+  String get workers => 'Workers';
+
+  @override
+  String get workersNone => 'No worker running';
+
+  @override
+  String get workerRunning => 'Working';
+
+  @override
+  String workerSince(String time) {
+    return 'Working for $time';
+  }
+
+  @override
+  String workerSilent(String time) {
+    return 'No sign of life for $time';
+  }
+
+  @override
+  String workerFailed(String error) {
+    return 'Failed: $error';
+  }
+
+  @override
+  String kanbanReady(int n) {
+    return '$n ready';
+  }
+
+  @override
+  String kanbanTodo(int n) {
+    return '$n to do';
+  }
+
+  @override
+  String kanbanReview(int n) {
+    return '$n in review';
+  }
+
+  @override
+  String kanbanBlocked(int n) {
+    return '$n blocked';
+  }
+
+  @override
+  String kanbanDone(int n) {
+    return '$n done';
+  }
+
+  @override
+  String get effort => 'Effort';
+
+  @override
+  String get effortAuto => 'Auto';
+
+  @override
+  String get effortMinimal => 'Minimal';
+
+  @override
+  String get effortLow => 'Low';
+
+  @override
+  String get effortMedium => 'Medium';
+
+  @override
+  String get effortHigh => 'High';
+
+  @override
+  String get effortXhigh => 'Extra high';
+
+  @override
+  String get effortMax => 'Max';
+
+  @override
+  String get usage => 'Usage';
+
+  @override
+  String usageDays(int n) {
+    return '$n days';
+  }
+
+  @override
+  String get usageTokens => 'Tokens';
+
+  @override
+  String get usageCost => 'Estimated cost';
+
+  @override
+  String get usageSessions => 'Conversations';
+
+  @override
+  String get usageByModel => 'By model';
+
+  @override
+  String usageCache(String n) {
+    return 'Plus $n tokens read from cache';
+  }
+
+  @override
+  String get memory => 'Memory';
+
+  @override
+  String get memoryAboutYou => 'About you';
+
+  @override
+  String get memoryNotes => 'Its notes';
+
+  @override
+  String get memoryEmpty => 'Hermes hasn\'t remembered anything yet.';
+
+  @override
+  String get memoryFooter =>
+      'Hermes writes these itself as you talk. Fix what\'s wrong, or swipe left to forget it.';
+
+  @override
+  String get memoryForget => 'Forget';
+
+  @override
+  String get memoryForgetMessage => 'Hermes will no longer know this.';
+
+  @override
+  String get searchInMessages => 'In messages';
+
+  @override
+  String get kanban => 'Kanban';
+
+  @override
+  String get kanbanYourTurn => 'Your turn';
+
+  @override
+  String get kanbanNothing => 'Nothing is waiting for you.';
+
+  @override
+  String get kanbanToReview => 'To review';
+
+  @override
+  String get kanbanIsBlocked => 'Blocked';
+
+  @override
+  String get kanbanDecision => 'Decision';
+
+  @override
+  String get kanbanBoard => 'Board';
+
+  @override
+  String get kanbanAdd => 'New idea';
+
+  @override
+  String get kanbanTitle => 'Title';
+
+  @override
+  String get kanbanDetails => 'Details';
+
+  @override
+  String get kanbanAddFooter =>
+      'It goes to Triage, where the planner picks it up.';
+
+  @override
+  String get kanbanDescription => 'Description';
+
+  @override
+  String get kanbanSummary => 'Latest summary';
+
+  @override
+  String get kanbanHistory => 'History';
+
+  @override
+  String get kanbanReplyHint => 'Your answer…';
+
+  @override
+  String get kanbanApprove => 'Approve';
+
+  @override
+  String get kanbanSendBack => 'Send back';
+
+  @override
+  String get kanbanSendBackMessage =>
+      'The task goes back to Ready, with your comment if you wrote one.';
+
+  @override
+  String get kanbanReviewRequested => 'Review requested';
+
+  @override
+  String get kanbanCompleted => 'Completed';
+
+  @override
+  String get language => 'Language';
 }
