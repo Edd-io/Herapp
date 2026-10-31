@@ -105,5 +105,17 @@
   "cronContextFrom": "Contexte des tâches",
   "cronContextHint": "Ids des tâches dont la dernière sortie est transmise à celle-ci",
   "cronDelete": "Supprimer la tâche",
-  "cronDeleteMessage": "Cette tâche sera supprimée définitivement de Hermes."
+  "cronDeleteMessage": "Cette tâche sera supprimée définitivement de Hermes.",
+  "approvalTitle": "Hermes veut lancer une commande",
+  "approveOnce": "Autoriser une fois",
+  "approveSession": "Pour ce chat",
+  "approveAlways": "Toujours",
+  "approveDeny": "Refuser",
+  "toolsUsed": "{count, plural, =1{1 action} other{{count} actions}}",
+  "cronRuns": "Historique des exécutions",
+  "cronRunsEmpty": "Aucune exécution pour l’instant",
+  "cronMonitor": "Surveillance",
+  "cronMonitorScript": "Script de surveillance",
+  "cronMonitorUrl": "URL surveillée",
+  "cronMonitorHint": "Vérifié avant chaque exécution : si sa sortie n’a pas changé, l’IA ne tourne pas. Un script ou une URL, pas les deux, et pas avec Script seul."
 }

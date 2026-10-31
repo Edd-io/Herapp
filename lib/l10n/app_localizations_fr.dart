@@ -54,8 +54,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get hermesServer => 'Serveur Hermes';
 
   @override
-  String get hermesServerFooter =>
-      'Adresse à laquelle l’app enverra les messages.';
+  String get hermesServerFooter => 'Adresse à laquelle l’app enverra les messages.';
 
   @override
   String get wireguard => 'WireGuard';
@@ -87,12 +86,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get wgRemove => 'Supprimer la configuration';
 
   @override
-  String get wgFooter =>
-      'Tout le trafic réseau de l’app passe par le tunnel. Tunnel activé mais coupé : l’app ne communique plus.';
+  String get wgFooter => 'Tout le trafic réseau de l’app passe par le tunnel. Tunnel activé mais coupé : l’app ne communique plus.';
 
   @override
-  String get wgInvalidFile =>
-      'Ce fichier n’est pas une configuration WireGuard.';
+  String get wgInvalidFile => 'Ce fichier n’est pas une configuration WireGuard.';
 
   @override
   String get serverTest => 'Tester la connexion';
@@ -159,8 +156,7 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get serverTunnelFailed =>
-      'le tunnel WireGuard n’arrive pas à joindre le serveur';
+  String get serverTunnelFailed => 'le tunnel WireGuard n’arrive pas à joindre le serveur';
 
   @override
   String get modelsNone => 'Aucun modèle n\'est configuré sur le serveur.';
@@ -171,12 +167,10 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get serverNotSet =>
-      'Renseigne l\'adresse de ton serveur Hermes dans les réglages.';
+  String get serverNotSet => 'Renseigne l\'adresse de ton serveur Hermes dans les réglages.';
 
   @override
-  String get serverRestart =>
-      'Hermes a été mis à jour mais tourne encore sur l\'ancienne version. Redémarre le serveur Hermes.';
+  String get serverRestart => 'Hermes a été mis à jour mais tourne encore sur l\'ancienne version. Redémarre le serveur Hermes.';
 
   @override
   String serverLoadFailed(String message) {
@@ -218,15 +212,13 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get quotaFooter =>
-      'Utilisation remontée par Hermes pour les abonnements. Tire vers le bas pour actualiser.';
+  String get quotaFooter => 'Utilisation remontée par Hermes pour les abonnements. Tire vers le bas pour actualiser.';
 
   @override
   String get deleteChat => 'Supprimer le chat';
 
   @override
-  String get deleteChatMessage =>
-      'Ce chat sera supprimé définitivement de Hermes.';
+  String get deleteChatMessage => 'Ce chat sera supprimé définitivement de Hermes.';
 
   @override
   String get cancel => 'Annuler';
@@ -277,8 +269,7 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get cronFooter =>
-      'Tâches que Hermes exécute tout seul. Tire vers le bas pour actualiser.';
+  String get cronFooter => 'Tâches que Hermes exécute tout seul. Tire vers le bas pour actualiser.';
 
   @override
   String get cronNew => 'Nouvelle tâche';
@@ -299,8 +290,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cronSchedule => 'Planification';
 
   @override
-  String get cronScheduleHint =>
-      '0 9 * * *, every 30m, every monday 9am, ou une date comme 2026-11-02T08:00';
+  String get cronScheduleHint => '0 9 * * *, every 30m, every monday 9am, ou une date comme 2026-11-02T08:00';
 
   @override
   String get cronRepeat => 'Répétitions';
@@ -374,13 +364,51 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cronContextFrom => 'Contexte des tâches';
 
   @override
-  String get cronContextHint =>
-      'Ids des tâches dont la dernière sortie est transmise à celle-ci';
+  String get cronContextHint => 'Ids des tâches dont la dernière sortie est transmise à celle-ci';
 
   @override
   String get cronDelete => 'Supprimer la tâche';
 
   @override
-  String get cronDeleteMessage =>
-      'Cette tâche sera supprimée définitivement de Hermes.';
+  String get cronDeleteMessage => 'Cette tâche sera supprimée définitivement de Hermes.';
+
+  @override
+  String get approvalTitle => 'Hermes veut lancer une commande';
+
+  @override
+  String get approveOnce => 'Autoriser une fois';
+
+  @override
+  String get approveSession => 'Pour ce chat';
+
+  @override
+  String get approveAlways => 'Toujours';
+
+  @override
+  String get approveDeny => 'Refuser';
+
+  @override
+  String toolsUsed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count actions', one: '1 action');
+    return '$_temp0';
+  }
+
+  @override
+  String get cronRuns => 'Historique des exécutions';
+
+  @override
+  String get cronRunsEmpty => 'Aucune exécution pour l’instant';
+
+  @override
+  String get cronMonitor => 'Surveillance';
+
+  @override
+  String get cronMonitorScript => 'Script de surveillance';
+
+  @override
+  String get cronMonitorUrl => 'URL surveillée';
+
+  @override
+  String get cronMonitorHint =>
+      'Vérifié avant chaque exécution : si sa sortie n’a pas changé, l’IA ne tourne pas. Un script ou une URL, pas les deux, et pas avec Script seul.';
 }

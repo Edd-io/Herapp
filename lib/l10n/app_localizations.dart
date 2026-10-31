@@ -62,8 +62,7 @@ import 'app_localizations_fr.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -71,8 +70,7 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate =
-      _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -84,19 +82,15 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[
-    Locale('en'),
-    Locale('fr'),
-  ];
+  static const List<Locale> supportedLocales = <Locale>[Locale('en'), Locale('fr')];
 
   /// No description provided for @newChat.
   ///
@@ -733,10 +727,81 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This job will be deleted from Hermes for good.'**
   String get cronDeleteMessage;
+
+  /// No description provided for @approvalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes wants to run a command'**
+  String get approvalTitle;
+
+  /// No description provided for @approveOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow once'**
+  String get approveOnce;
+
+  /// No description provided for @approveSession.
+  ///
+  /// In en, this message translates to:
+  /// **'For this chat'**
+  String get approveSession;
+
+  /// No description provided for @approveAlways.
+  ///
+  /// In en, this message translates to:
+  /// **'Always'**
+  String get approveAlways;
+
+  /// No description provided for @approveDeny.
+  ///
+  /// In en, this message translates to:
+  /// **'Deny'**
+  String get approveDeny;
+
+  /// No description provided for @toolsUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 action} other{{count} actions}}'**
+  String toolsUsed(int count);
+
+  /// No description provided for @cronRuns.
+  ///
+  /// In en, this message translates to:
+  /// **'Run history'**
+  String get cronRuns;
+
+  /// No description provided for @cronRunsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No runs yet'**
+  String get cronRunsEmpty;
+
+  /// No description provided for @cronMonitor.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitor'**
+  String get cronMonitor;
+
+  /// No description provided for @cronMonitorScript.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitor script'**
+  String get cronMonitorScript;
+
+  /// No description provided for @cronMonitorUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitored URL'**
+  String get cronMonitorUrl;
+
+  /// No description provided for @cronMonitorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked before each run: when its output hasn\'t changed, the AI doesn\'t run. A script or a URL, not both, and not with Script only.'**
+  String get cronMonitorHint;
 }
 
-class _AppLocalizationsDelegate
-    extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -745,8 +810,7 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en', 'fr'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['en', 'fr'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;

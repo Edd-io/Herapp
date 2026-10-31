@@ -157,8 +157,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get serverTunnelFailed =>
-      'the WireGuard tunnel can\'t reach the server';
+  String get serverTunnelFailed => 'the WireGuard tunnel can\'t reach the server';
 
   @override
   String get modelsNone => 'No model is configured on the server.';
@@ -172,8 +171,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serverNotSet => 'Set your Hermes server address in Settings.';
 
   @override
-  String get serverRestart =>
-      'Hermes was updated but is still running the old version. Restart the Hermes server.';
+  String get serverRestart => 'Hermes was updated but is still running the old version. Restart the Hermes server.';
 
   @override
   String serverLoadFailed(String message) {
@@ -215,15 +213,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get quotaFooter =>
-      'Usage reported by Hermes for subscription providers. Pull down to refresh.';
+  String get quotaFooter => 'Usage reported by Hermes for subscription providers. Pull down to refresh.';
 
   @override
   String get deleteChat => 'Delete chat';
 
   @override
-  String get deleteChatMessage =>
-      'This chat will be deleted from Hermes for good.';
+  String get deleteChatMessage => 'This chat will be deleted from Hermes for good.';
 
   @override
   String get cancel => 'Cancel';
@@ -295,8 +291,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cronSchedule => 'Schedule';
 
   @override
-  String get cronScheduleHint =>
-      '0 9 * * *, every 30m, every monday 9am, or a date like 2026-11-02T08:00';
+  String get cronScheduleHint => '0 9 * * *, every 30m, every monday 9am, or a date like 2026-11-02T08:00';
 
   @override
   String get cronRepeat => 'Repeat';
@@ -370,13 +365,51 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cronContextFrom => 'Context from jobs';
 
   @override
-  String get cronContextHint =>
-      'Job ids whose latest output is given to this one';
+  String get cronContextHint => 'Job ids whose latest output is given to this one';
 
   @override
   String get cronDelete => 'Delete job';
 
   @override
-  String get cronDeleteMessage =>
-      'This job will be deleted from Hermes for good.';
+  String get cronDeleteMessage => 'This job will be deleted from Hermes for good.';
+
+  @override
+  String get approvalTitle => 'Hermes wants to run a command';
+
+  @override
+  String get approveOnce => 'Allow once';
+
+  @override
+  String get approveSession => 'For this chat';
+
+  @override
+  String get approveAlways => 'Always';
+
+  @override
+  String get approveDeny => 'Deny';
+
+  @override
+  String toolsUsed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count actions', one: '1 action');
+    return '$_temp0';
+  }
+
+  @override
+  String get cronRuns => 'Run history';
+
+  @override
+  String get cronRunsEmpty => 'No runs yet';
+
+  @override
+  String get cronMonitor => 'Monitor';
+
+  @override
+  String get cronMonitorScript => 'Monitor script';
+
+  @override
+  String get cronMonitorUrl => 'Monitored URL';
+
+  @override
+  String get cronMonitorHint =>
+      'Checked before each run: when its output hasn\'t changed, the AI doesn\'t run. A script or a URL, not both, and not with Script only.';
 }

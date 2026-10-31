@@ -189,9 +189,11 @@ void main() {
       {'role': 'assistant', 'text': ''}, // tool call only
       {'role': 'tool', 'content': 'output', 'name': 'terminal'},
       {'role': 'user', 'text': 'note', 'display_kind': 'hidden'},
+      {'role': 'user', 'text': '[IMPORTANT: Background process done]', 'display_kind': 'internal_notification'},
       {'role': 'assistant', 'text': 'A'},
     ]);
     expect([for (final m in msgs) (m.user, m.text)], [(true, 'Q'), (false, 'A')]);
+    expect(msgs.last.tools.single.name, 'terminal');
     expect(contextOf({'context_percent': 42}), .42);
     expect(contextOf({'context_percent': null}), isNull);
   });

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'hermes.dart';
 import 'l10n/app_localizations.dart';
@@ -299,7 +300,15 @@ class _CronEditPageState extends State<CronEditPage> {
         };
         if (changed.isNotEmpty) await serverApi('PUT', '/api/cron/jobs/${Uri.encodeComponent(job.id)}', body: {'updates': changed});
       } else {
-        await serverApi('POST', '/api/cron/jobs', body: {...payload..remove('failure_deliver'), 'no_agent': noAgent});
+        // creation doesn't take these; they follow as an update of the new job
+        const later = ['failure_deliver', 'monitor_script', 'monitor_url'];
+        final extra = {for (final k in later) k: payload.remove(k)}..removeWhere((_, v) => v == '');
+        final body = await serverApi('POST', '/api/cron/jobs', body: {...payload, 'no_agent': noAgent});
+        final id = switch (body == null ? null : jsonDecode(body)) {
+          {'id': final String id} || {'job': {'id': final String id}} => id,
+          _ => null,
+        };
+        if (extra.isNotEmpty && id != null) await serverApi('PUT', '/api/cron/jobs/${Uri.encodeComponent(id)}', body: {'updates': extra});
       }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -441,6 +450,14 @@ class _CronEditPageState extends State<CronEditPage> {
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.only(bottom: 48),
                 children: [
+                  if (widget.job case final job?)
+                    section('', [
+                      CupertinoListTile(
+                        title: Text(l.cronRuns, style: TextStyle(fontSize: 16, color: c.onSurface)),
+                        trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
+                        onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => CronRunsPage(job: job))),
+                      ),
+                    ]),
                   section(l.cronGeneral, [
                     field('name', l.cronName, maxLines: 3, prose: true),
                     field('schedule', l.cronSchedule, hint: '0 9 * * *'),
@@ -480,6 +497,10 @@ class _CronEditPageState extends State<CronEditPage> {
                     ),
                     field('failure_deliver', l.cronFailureDeliver, hint: l.cronFailureHint),
                   ]),
+                  section(l.cronMonitor, [
+                    field('monitor_script', l.cronMonitorScript, hint: l.cronScriptHint),
+                    field('monitor_url', l.cronMonitorUrl, hint: 'https://'),
+                  ], footer: l.cronMonitorHint),
                   section(l.cronAdvanced, [
                     field('workdir', l.cronWorkdir),
                     field('enabled_toolsets', l.cronToolsets, hint: l.cronListHint),
@@ -497,6 +518,195 @@ class _CronEditPageState extends State<CronEditPage> {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A run's title and preview, the preview left out when the title already quotes it.
+String runText(CronRun r, String separator) =>
+    [r.title, if (!r.title.contains(r.preview)) r.preview].where((t) => t.trim().isNotEmpty).join(separator);
+
+/// A job's past runs, newest first; a run opens on what it produced.
+class CronRunsPage extends StatefulWidget {
+  const CronRunsPage({super.key, required this.job});
+  final CronJob job;
+
+  @override
+  State<CronRunsPage> createState() => _CronRunsPageState();
+}
+
+class _CronRunsPageState extends State<CronRunsPage> {
+  List<CronRun>? runs;
+  Object? error;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final body = await serverApi('GET', '/api/cron/jobs/${Uri.encodeComponent(widget.job.id)}/runs');
+      if (mounted) setState(() => runs = parseCronRuns(body ?? ''));
+    } catch (e) {
+      debugPrint('Cron runs: $e');
+      if (mounted) setState(() => error = e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context);
+    final small = TextStyle(fontSize: 13, color: c.outline);
+    final format = DateFormat.MMMd(Localizations.localeOf(context).toString()).add_Hm();
+    final list = runs;
+    return _Page(
+      title: l.cronRuns,
+      child: switch ((list, error)) {
+        (_, final Object e) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Text(
+              serverErrorText(l, e),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: c.onSurfaceVariant),
+            ),
+          ),
+        ),
+        (null, _) => const Center(child: CupertinoActivityIndicator()),
+        (final List<CronRun> list, _) when list.isEmpty => Center(
+          child: Text(l.cronRunsEmpty, style: TextStyle(color: c.onSurfaceVariant)),
+        ),
+        (final List<CronRun> list, _) => RefreshIndicator(
+          onRefresh: load,
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 48),
+            children: [
+              CupertinoListSection.insetGrouped(
+                backgroundColor: c.surface,
+                decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+                separatorColor: c.outline.withValues(alpha: .2),
+                children: [
+                  for (final r in list)
+                    CupertinoListTile(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+                      title: Text(
+                        [if (r.at != null) format.format(r.at!), if (r.active) l.cronRunning].join(' · '),
+                        style: TextStyle(fontSize: 16, color: c.onSurface),
+                      ),
+                      subtitle: Text(runText(r, ' — '), maxLines: 2, overflow: TextOverflow.ellipsis, style: small),
+                      trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
+                      onTap: () => Navigator.of(context).push(
+                        CupertinoPageRoute<void>(
+                          builder: (_) => _CronRunPage(run: r, title: r.at == null ? l.cronRuns : format.format(r.at!)),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      },
+    );
+  }
+}
+
+/// What one run produced: its final reply (an agent run), or the output the server kept.
+class _CronRunPage extends StatefulWidget {
+  const _CronRunPage({required this.run, required this.title});
+  final CronRun run;
+  final String title;
+
+  @override
+  State<_CronRunPage> createState() => _CronRunPageState();
+}
+
+class _CronRunPageState extends State<_CronRunPage> {
+  String? text;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    final r = widget.run;
+    var out = runText(r, '\n\n');
+    if (r.session) {
+      try {
+        final body = await serverApi('GET', '/api/sessions/${Uri.encodeComponent(r.id)}/messages');
+        final reply = transcript((jsonDecode(body ?? '{}') as Map)['messages']).lastWhere((m) => !m.user, orElse: () => Msg(false, ''));
+        if (reply.text.trim().isNotEmpty) out = reply.text.trim();
+      } catch (e) {
+        debugPrint('Cron run: $e');
+      }
+    }
+    if (mounted) setState(() => text = out);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    return _Page(
+      title: widget.title,
+      child: text == null
+          ? const Center(child: CupertinoActivityIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 48),
+              child: SelectableText(text!, style: TextStyle(fontSize: 16, height: 1.45, color: c.onSurface)),
+            ),
+    );
+  }
+}
+
+/// A pushed page: back button, centered title, [child] below.
+class _Page extends StatelessWidget {
+  const _Page({required this.title, required this.child});
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: c.surface,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            SizedBox(
+              height: 52,
+              width: double.infinity,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 56),
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
+                    ),
+                  ),
+                  Positioned(
+                    left: 4,
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(CupertinoIcons.chevron_back, color: c.onSurface),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: child),
           ],
         ),
       ),

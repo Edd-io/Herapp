@@ -281,5 +281,24 @@
         "type": "int"
       }
     }
+  },
+  "approvalTitle": "Hermes wants to run a command",
+  "approveOnce": "Allow once",
+  "approveSession": "For this chat",
+  "approveAlways": "Always",
+  "approveDeny": "Deny",
+  "toolsUsed": "{count, plural, =1{1 action} other{{count} actions}}",
+  "cronRuns": "Run history",
+  "cronRunsEmpty": "No runs yet",
+  "cronMonitor": "Monitor",
+  "cronMonitorScript": "Monitor script",
+  "cronMonitorUrl": "Monitored URL",
+  "cronMonitorHint": "Checked before each run: when its output hasn't changed, the AI doesn't run. A script or a URL, not both, and not with Script only.",
+  "@toolsUsed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

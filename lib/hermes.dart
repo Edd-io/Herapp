@@ -3,9 +3,22 @@ import 'dart:convert';
 import 'dart:io';
 
 class Msg {
-  Msg(this.user, this.text);
+  Msg(this.user, this.text, [List<Tool>? tools]) : tools = tools ?? [];
   final bool user;
   String text;
+
+  /// The tools Hermes ran for this reply, in order.
+  final List<Tool> tools;
+
+  /// A command waiting for the user's approval: the server request [GatewayEvent.id] and its params.
+  ({Object id, Map params})? ask;
+}
+
+/// One tool call of a reply; [detail] is what it works on (a command, a path, a query).
+class Tool {
+  Tool(this.id, this.name, this.detail, {this.done = false});
+  final String id, name, detail;
+  bool done;
 }
 
 /// A model offered by the Hermes server; [id] = "providerSlug/model".
@@ -250,7 +263,8 @@ double? contextOf(Object? usage) => switch (usage) {
 };
 
 /// A gateway event: [type] (`message.delta`, `message.complete`, …) for the runtime [session].
-typedef GatewayEvent = ({String type, String session, Map payload});
+/// An event, or a server→client request when [id] is set (its answer goes back through [Gateway.reply]).
+typedef GatewayEvent = ({String type, String session, Map payload, Object? id});
 
 /// JSON-RPC connection to the dashboard's `/api/ws`, the gateway Hermes' own web and desktop chats use.
 class Gateway {
@@ -274,8 +288,11 @@ class Gateway {
           type: '${p['type']}',
           session: '${p['session_id'] ?? ''}',
           payload: p['payload'] is Map ? p['payload'] as Map : const {},
+          id: null,
         ));
-      case {'id': final int id} when !j.containsKey('method'): // server→client requests are not answered
+      case {'id': final Object id, 'method': final String m, 'params': final Map p}:
+        _events.add((type: m, session: '${p['session_id'] ?? ''}', payload: p, id: id));
+      case {'id': final int id}:
         _pending.remove(id)?.complete(j);
     }
   }
@@ -298,6 +315,18 @@ class Gateway {
     final r = await c.future.timeout(const Duration(seconds: 60), onTimeout: () => throw HttpException('$method timed out'));
     if (r['error'] case final Map e) throw HttpException('${e['message'] ?? 'Hermes error'}');
     return r['result'] is Map ? r['result'] as Map : const {};
+  }
+
+  /// Answers the server request [id] with [result], or refuses it when [result] is null.
+  void reply(Object id, Map<String, Object?>? result) {
+    if (closed) return;
+    _send(
+      jsonEncode({
+        'jsonrpc': '2.0',
+        'id': id,
+        if (result != null) 'result': result else 'error': {'code': -32601, 'message': 'not supported by Herapp'},
+      }),
+    );
   }
 
   void close() => _close();
@@ -345,11 +374,40 @@ List<Session> parseSessions(Map result) => [
       (id: s['id'] as String, title: '${(s['title'] ?? '') == '' ? s['preview'] ?? '' : s['title']}'.trim()),
 ];
 
-/// The user and assistant turns of a gateway transcript (tool rows and hidden rows dropped).
-List<Msg> transcript(Object? messages) => [
-  for (final m in (messages is List ? messages : const []).whereType<Map>())
-    if ((m['role'] == 'user' || m['role'] == 'assistant') && m['display_kind'] != 'hidden')
-      if ((m['text'] ?? m['content']) case final String t when t.trim().isNotEmpty) Msg(m['role'] == 'user', t),
+/// The user and assistant turns of a transcript; tool rows go to the reply that follows them.
+List<Msg> transcript(Object? messages) {
+  final out = <Msg>[];
+  var tools = <Tool>[];
+  for (final m in (messages is List ? messages : const []).whereType<Map>()) {
+    // compaction notes and the gateway's own notices (background jobs done...) aren't the user's words
+    if (m['display_kind'] == 'hidden' || m['display_kind'] == 'internal_notification') continue;
+    if (m['role'] == 'tool') {
+      tools.add(Tool('${m['tool_call_id'] ?? tools.length}', '${m['name'] ?? m['tool_name'] ?? 'tool'}', '', done: true));
+    }
+    if (m['role'] != 'user' && m['role'] != 'assistant') continue;
+    if ((m['text'] ?? m['content']) case final String t when t.trim().isNotEmpty) {
+      out.add(Msg(m['role'] == 'user', t, m['role'] == 'user' ? null : tools));
+      tools = [];
+    }
+  }
+  return out;
+}
+
+/// One past run of a cron job; [session] runs (agent ones) have a transcript, the others only [preview].
+typedef CronRun = ({String id, String title, String preview, DateTime? at, bool active, bool session});
+
+/// `/api/cron/jobs/{id}/runs`, newest first.
+List<CronRun> parseCronRuns(String body) => [
+  if (_json(body) case {'runs': final List runs})
+    for (final r in runs.whereType<Map>())
+      (
+        id: '${r['id']}',
+        title: '${r['title'] ?? ''}',
+        preview: '${r['preview'] ?? ''}',
+        at: r['started_at'] is num ? DateTime.fromMillisecondsSinceEpoch(((r['started_at'] as num) * 1000).round()) : null,
+        active: r['is_active'] == true,
+        session: r['source'] != 'cron_output',
+      ),
 ];
 
 /// Editable text of each cron job field, from the server's record ([raw] empty for a new job).
@@ -382,6 +440,8 @@ Map<String, String> cronFormValues(Map raw) {
     'workdir': text(raw['workdir']),
     'enabled_toolsets': list(raw['enabled_toolsets']),
     'context_from': list(raw['context_from']),
+    'monitor_script': text(raw['monitor_script']),
+    'monitor_url': text(raw['monitor_url']),
   };
 }
 

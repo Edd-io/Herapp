@@ -12,6 +12,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// What a [fakeServer] call receives: the method, its params, and [emit] to push an event later.
+/// An answer to a server request arrives as method 'reply' with the whole frame; emitting
+/// `'request:method'` sends that server request (id 'r1') instead of an event.
 typedef Handler = Object? Function(String method, Map params, void Function(String type, Map payload) emit);
 
 /// Points the app at a fake Hermes gateway answering with [handle]; returns the calls it got.
@@ -22,18 +24,29 @@ List<(String, Map)> fakeServer(Handler handle) {
     final frames = StreamController<String>();
     return Gateway(frames.stream, (out) {
       final j = jsonDecode(out) as Map;
-      calls.add((j['method'] as String, j['params'] as Map));
+      final method = j['method'] as String? ?? 'reply';
+      calls.add((method, j['params'] as Map? ?? j));
       void emit(String type, Map payload) => Timer(
         const Duration(milliseconds: 50),
         () => frames.add(
-          jsonEncode({
-            'jsonrpc': '2.0',
-            'method': 'event',
-            'params': {'type': type, 'session_id': 'rt', 'payload': payload},
-          }),
+          jsonEncode(
+            type.startsWith('request:')
+                ? {
+                    'jsonrpc': '2.0',
+                    'id': 'r1',
+                    'method': type.substring(8),
+                    'params': {...payload, 'session_id': 'rt'},
+                  }
+                : {
+                    'jsonrpc': '2.0',
+                    'method': 'event',
+                    'params': {'type': type, 'session_id': 'rt', 'payload': payload},
+                  },
+          ),
         ),
       );
-      final result = handle(j['method'] as String, j['params'] as Map, emit) ?? {};
+      final result = handle(method, j['params'] as Map? ?? j, emit) ?? {};
+      if (method == 'reply') return;
       scheduleMicrotask(() => frames.add(jsonEncode({'jsonrpc': '2.0', 'id': j['id'], 'result': result})));
     }, frames.close);
   };
@@ -93,6 +106,46 @@ void main() {
     expect(calls.where((c) => c.$1 == 'session.create'), hasLength(1));
   });
 
+  testWidgets('tool calls show and a command waits for approval', (t) async {
+    final calls = fakeServer((method, params, emit) {
+      switch (method) {
+        case 'session.create':
+          return {'session_id': 'rt', 'stored_session_id': 's1'};
+        case 'prompt.submit':
+          emit('tool.start', {'tool_id': 't1', 'name': 'terminal', 'context': 'rm -rf build\nmore'});
+          emit('request:approval', {
+            'request_id': 'a1',
+            'command': 'rm -rf build',
+            'choices': ['once', 'session', 'always', 'deny'],
+            'allow_permanent': false,
+          });
+          emit('request:clarify', {'questions': []});
+        case 'reply' when '${params['result']}' == '{choice: once}':
+          emit('tool.complete', {'tool_id': 't1', 'name': 'terminal'});
+          emit('message.complete', {'text': 'Cleaned', 'status': 'complete'});
+      }
+      return null;
+    });
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, 'Clean up');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 1));
+
+    expect(find.textContaining('terminal  rm -rf build', findRichText: true), findsOneWidget); // first line only
+    expect(find.text('Hermes wants to run a command'), findsOneWidget);
+    expect(find.text('Always'), findsNothing); // the server allows no permanent approval
+    expect(calls.where((c) => c.$1 == 'reply').single.$2, containsPair('error', isA<Map>())); // clarify refused
+
+    await t.tap(find.text('Allow once'));
+    await t.pump(const Duration(seconds: 1));
+    expect(calls.where((c) => c.$1 == 'reply').last.$2, containsPair('result', {'choice': 'once'}));
+    expect(find.text('Hermes wants to run a command'), findsNothing);
+    expect(find.textContaining('Cleaned'), findsOneWidget);
+    expect(find.text('1 action'), findsOneWidget); // folded once the reply is done
+    await t.pump(const Duration(seconds: 10));
+  });
+
   testWidgets('history lists and reopens server sessions', (t) async {
     final rows = [
       {'id': 's9', 'title': 'Trip to Lyon', 'preview': ''},
@@ -102,17 +155,23 @@ void main() {
         'session.list' => {'sessions': rows},
         'session.resume' => {
           'session_id': 'rt',
-          'messages': [
-            {'role': 'user', 'text': 'Plan a trip'},
-            {'role': 'tool', 'content': '…', 'name': 'web_search'},
-            {'role': 'assistant', 'text': 'Day 1: Vieux Lyon'},
-          ],
           'info': {'provider': 'anthropic', 'model': 'claude-sonnet-5-5'},
         },
-        'session.usage' => {'context_percent': 7},
+        'session.context_breakdown' => {'context_percent': 7, 'context_max': 200000},
         _ => null,
       },
     );
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async {
+      expect(path, '/api/sessions/s9/messages');
+      return jsonEncode({
+        'messages': [
+          {'role': 'user', 'content': 'Plan a trip'},
+          {'role': 'tool', 'content': '…', 'tool_name': 'web_search'},
+          {'role': 'assistant', 'content': 'Day 1: Vieux Lyon'},
+        ],
+      });
+    };
     await t.pumpWidget(const App());
     await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
     await t.pumpAndSettle();
@@ -121,6 +180,8 @@ void main() {
     expect(find.text('Plan a trip'), findsOneWidget);
     expect(find.text('Day 1: Vieux Lyon'), findsOneWidget);
     expect(find.text('claude-sonnet-5-5'), findsOneWidget); // the session's own model
+    expect(find.text('1 action'), findsOneWidget); // the tool it ran
+    expect(t.widget<CircularProgressIndicator>(find.byType(CircularProgressIndicator)).value, closeTo(.07, .001));
 
     // a session gone from the server's list (deleted, or filtered out) leaves the sidebar
     rows.clear();
@@ -259,7 +320,14 @@ void main() {
     callApi = (base, method, path, {query, body, user, password}) async {
       if (method != 'GET') {
         sent.add((method, path, body));
-        return '{}';
+        return path == '/api/cron/jobs' ? '{"id":"j2"}' : '{}';
+      }
+      if (path.endsWith('/runs')) {
+        return '{"runs":[{"id":"cron_j1_1","source":"cron","title":"Morning digest","started_at":1793520000},'
+            '{"id":"cron_output:j1:x","source":"cron_output","title":"OK","preview":"3 new mails","started_at":1793430000}]}';
+      }
+      if (path == '/api/sessions/cron_j1_1/messages') {
+        return '{"messages":[{"role":"user","content":"Summarize the night"},{"role":"assistant","content":"All quiet overnight."}]}';
       }
       if (path.endsWith('delivery-targets')) return '{"targets":[{"id":"local","name":"Local"},{"id":"discord","name":"Discord"}]}';
       return '[{"id":"j1","name":"Morning digest","schedule":{"kind":"cron","expr":"0 7 * * *","display":"0 7 * * *"},'
@@ -271,9 +339,21 @@ void main() {
     await t.tap(find.text('Scheduled jobs'));
     await t.pumpAndSettle();
 
-    // edit: only the changed fields go to the server
+    // run history: an agent run opens on its reply, a script run shows its output
     await t.tap(find.text('Morning digest'));
     await t.pumpAndSettle();
+    await t.tap(find.text('Run history'));
+    await t.pumpAndSettle();
+    expect(find.text('OK — 3 new mails'), findsOneWidget);
+    await t.tap(find.text('Morning digest'));
+    await t.pumpAndSettle();
+    expect(find.text('All quiet overnight.'), findsOneWidget);
+    await t.tap(find.byIcon(CupertinoIcons.chevron_back));
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.chevron_back));
+    await t.pumpAndSettle();
+
+    // edit: only the changed fields go to the server
     expect(find.text('Summarize the night'), findsOneWidget);
     expect(find.textContaining('4 runs so far'), findsOneWidget);
     await t.enterText(find.widgetWithText(TextField, '0 7 * * *'), 'every 2h');
@@ -297,14 +377,22 @@ void main() {
     await t.enterText(find.byType(TextField).at(0), 'Weekly report');
     await t.enterText(find.byType(TextField).at(1), 'every monday 9am');
     await t.enterText(find.byType(TextField).at(3), 'Write the weekly report');
+    final newForm = find.descendant(of: find.byType(CronEditPage), matching: find.byType(Scrollable)).first;
+    await t.scrollUntilVisible(find.widgetWithText(TextField, 'https://'), 200, scrollable: newForm);
+    await t.enterText(find.widgetWithText(TextField, 'https://'), 'https://example.test/status');
     await t.tap(find.text('Save'));
     await t.pumpAndSettle();
-    final (method, path, body as Map) = sent.last;
+    // the monitor isn't a create field: it follows as an update of the new job
+    expect((sent.last.$1, sent.last.$2), ('PUT', '/api/cron/jobs/j2'));
+    expect(sent.last.$3, {
+      'updates': {'monitor_url': 'https://example.test/status'},
+    });
+    final (method, path, body as Map) = sent[sent.length - 2];
     expect((method, path), ('POST', '/api/cron/jobs'));
     expect(body, containsPair('schedule', 'every monday 9am'));
     expect(body, containsPair('repeat', 'forever'));
     expect(body, containsPair('no_agent', false));
-    expect(body.containsKey('failure_deliver'), isFalse); // not a create field
+    expect(body.containsKey('failure_deliver') || body.containsKey('monitor_url'), isFalse); // not create fields
 
     // delete
     await t.tap(find.text('Morning digest'));

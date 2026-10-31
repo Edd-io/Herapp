@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -29,6 +30,7 @@ class Chat {
   Gateway? on;
   String live = '';
   String applied = '';
+  Future<void>? warming; // the resume [open] started
   String get title => name.isNotEmpty ? name : msgs.firstOrNull?.text ?? ''; // only titled chats are listed
 }
 
@@ -89,6 +91,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   /// Attaches [c] to a runtime session on [g]: creates it on the first message, resumes it after a
   /// reconnect, and switches its model when another one was picked.
   Future<String> attach(Gateway g, Chat c) async {
+    await c.warming;
     if (!identical(c.on, g)) {
       final created = c.stored.isEmpty;
       final r = created
@@ -110,24 +113,18 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     return c.live;
   }
 
-  /// Fetches a stored conversation's transcript, model and context usage.
+  /// Fetches a stored conversation's transcript, while [warm] readies its session in the background.
   Future<void> open(Chat c) async {
     setState(() => c.loading = true);
     try {
       final g = await gateway();
       if (g == null) throw StateError('no server');
-      final r = await g.call('session.resume', {'session_id': c.stored, 'lazy': true, 'inline_images': false});
-      final info = r['info'] is Map ? r['info'] as Map : const {};
+      c.warming = warm(g, c);
+      final body = await serverApi('GET', '/api/sessions/${Uri.encodeComponent(c.stored)}/messages');
       c
         ..msgs.clear()
-        ..msgs.addAll(transcript(r['messages']))
-        ..live = '${r['session_id']}'
-        ..on = g
+        ..msgs.addAll(transcript((jsonDecode(body ?? '{}') as Map)['messages']))
         ..loaded = true;
-      if (info case {'provider': final String p, 'model': final String m} when p.isNotEmpty && m.isNotEmpty) {
-        c.model = c.applied = '$p/$m';
-      }
-      c.context = contextOf(await g.call('session.usage', {'session_id': c.live}).catchError((Object _) => const {}));
     } catch (e) {
       debugPrint('Session: $e');
       if (mounted) c.msgs.add(Msg(false, '⚠️ ${serverErrorText(AppLocalizations.of(context), e is StateError ? null : e)}'));
@@ -135,6 +132,27 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     if (!mounted) return;
     setState(() => c.loading = false);
     if (identical(c, chat)) toBottom(jump: true);
+  }
+
+  /// Resumes [c] with its agent built (a lazy session knows no context use until its next reply), then
+  /// reads its model and how full its context is. A failure is left to [attach] to retry.
+  Future<void> warm(Gateway g, Chat c) async {
+    try {
+      final r = await g.call('session.resume', {'session_id': c.stored, 'omit_messages': true});
+      final info = r['info'] is Map ? r['info'] as Map : const {};
+      c
+        ..live = '${r['session_id']}'
+        ..on = g;
+      if (info case {'provider': final String p, 'model': final String m} when p.isNotEmpty && m.isNotEmpty) {
+        c.model = c.applied = '$p/$m';
+      }
+      if (mounted) setState(() {});
+      g.call('session.context_breakdown', {'session_id': c.live}).then((b) {
+        if (b['context_max'] case final num max when max > 0 && c.context == null && mounted) setState(() => c.context = contextOf(b));
+      }).ignore();
+    } catch (e) {
+      debugPrint('Warm: $e');
+    }
   }
 
   /// Refreshes the server's model list; a choice the server no longer offers falls back to its default.
@@ -211,6 +229,16 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       final sid = await attach(g, c);
       if (!identical(c, chat) || !streaming) return;
       sub = g.events.listen((e) {
+        if (e.id case final id?) {
+          // only command approvals are shown; other questions (clarify, sudo, secrets) are refused at once
+          if (e.type == 'approval' && (e.session == sid || e.session.isEmpty)) {
+            setState(() => reply.ask = (id: id, params: e.payload));
+            settings.haptic();
+          } else {
+            g.reply(id, null);
+          }
+          return;
+        }
         if (e.type == 'session.title' && e.payload['session_id'] == c.stored && e.payload['title'] is String) {
           setState(() => c.name = e.payload['title'] as String);
         }
@@ -219,6 +247,17 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           case 'message.delta' when e.payload['text'] is String:
             setState(() => reply.text += e.payload['text'] as String);
             if (atBottom) toBottom(jump: true);
+          case 'tool.start':
+            final p = e.payload;
+            setState(() => reply.tools.add(Tool('${p['tool_id']}', '${p['name']}', '${p['context'] ?? p['preview'] ?? ''}')));
+          case 'tool.complete':
+            setState(() {
+              for (final t in reply.tools.where((t) => t.id == '${e.payload['tool_id']}')) {
+                t.done = true;
+              }
+            });
+          case 'request.cancel' when reply.ask?.id == e.payload['id']:
+            setState(() => reply.ask = null);
           case 'session.usage':
             setState(() => c.context = contextOf(e.payload['usage']) ?? c.context);
           case 'message.complete':
@@ -247,9 +286,21 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     if (streaming && g != null && !g.closed && chat.live.isNotEmpty) g.call('session.interrupt', {'session_id': chat.live}).ignore();
     sub?.cancel();
     sub = null;
-    if (chat.msgs.isNotEmpty && !chat.msgs.last.user && chat.msgs.last.text.isEmpty) chat.msgs.removeLast();
+    if (chat.msgs.lastOrNull case final m? when !m.user) {
+      m.ask = null; // an interrupted turn drops its question
+      if (m.text.isEmpty && m.tools.isEmpty) chat.msgs.removeLast();
+    }
     setState(() => streaming = false);
     loadSessions(); // a first message adds the chat to the server's list
+  }
+
+  /// Sends the user's [choice] for the command [m] is waiting on.
+  void answer(Msg m, String choice) {
+    final ask = m.ask;
+    if (ask == null) return;
+    settings.haptic();
+    chat.on?.reply(ask.id, {'choice': choice});
+    setState(() => m.ask = null);
   }
 
   void regenerate() {
@@ -283,6 +334,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     try {
       final g = await gateway();
       if (g == null) throw const HttpException('no server');
+      if (identical(c, chat)) stop();
+      if (identical(c.on, g) && c.live.isNotEmpty) {
+        // the server refuses to delete a session that is still open
+        await g.call('session.close', {'session_id': c.live}).catchError((Object _) => const {});
+        c
+          ..on = null
+          ..live = '';
+      }
       await g.call('session.delete', {'session_id': c.stored});
       return true;
     } catch (e) {
@@ -566,7 +625,12 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (m.text.isEmpty) _PulseDot(c.onSurface) else _StreamText(m.text, style: body.copyWith(color: c.onSurface)),
+          if (m.tools.isNotEmpty) _Tools(m.tools, live: live),
+          if (m.ask case final ask?) _approval(c, m, ask.params),
+          if (m.text.trim().isNotEmpty)
+            _StreamText(m.text.trimLeft(), style: body.copyWith(color: c.onSurface)) // text after a tool call starts with blank lines
+          else if (live && m.ask == null && m.tools.every((t) => t.done))
+            _PulseDot(c.onSurface),
           if (!live && m.text.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 6),
@@ -589,6 +653,75 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  /// The card asking whether Hermes may run a command, with the choices the server allows.
+  Widget _approval(ColorScheme c, Msg m, Map p) {
+    final l = AppLocalizations.of(context);
+    final choices = [
+      for (final k
+          in p['choices'] is List && (p['choices'] as List).isNotEmpty ? p['choices'] as List : const ['once', 'session', 'always', 'deny'])
+        if (!(k == 'session' && p['allow_session'] == false) && !(k == 'always' && p['allow_permanent'] == false)) '$k',
+    ];
+    Widget button(String k) {
+      final main = k == 'once';
+      return GestureDetector(
+        onTap: () => answer(m, k),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(color: main ? c.primary : c.surface, borderRadius: BorderRadius.circular(20)),
+          child: Text(
+            switch (k) {
+              'once' => l.approveOnce,
+              'session' => l.approveSession,
+              'always' => l.approveAlways,
+              'deny' => l.approveDeny,
+              _ => k,
+            },
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: main ? c.onPrimary : (k == 'deny' ? const Color(0xFFD93025) : c.onSurface),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final command = '${p['command'] ?? ''}'.trim(), description = '${p['description'] ?? ''}'.trim();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(18)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l.approvalTitle,
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.onSurface),
+          ),
+          if (description.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(description, style: TextStyle(fontSize: 14, color: c.onSurfaceVariant)),
+            ),
+          if (command.isNotEmpty)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(10)),
+              child: SelectableText(
+                command,
+                style: TextStyle(fontFamily: 'Menlo', fontSize: 13, color: c.onSurface),
+              ),
+            ),
+          const SizedBox(height: 12),
+          Wrap(spacing: 8, runSpacing: 8, children: [for (final k in choices) button(k)]),
         ],
       ),
     );
@@ -823,6 +956,83 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             const SizedBox(height: 8),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The tools a reply used: listed while it runs, folded into one line once it's done.
+class _Tools extends StatefulWidget {
+  const _Tools(this.tools, {required this.live});
+  final List<Tool> tools;
+  final bool live;
+
+  @override
+  State<_Tools> createState() => _ToolsState();
+}
+
+class _ToolsState extends State<_Tools> {
+  var open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final style = TextStyle(fontSize: 14, color: c.onSurfaceVariant);
+    Widget row(Widget lead, Widget text) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(width: 18, child: Center(child: lead)),
+          const SizedBox(width: 6),
+          Expanded(child: text),
+        ],
+      ),
+    );
+    final rows = [
+      for (final t in widget.tools)
+        row(
+          t.done ? Icon(CupertinoIcons.checkmark_alt, size: 14, color: c.onSurfaceVariant) : const CupertinoActivityIndicator(radius: 6),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: t.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                if (t.detail.trim().isNotEmpty) TextSpan(text: '  ${t.detail.trim().split('\n').first}'),
+              ],
+            ),
+            style: style,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+    ];
+    if (widget.live) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Column(children: rows),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => open = !open),
+            child: row(
+              Icon(CupertinoIcons.wrench, size: 14, color: c.onSurfaceVariant),
+              Row(
+                children: [
+                  Text(AppLocalizations.of(context).toolsUsed(widget.tools.length), style: style),
+                  Icon(open ? CupertinoIcons.chevron_up : CupertinoIcons.chevron_down, size: 13, color: c.onSurfaceVariant),
+                ],
+              ),
+            ),
+          ),
+          if (open) ...rows,
+        ],
       ),
     );
   }
