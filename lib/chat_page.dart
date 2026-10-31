@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -9,12 +8,10 @@ import 'package:flutter/services.dart';
 
 import 'hermes.dart';
 import 'l10n/app_localizations.dart';
+import 'quota_page.dart';
 import 'settings.dart';
 
-/// Server model loader, swappable in tests.
-var fetchModels = hermesModels;
-
-/// Server models; `error` is null on success, '' when no server is set, 'restart' when the server must be restarted.
+/// Server models; [error] is the failure to show (see [serverErrorText]), null when the list loaded.
 typedef Models = ({List<Model> list, bool loading, String? error});
 
 class Chat {
@@ -58,18 +55,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   /// Refreshes the server's model list; a choice the server no longer offers falls back to its default.
   Future<void> loadModels() async {
-    final base = Uri.tryParse(settings.url);
-    if (base == null || !base.hasAuthority) {
-      models.value = (list: const [], loading: false, error: '');
-      return;
-    }
     models.value = (list: models.value.list, loading: true, error: null);
     try {
-      final r = await fetchModels(
-        base,
-        user: settings.auth ? settings.user : null,
-        password: settings.password,
-      ).timeout(const Duration(seconds: 20));
+      final r = await serverOptions();
+      if (!mounted) return;
+      if (r == null) {
+        models.value = (list: const [], loading: false, error: serverErrorText(AppLocalizations.of(context), null));
+        return;
+      }
       models.value = (list: r.models, loading: false, error: null);
       if (!r.models.any((m) => m.id == settings.model)) {
         settings.model = r.models.any((m) => m.id == r.current) ? r.current : r.models.firstOrNull?.id ?? '';
@@ -80,16 +73,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       });
     } catch (e) {
       debugPrint('Models: $e');
-      models.value = (
-        list: models.value.list,
-        loading: false,
-        error: switch (e) {
-          // Hermes updated on disk but not restarted: it refuses to list models
-          HttpException(:final message) when message.startsWith('Restart required') => 'restart',
-          HttpException(:final message) => message,
-          _ => '$e',
-        },
-      );
+      if (!mounted) return;
+      models.value = (list: models.value.list, loading: false, error: serverErrorText(AppLocalizations.of(context), e));
     }
   }
 
@@ -303,24 +288,32 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                           GestureDetector(
                             onTap: pickModel,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(20)),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Flexible(
-                                    child: Text(
-                                      chat.model.isEmpty ? AppLocalizations.of(context).model : modelName(chat.model),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          chat.model.isEmpty ? AppLocalizations.of(context).model : modelName(chat.model),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
+                                        ),
+                                        if (providerOf(chat.model) case final p when p.isNotEmpty)
+                                          Text(
+                                            p,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(fontSize: 12, color: c.outline),
+                                          ),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
-                                  if (providerOf(chat.model) case final p when p.isNotEmpty) ...[
-                                    Text(p, style: TextStyle(fontSize: 15, color: c.outline)),
-                                    const SizedBox(width: 6),
-                                  ],
+                                  const SizedBox(width: 8),
                                   Icon(CupertinoIcons.chevron_down, size: 13, color: c.outline),
                                 ],
                               ),
@@ -454,36 +447,23 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             child: Container(
               padding: const EdgeInsets.only(left: 16, right: 4),
               decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    // centered in 44 pt while single-line, grows afterwards
-                    child: Container(
-                      constraints: const BoxConstraints(minHeight: 44),
-                      alignment: Alignment.centerLeft,
-                      child: TextField(
-                        controller: input,
-                        focusNode: focus,
-                        minLines: 1,
-                        maxLines: 6,
-                        textCapitalization: TextCapitalization.sentences,
-                        style: TextStyle(fontSize: 17, color: c.onSurface),
-                        decoration: InputDecoration(
-                          isDense: true,
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                          hintText: AppLocalizations.of(context).composerHint,
-                          hintStyle: TextStyle(fontSize: 17, color: c.outline),
-                        ),
-                      ),
-                    ),
-                  ),
-                  AnimatedSwitcher(
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  final style = TextStyle(fontSize: 17, color: c.onSurface);
+                  // multi-line once the text no longer fits on one line beside the ring and the send button
+                  final showRing = chat.msgs.isNotEmpty; // nothing to measure before the first message
+                  final multiline = (TextPainter(
+                    text: TextSpan(text: input.text, style: style),
+                    textDirection: Directionality.of(context),
+                    textScaler: MediaQuery.textScalerOf(context),
+                    maxLines: 1,
+                  )..layout(maxWidth: box.maxWidth - (showRing ? 8 + 20 + 12 : 0) - 36)).didExceedMaxLines;
+                  final ring = _ContextRing(contextUse([for (final m in chat.msgs) m.text, input.text].join()));
+                  final sendBtn = AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
                     transitionBuilder: (child, a) => ScaleTransition(scale: a, child: child),
                     child: !hasText && !streaming
-                        ? const SizedBox(width: 12, height: 44)
+                        ? const SizedBox(height: 44)
                         : GestureDetector(
                             key: ValueKey(streaming),
                             onTap: streaming ? stop : send,
@@ -503,8 +483,53 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                                   : Icon(CupertinoIcons.arrow_up, size: 20, color: c.onPrimary),
                             ),
                           ),
-                  ),
-                ],
+                  );
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        // centered in 44 pt while single-line, grows afterwards
+                        child: Container(
+                          constraints: const BoxConstraints(minHeight: 44),
+                          alignment: Alignment.centerLeft,
+                          child: TextField(
+                            controller: input,
+                            focusNode: focus,
+                            minLines: 1,
+                            maxLines: 6,
+                            textCapitalization: TextCapitalization.sentences,
+                            style: style,
+                            decoration: InputDecoration(
+                              isDense: true,
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                              hintText: AppLocalizations.of(context).composerHint,
+                              hintStyle: TextStyle(fontSize: 17, color: c.outline),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (!showRing)
+                        sendBtn
+                      else if (multiline)
+                        // ring stacked above the send button
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Padding(padding: const EdgeInsets.only(top: 10, bottom: 6), child: ring),
+                              sendBtn,
+                            ],
+                          ),
+                        )
+                      else ...[
+                        Padding(padding: const EdgeInsets.only(left: 8, right: 12, bottom: 12), child: ring),
+                        sendBtn,
+                      ],
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -574,6 +599,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               ),
             ),
             tile(AppLocalizations.of(context).newChat, icon: CupertinoIcons.square_pencil, onTap: newChat),
+            tile(
+              AppLocalizations.of(context).quotas,
+              icon: CupertinoIcons.gauge,
+              onTap: () {
+                closeDrawer();
+                Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const QuotaPage()));
+              },
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
               child: Text(
@@ -732,6 +765,36 @@ class _StreamTextState extends State<_StreamText> with SingleTickerProviderState
   }
 }
 
+/// How full the context window is, as a ring; tap for the percentage.
+class _ContextRing extends StatelessWidget {
+  const _ContextRing(this.used);
+  final double used;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: AppLocalizations.of(context).contextUsage((used * 100).round()),
+      triggerMode: TooltipTriggerMode.tap,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: used),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+        builder: (context, v, _) => SizedBox.square(
+          dimension: 20,
+          child: CircularProgressIndicator(
+            value: v,
+            strokeWidth: 2.5,
+            strokeCap: StrokeCap.round,
+            backgroundColor: c.outline.withValues(alpha: .25),
+            color: v > .9 ? Colors.red : c.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ModelSheet extends StatelessWidget {
   const _ModelSheet({required this.models, required this.current});
   final ValueListenable<Models> models;
@@ -749,9 +812,7 @@ class _ModelSheet extends StatelessWidget {
           final providers = {for (final x in m.list) x.provider};
           final note = switch (m) {
             (list: [], loading: true, error: _) => const Center(child: CupertinoActivityIndicator()),
-            (list: [], loading: _, error: '') => Text(l.modelsNoServer, textAlign: TextAlign.center),
-            (list: [], loading: _, error: 'restart') => Text(l.modelsRestart, textAlign: TextAlign.center),
-            (list: [], loading: _, error: final String e) => Text(l.modelsFailed(e), textAlign: TextAlign.center),
+            (list: [], loading: _, error: final String e) => Text(e, textAlign: TextAlign.center),
             (list: [], loading: _, error: _) => Text(l.modelsNone, textAlign: TextAlign.center),
             _ => null,
           };

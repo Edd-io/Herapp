@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:herapp/chat_page.dart';
 import 'package:herapp/hermes.dart';
 import 'package:herapp/main.dart';
 import 'package:herapp/settings.dart';
@@ -18,6 +17,7 @@ void main() {
   testWidgets('send then streamed reply', (t) async {
     await t.pumpWidget(const App());
     expect(find.text('How can I help?'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing); // no context ring before the first message
 
     await t.enterText(find.byType(EditableText).last, 'Salut');
     await t.pumpAndSettle(); // let the send icon animation finish
@@ -28,6 +28,7 @@ void main() {
     await t.pump(const Duration(seconds: 10));
     await t.pump(const Duration(seconds: 1));
     expect(find.textContaining('Got it'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.arrow_2_circlepath), findsOneWidget);
   });
 
@@ -40,6 +41,7 @@ void main() {
         (provider: 'OpenRouter', name: 'openai/gpt-5', id: 'openrouter/openai/gpt-5'),
       ],
       current: 'anthropic/claude-sonnet-5-5',
+      quotas: <Quota>[],
     );
     await t.pumpWidget(const App());
     await t.pumpAndSettle();
@@ -58,6 +60,35 @@ void main() {
     await t.pump(const Duration(seconds: 10));
     expect(find.textContaining('(openai/gpt-5)'), findsOneWidget);
     expect(find.text('openai/gpt-5'), findsOneWidget); // title shown, pill gone
+  });
+
+  testWidgets('quota page opens from the menu', (t) async {
+    settings.url = 'https://hermes.test';
+    addTearDown(() => fetchModels = hermesModels);
+    fetchModels = (base, {user, password}) async => (
+      models: <Model>[],
+      current: '',
+      quotas: <Quota>[
+        (
+          provider: 'Claude',
+          account: '',
+          windows: [(label: 'Weekly', used: 42.0, resetsAt: DateTime.now().add(const Duration(hours: 5)))],
+          limited: false,
+          limitedUntil: null,
+        ),
+        (provider: 'Copilot', account: '', windows: <QuotaWindow>[], limited: false, limitedUntil: null),
+      ],
+    );
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Quotas'));
+    await t.pumpAndSettle();
+    expect(find.text('Weekly'), findsOneWidget);
+    expect(find.text('42%'), findsOneWidget);
+    expect(find.textContaining('Resets in 4h'), findsOneWidget);
+    expect(find.text('NO QUOTA DATA'), findsOneWidget);
+    expect(find.text('Copilot'), findsOneWidget);
   });
 
   testWidgets('picker explains a missing server', (t) async {

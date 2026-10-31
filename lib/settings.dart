@@ -59,6 +59,23 @@ class Settings extends ChangeNotifier {
   }
 }
 
+/// Catalog and quotas of the configured server, through the tunnel once it's ready; null if no server is set.
+Future<ModelOptions?> serverOptions() async {
+  final base = Uri.tryParse(settings.url);
+  if (base == null || !base.hasAuthority) return null;
+  if (vpn.enabled) await vpn.ready; // don't race the tunnel at startup
+  return fetchModels(base, user: settings.auth ? settings.user : null, password: settings.password).timeout(const Duration(seconds: 20));
+}
+
+/// User-facing text for a [serverOptions] failure; null [e] = no server set.
+String serverErrorText(AppLocalizations l, Object? e) => switch (e) {
+  null => l.serverNotSet,
+  // Hermes updated on disk but not restarted: it refuses to list models
+  HttpException(:final message) when message.startsWith('Restart required') => l.serverRestart,
+  HttpException(:final message) => l.serverLoadFailed(message),
+  _ => l.serverLoadFailed('$e'),
+};
+
 class SettingsSheet extends StatefulWidget {
   const SettingsSheet({super.key});
 

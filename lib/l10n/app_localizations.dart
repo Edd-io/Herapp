@@ -362,29 +362,89 @@ abstract class AppLocalizations {
   /// **'the WireGuard tunnel can\'t reach the server'**
   String get serverTunnelFailed;
 
-  /// No description provided for @modelsNoServer.
-  ///
-  /// In en, this message translates to:
-  /// **'Set your Hermes server address in Settings to see its models.'**
-  String get modelsNoServer;
-
-  /// No description provided for @modelsFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Couldn\'t load the server\'s models.\n{message}'**
-  String modelsFailed(String message);
-
   /// No description provided for @modelsNone.
   ///
   /// In en, this message translates to:
   /// **'No model is configured on the server.'**
   String get modelsNone;
 
-  /// No description provided for @modelsRestart.
+  /// No description provided for @contextUsage.
   ///
   /// In en, this message translates to:
-  /// **'Hermes was updated but is still running the old version. Restart the Hermes server to see its models.'**
-  String get modelsRestart;
+  /// **'Context: {percent}% used'**
+  String contextUsage(int percent);
+
+  /// No description provided for @serverNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Set your Hermes server address in Settings.'**
+  String get serverNotSet;
+
+  /// No description provided for @serverRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes was updated but is still running the old version. Restart the Hermes server.'**
+  String get serverRestart;
+
+  /// No description provided for @serverLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach the Hermes server.\n{message}'**
+  String serverLoadFailed(String message);
+
+  /// No description provided for @quotas.
+  ///
+  /// In en, this message translates to:
+  /// **'Quotas'**
+  String get quotas;
+
+  /// No description provided for @quotaNoData.
+  ///
+  /// In en, this message translates to:
+  /// **'No quota data'**
+  String get quotaNoData;
+
+  /// No description provided for @quotaLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate-limited'**
+  String get quotaLimited;
+
+  /// No description provided for @quotaLimitedUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate-limited, back in {time}'**
+  String quotaLimitedUntil(String time);
+
+  /// No description provided for @quotaResets.
+  ///
+  /// In en, this message translates to:
+  /// **'Resets in {time}'**
+  String quotaResets(String time);
+
+  /// No description provided for @durationDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{days}d {hours}h'**
+  String durationDays(int days, int hours);
+
+  /// No description provided for @durationHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h {minutes}min'**
+  String durationHours(int hours, int minutes);
+
+  /// No description provided for @durationMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String durationMinutes(int minutes);
+
+  /// No description provided for @quotaFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage reported by Hermes for subscription providers. Pull down to refresh.'**
+  String get quotaFooter;
 }
 
 class _AppLocalizationsDelegate

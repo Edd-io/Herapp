@@ -44,8 +44,18 @@
   "serverAuthRateLimited": "Hermes {version} · trop de tentatives, réessaie plus tard",
   "serverAuthFailed": "Hermes {version} · échec de la connexion (HTTP {status})",
   "serverTunnelFailed": "le tunnel WireGuard n’arrive pas à joindre le serveur",
-  "modelsNoServer": "Renseigne l'adresse de ton serveur Hermes dans les réglages pour voir ses modèles.",
-  "modelsFailed": "Impossible de charger les modèles du serveur.\n{message}",
   "modelsNone": "Aucun modèle n'est configuré sur le serveur.",
-  "modelsRestart": "Hermes a été mis à jour mais tourne encore sur l'ancienne version. Redémarre le serveur Hermes pour voir ses modèles."
+  "contextUsage": "Contexte : {percent} % utilisé",
+  "serverNotSet": "Renseigne l'adresse de ton serveur Hermes dans les réglages.",
+  "serverRestart": "Hermes a été mis à jour mais tourne encore sur l'ancienne version. Redémarre le serveur Hermes.",
+  "serverLoadFailed": "Impossible de joindre le serveur Hermes.\n{message}",
+  "quotas": "Quotas",
+  "quotaNoData": "Pas de données de quota",
+  "quotaLimited": "Limité",
+  "quotaLimitedUntil": "Limité, de retour dans {time}",
+  "quotaResets": "Réinitialisé dans {time}",
+  "durationDays": "{days} j {hours} h",
+  "durationHours": "{hours} h {minutes} min",
+  "durationMinutes": "{minutes} min",
+  "quotaFooter": "Utilisation remontée par Hermes pour les abonnements. Tire vers le bas pour actualiser."
 }

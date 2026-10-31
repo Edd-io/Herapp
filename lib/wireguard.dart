@@ -53,8 +53,14 @@ class Vpn extends ChangeNotifier {
     config = await _store.read(key: 'wg_config');
     name = await _store.read(key: 'wg_name') ?? '';
     enabled = config != null && await _store.read(key: 'wg_enabled') == '1';
-    if (enabled) apply();
+    if (enabled) {
+      HttpOverrides.global = _Proxy(null); // blocked right away, not after the first frame's requests
+      apply();
+    }
   }
+
+  /// Completes once pending tunnel changes are applied (connected, failed or off).
+  Future<void> get ready => _queue;
 
   /// Roughly validates then stores a wg-quick config (.conf).
   Future<void> import(String fileName, String text) async {

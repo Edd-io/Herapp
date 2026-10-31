@@ -116,15 +116,73 @@
     }
   },
   "serverTunnelFailed": "the WireGuard tunnel can't reach the server",
-  "modelsNoServer": "Set your Hermes server address in Settings to see its models.",
-  "modelsFailed": "Couldn't load the server's models.\n{message}",
   "modelsNone": "No model is configured on the server.",
-  "@modelsFailed": {
+  "contextUsage": "Context: {percent}% used",
+  "@contextUsage": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "serverNotSet": "Set your Hermes server address in Settings.",
+  "serverRestart": "Hermes was updated but is still running the old version. Restart the Hermes server.",
+  "serverLoadFailed": "Couldn't reach the Hermes server.\n{message}",
+  "quotas": "Quotas",
+  "quotaNoData": "No quota data",
+  "quotaLimited": "Rate-limited",
+  "quotaLimitedUntil": "Rate-limited, back in {time}",
+  "quotaResets": "Resets in {time}",
+  "durationDays": "{days}d {hours}h",
+  "durationHours": "{hours}h {minutes}min",
+  "durationMinutes": "{minutes} min",
+  "quotaFooter": "Usage reported by Hermes for subscription providers. Pull down to refresh.",
+  "@serverLoadFailed": {
     "placeholders": {
       "message": {
         "type": "String"
       }
     }
   },
-  "modelsRestart": "Hermes was updated but is still running the old version. Restart the Hermes server to see its models."
+  "@quotaLimitedUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@quotaResets": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@durationDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "@durationHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "@durationMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  }
 }

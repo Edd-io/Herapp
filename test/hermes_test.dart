@@ -60,6 +60,47 @@ void main() {
     expect(parseModelOptions('{"detail":"Unauthorized"}'), isNull);
   });
 
+  test('quotas: one per account, windows and rate limits', () {
+    // shape of the usage/limit fields of /api/model/options (trimmed)
+    const body =
+        '{"model":"","provider":"","providers":['
+        '{"slug":"a","name":"Sub","models":[],"usage":{"windows":[{"label":"Weekly","used_percent":9.3,'
+        '"resets_at":"2026-11-05T12:12:39+00:00","scope":"account"}]}},'
+        '{"slug":"b","name":"Pool","models":[],"usage":{"accounts":[{"id":"1","label":"work","windows":[],'
+        '"state":"limited","resets_at":"2026-11-01T00:00:00+00:00"}]}},'
+        '{"slug":"c","name":"Plain","models":[]}]}';
+    final q = parseModelOptions(body)!.quotas;
+    expect(q.map((q) => (q.provider, q.account, q.limited)), [('Sub', '', false), ('Pool', 'work', true), ('Plain', '', false)]);
+    expect((q[0].windows.single.label, q[0].windows.single.used), ('Weekly', 9.3));
+    expect(q[0].windows.single.resetsAt?.toUtc(), DateTime.utc(2026, 11, 5, 12, 12, 39));
+    expect(q[1].limitedUntil?.toUtc(), DateTime.utc(2026, 11, 1));
+    expect(q[2].windows, isEmpty);
+  });
+
+  test('one subscription seen through two providers is shown once', () {
+    final reset = DateTime(2026, 11, 1, 4, 20);
+    QuotaWindow w(String label, double used, DateTime at) => (label: label, used: used, resetsAt: at);
+    final merged = mergeSameAccounts([
+      (provider: 'Anthropic', account: '', windows: [w('Current session', 3, reset)], limited: false, limitedUntil: null),
+      (
+        provider: 'Codex',
+        account: '',
+        windows: [w('Current session', 3, reset.add(const Duration(hours: 1)))],
+        limited: false,
+        limitedUntil: null,
+      ),
+      (
+        provider: 'Claude DirectSDK',
+        account: '',
+        windows: [w('Current session', 3, reset.add(const Duration(seconds: 20))), w('Fable week', 0, reset)],
+        limited: false,
+        limitedUntil: null,
+      ),
+    ]);
+    expect(merged.map((q) => q.provider), ['Anthropic · Claude DirectSDK', 'Codex']);
+    expect(merged.first.windows.map((w) => w.label), ['Current session', 'Fable week']);
+  });
+
   test('models are fetched with the sign-in cookie', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((req) async {

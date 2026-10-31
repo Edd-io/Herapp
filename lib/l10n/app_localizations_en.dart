@@ -161,18 +161,60 @@ class AppLocalizationsEn extends AppLocalizations {
       'the WireGuard tunnel can\'t reach the server';
 
   @override
-  String get modelsNoServer =>
-      'Set your Hermes server address in Settings to see its models.';
-
-  @override
-  String modelsFailed(String message) {
-    return 'Couldn\'t load the server\'s models.\n$message';
-  }
-
-  @override
   String get modelsNone => 'No model is configured on the server.';
 
   @override
-  String get modelsRestart =>
-      'Hermes was updated but is still running the old version. Restart the Hermes server to see its models.';
+  String contextUsage(int percent) {
+    return 'Context: $percent% used';
+  }
+
+  @override
+  String get serverNotSet => 'Set your Hermes server address in Settings.';
+
+  @override
+  String get serverRestart =>
+      'Hermes was updated but is still running the old version. Restart the Hermes server.';
+
+  @override
+  String serverLoadFailed(String message) {
+    return 'Couldn\'t reach the Hermes server.\n$message';
+  }
+
+  @override
+  String get quotas => 'Quotas';
+
+  @override
+  String get quotaNoData => 'No quota data';
+
+  @override
+  String get quotaLimited => 'Rate-limited';
+
+  @override
+  String quotaLimitedUntil(String time) {
+    return 'Rate-limited, back in $time';
+  }
+
+  @override
+  String quotaResets(String time) {
+    return 'Resets in $time';
+  }
+
+  @override
+  String durationDays(int days, int hours) {
+    return '${days}d ${hours}h';
+  }
+
+  @override
+  String durationHours(int hours, int minutes) {
+    return '${hours}h ${minutes}min';
+  }
+
+  @override
+  String durationMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get quotaFooter =>
+      'Usage reported by Hermes for subscription providers. Pull down to refresh.';
 }
