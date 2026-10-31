@@ -5,9 +5,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'agents_page.dart';
@@ -805,7 +805,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           if (m.tools.isNotEmpty) _Tools(m.tools, live: live),
           if (m.ask case final ask?) _approval(c, m, ask.params),
           if (m.text.trim().isNotEmpty)
-            _StreamText(m.text.trimLeft(), style: body.copyWith(color: c.onSurface)) // text after a tool call starts with blank lines
+            _Markdown(m.text.trimLeft(), style: body.copyWith(color: c.onSurface)) // text after a tool call starts with blank lines
           else if (live && m.ask == null && m.tools.every((t) => t.done))
             _PulseDot(c.onSurface),
           if (!live && m.text.isNotEmpty)
@@ -1497,63 +1497,40 @@ class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixi
 }
 
 /// Text whose newly appended chunks fade in.
-class _StreamText extends StatefulWidget {
-  const _StreamText(this.text, {required this.style});
+/// A reply's Markdown (headings, lists, code, tables, quotes), rendered as it streams in.
+class _Markdown extends StatelessWidget {
+  const _Markdown(this.text, {required this.style});
   final String text;
   final TextStyle style;
 
   @override
-  State<_StreamText> createState() => _StreamTextState();
-}
-
-class _StreamTextState extends State<_StreamText> with SingleTickerProviderStateMixin {
-  static const fade = Duration(milliseconds: 350);
-  final marks = <(int, Duration)>[]; // (chunk start, arrival time)
-  Duration now = Duration.zero;
-  Ticker? ticker; // created only if the text grows
-
-  void _tick(Duration elapsed) {
-    setState(() {
-      now = elapsed;
-      marks.removeWhere((m) => now - m.$2 >= fade);
-    });
-    if (marks.isEmpty) ticker!.stop();
-  }
-
-  @override
-  void didUpdateWidget(_StreamText old) {
-    super.didUpdateWidget(old);
-    if (widget.text.length <= old.text.length || !widget.text.startsWith(old.text)) return;
-    final tk = ticker ??= createTicker(_tick);
-    if (!tk.isActive) {
-      now = Duration.zero;
-      tk.start();
-    }
-    marks.add((old.text.length, now));
-  }
-
-  @override
-  void dispose() {
-    ticker?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final t = widget.text;
-    if (marks.isEmpty) return Text(t, style: widget.style);
-    final color = widget.style.color!;
-    return Text.rich(
-      TextSpan(
-        style: widget.style,
-        children: [
-          TextSpan(text: t.substring(0, marks.first.$1)),
-          for (var i = 0; i < marks.length; i++)
-            TextSpan(
-              text: t.substring(marks[i].$1, i + 1 < marks.length ? marks[i + 1].$1 : t.length),
-              style: TextStyle(color: color.withValues(alpha: ((now - marks[i].$2).inMicroseconds / fade.inMicroseconds).clamp(0, 1))),
-            ),
-        ],
+    final c = Theme.of(context).colorScheme;
+    final mono = TextStyle(fontFamily: 'Menlo', fontFamilyFallback: const ['Courier'], fontSize: style.fontSize! * .85, color: c.onSurface);
+    final line = BorderSide(color: c.outline.withValues(alpha: .3));
+    return MarkdownBody(
+      data: text,
+      selectable: true,
+      styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+        p: style,
+        a: style.copyWith(decoration: TextDecoration.underline),
+        h1: style.copyWith(fontSize: style.fontSize! * 1.4, fontWeight: FontWeight.w700),
+        h2: style.copyWith(fontSize: style.fontSize! * 1.25, fontWeight: FontWeight.w700),
+        h3: style.copyWith(fontSize: style.fontSize! * 1.1, fontWeight: FontWeight.w600),
+        h4: style.copyWith(fontWeight: FontWeight.w600),
+        listBullet: style,
+        blockSpacing: 12,
+        code: mono.copyWith(backgroundColor: c.surfaceContainerHighest),
+        codeblockPadding: const EdgeInsets.all(14),
+        codeblockDecoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+        blockquote: style.copyWith(color: c.onSurfaceVariant),
+        blockquoteDecoration: BoxDecoration(border: Border(left: BorderSide(color: c.outline, width: 3))),
+        blockquotePadding: const EdgeInsets.only(left: 14),
+        tableHead: style.copyWith(fontWeight: FontWeight.w600),
+        tableBody: style,
+        tableBorder: TableBorder(horizontalInside: line, top: line, bottom: line),
+        tableCellsPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        horizontalRuleDecoration: BoxDecoration(border: Border(top: line)),
       ),
     );
   }
