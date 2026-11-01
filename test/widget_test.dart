@@ -244,6 +244,7 @@ void main() {
     );
     addTearDown(() => callApi = hermesApi);
     callApi = (base, method, path, {query, body, user, password}) async {
+      if (path == '/api/sessions/s9') return jsonEncode({'estimated_cost_usd': 0.5, 'actual_cost_usd': 0.84});
       expect(path, '/api/sessions/s9/messages');
       return jsonEncode({
         'messages': [
@@ -263,6 +264,10 @@ void main() {
     expect(find.text('claude-sonnet-5-5'), findsOneWidget); // the session's own model
     expect(find.text('1 action'), findsOneWidget); // the tool it ran
     expect(t.widget<CircularProgressIndicator>(find.byType(CircularProgressIndicator)).value, closeTo(.07, .001));
+    expect(
+      t.widget<Tooltip>(find.ancestor(of: find.byType(CircularProgressIndicator), matching: find.byType(Tooltip))).message,
+      'Context: 7% used\nCost: \$0.84',
+    );
 
     // a session gone from the server's list (deleted, or filtered out) leaves the sidebar
     rows.clear();
@@ -649,10 +654,13 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Approve'));
     await t.pumpAndSettle();
-    expect([for (final (m, p, b) in sent) (m, p, jsonEncode(b))], [
-      ('POST', '/api/plugins/kanban/tasks/t1/comments', '{"body":"Looks good"}'),
-      ('PATCH', '/api/plugins/kanban/tasks/t1', '{"status":"done"}'),
-    ]);
+    expect(
+      [for (final (m, p, b) in sent) (m, p, jsonEncode(b))],
+      [
+        ('POST', '/api/plugins/kanban/tasks/t1/comments', '{"body":"Looks good"}'),
+        ('PATCH', '/api/plugins/kanban/tasks/t1', '{"status":"done"}'),
+      ],
+    );
     expect(find.text('YOUR TURN'), findsOneWidget); // back on the refreshed list
   });
 

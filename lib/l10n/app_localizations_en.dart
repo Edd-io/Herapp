@@ -164,6 +164,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelsNone => 'No model is configured on the server.';
 
   @override
+  String chatCost(String cost) {
+    return 'Cost: $cost';
+  }
+
+  @override
   String contextUsage(int percent) {
     return 'Context: $percent% used';
   }

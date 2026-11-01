@@ -45,6 +45,7 @@
   "serverAuthFailed": "Hermes {version} · échec de la connexion (HTTP {status})",
   "serverTunnelFailed": "le tunnel WireGuard n’arrive pas à joindre le serveur",
   "modelsNone": "Aucun modèle n'est configuré sur le serveur.",
+  "chatCost": "Coût : {cost}",
   "contextUsage": "Contexte : {percent} % utilisé",
   "serverNotSet": "Renseigne l'adresse de ton serveur Hermes dans les réglages.",
   "serverRestart": "Hermes a été mis à jour mais tourne encore sur l'ancienne version. Redémarre le serveur Hermes.",

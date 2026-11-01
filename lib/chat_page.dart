@@ -12,6 +12,7 @@ import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:highlight/highlight.dart' as hl;
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -35,6 +36,7 @@ class Chat {
   bool loaded; // transcript fetched (always for a chat started here)
   bool loading = false;
   double? context; // share of the context window the server reports, null until known
+  double cost = 0; // USD spent on it so far, as the server counts it
   // runtime session on the current gateway connection, and the model it runs
   Gateway? on;
   String live = '';
@@ -144,6 +146,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         ..msgs.clear()
         ..msgs.addAll(transcript((jsonDecode(body ?? '{}') as Map)['messages']))
         ..loaded = true;
+      loadCost(c);
     } catch (e) {
       debugPrint('Session: $e');
       if (mounted) c.msgs.add(Msg(false, '⚠️ ${serverErrorText(AppLocalizations.of(context), e is StateError ? null : e)}'));
@@ -151,6 +154,20 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     if (!mounted) return;
     setState(() => c.loading = false);
     if (identical(c, chat)) toBottom(jump: true);
+  }
+
+  /// Reads what [c] has cost so far: the provider's figure when it gave one, else the server's estimate.
+  Future<void> loadCost(Chat c) async {
+    try {
+      final body = await serverApi('GET', '/api/sessions/${Uri.encodeComponent(c.stored)}');
+      if (jsonDecode(body ?? '{}') case {'estimated_cost_usd': final num estimated} && final Map s when mounted) {
+        setState(
+          () => c.cost = (s['actual_cost_usd'] is num && s['actual_cost_usd'] > 0 ? s['actual_cost_usd'] as num : estimated).toDouble(),
+        );
+      }
+    } catch (e) {
+      debugPrint('Cost: $e');
+    }
   }
 
   /// Resumes [c] with its agent built (a lazy session knows no context use until its next reply), then
@@ -421,6 +438,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     }
     setState(() => streaming = false);
     loadSessions(); // a first message adds the chat to the server's list
+    if (chat.stored.isNotEmpty) loadCost(chat);
   }
 
   /// Sends the user's [choice] for the command [m] is waiting on.
@@ -1003,7 +1021,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                     textScaler: MediaQuery.textScalerOf(context),
                     maxLines: 1,
                   )..layout(maxWidth: box.maxWidth - (showRing ? 8 + 20 + 12 : 0) - 36)).didExceedMaxLines;
-                  final ring = _ContextRing(chat.context ?? contextUse([for (final m in chat.msgs) m.text, input.text].join()));
+                  final ring = _ContextRing(
+                    chat.context ?? contextUse([for (final m in chat.msgs) m.text, input.text].join()),
+                    cost: chat.cost,
+                  );
                   final sendBtn = AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
                     transitionBuilder: (child, a) => ScaleTransition(scale: a, child: child),
@@ -1642,14 +1663,18 @@ class _CodeState extends State<_Code> {
 
 /// How full the context window is, as a ring; tap for the percentage.
 class _ContextRing extends StatelessWidget {
-  const _ContextRing(this.used);
-  final double used;
+  const _ContextRing(this.used, {this.cost = 0});
+  final double used, cost;
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final c = Theme.of(context).colorScheme;
     return Tooltip(
-      message: AppLocalizations.of(context).contextUsage((used * 100).round()),
+      message: [
+        l.contextUsage((used * 100).round()),
+        if (cost > 0) l.chatCost(NumberFormat.simpleCurrency(locale: '${Localizations.localeOf(context)}', name: 'USD').format(cost)),
+      ].join('\n'),
       triggerMode: TooltipTriggerMode.tap,
       child: TweenAnimationBuilder<double>(
         tween: Tween(end: used),

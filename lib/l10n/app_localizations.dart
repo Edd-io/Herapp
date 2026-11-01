@@ -368,6 +368,12 @@ abstract class AppLocalizations {
   /// **'No model is configured on the server.'**
   String get modelsNone;
 
+  /// No description provided for @chatCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost: {cost}'**
+  String chatCost(String cost);
+
   /// No description provided for @contextUsage.
   ///
   /// In en, this message translates to:

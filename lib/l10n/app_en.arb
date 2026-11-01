@@ -117,6 +117,8 @@
   },
   "serverTunnelFailed": "the WireGuard tunnel can't reach the server",
   "modelsNone": "No model is configured on the server.",
+  "chatCost": "Cost: {cost}",
+  "@chatCost": {"placeholders": {"cost": {"type": "String"}}},
   "contextUsage": "Context: {percent}% used",
   "@contextUsage": {
     "placeholders": {
