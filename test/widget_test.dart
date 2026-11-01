@@ -720,6 +720,30 @@ void main() {
     expect(t.widget<EditableText>(find.byType(EditableText).last).focusNode.hasFocus, isTrue);
   });
 
+  testWidgets('what was shared from another app opens in a new chat, unsent', (t) async {
+    final calls = fakeServer(replies);
+    var shares = [
+      {
+        'text': 'https://example.test/article',
+        'files': [
+          {'name': 'photo.jpg', 'bytes': Uint8List.fromList([1, 2, 3])},
+        ],
+      },
+    ];
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('herapp/quick'), (call) async {
+      if (call.method != 'shared') return null;
+      final taken = shares;
+      shares = []; // the inbox empties as it is read
+      return taken;
+    });
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('herapp/quick'), null));
+    await t.pumpWidget(const App());
+    await t.pumpAndSettle();
+    expect(find.text('https://example.test/article'), findsOneWidget); // in the composer
+    expect(find.byType(Image), findsOneWidget); // the photo's thumbnail
+    expect(calls.where((c) => c.$1 == 'prompt.submit'), isEmpty);
+  });
+
   testWidgets('a question asked through Siri is sent in a new chat', (t) async {
     final calls = fakeServer(replies);
     t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('herapp/quick'), (call) async {

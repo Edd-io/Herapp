@@ -26,12 +26,38 @@ final class QuickAsk {
 
   func connect(_ messenger: FlutterBinaryMessenger) {
     channel = FlutterMethodChannel(name: "herapp/quick", binaryMessenger: messenger)
-    // the chat says when it listens and takes what was asked before
+    // the chat says when it listens and takes what was asked before; it collects shares as it comes forward
     channel?.setMethodCallHandler { [weak self] call, result in
-      guard let self, call.method == "ready" else { return result(FlutterMethodNotImplemented) }
-      self.ready = true
-      result(self.waiting)
-      self.waiting = []
+      guard let self else { return }
+      switch call.method {
+      case "ready":
+        self.ready = true
+        result(self.waiting)
+        self.waiting = []
+      case "shared": result(Self.takeShared())
+      default: result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  /// What the share extension left in the app group's inbox, emptied as it is read:
+  /// one `{text, files: [{name, bytes}]}` per share, oldest first.
+  static func takeShared() -> [[String: Any]] {
+    let fm = FileManager.default
+    guard let inbox = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.com.edd-io.herapp")?
+      .appendingPathComponent("Inbox", isDirectory: true),
+      let shares = try? fm.contentsOfDirectory(at: inbox, includingPropertiesForKeys: [.creationDateKey])
+    else { return [] }
+    let made = { (u: URL) in (try? u.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast }
+    return shares.sorted { made($0) < made($1) }.map { share in
+      defer { try? fm.removeItem(at: share) }
+      let files = (try? fm.contentsOfDirectory(at: share.appendingPathComponent("files"), includingPropertiesForKeys: nil)) ?? []
+      return [
+        "text": (try? String(contentsOf: share.appendingPathComponent("text.txt"), encoding: .utf8)) ?? "",
+        "files": files.compactMap { f in
+          (try? Data(contentsOf: f)).map { ["name": f.lastPathComponent, "bytes": FlutterStandardTypedData(bytes: $0)] }
+        },
+      ]
     }
   }
 

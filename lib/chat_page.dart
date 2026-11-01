@@ -54,7 +54,7 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin {
+class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   var chats = [Chat()];
   late Chat chat = chats.first;
   final input = TextEditingController();
@@ -95,6 +95,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       if (call.method == 'ask') ask(call.arguments is String ? call.arguments as String : '');
     });
     quick.invokeListMethod<String>('ready').then((asked) => asked?.forEach(ask)).catchError((Object _) {}); // only iPhone queues them
+    WidgetsBinding.instance.addObserver(this);
+    takeShared();
   }
 
   /// Lists the server's stored conversations in the sidebar, after the chats not saved there yet.
@@ -233,6 +235,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     sub?.cancel();
     drawer.dispose();
     paneRefresh.dispose();
@@ -252,6 +255,33 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     if (HardwareKeyboard.instance.isShiftPressed || input.value.composing.isValid) return KeyEventResult.ignored;
     send();
     return KeyEventResult.handled;
+  }
+
+  // the share extension opens the app: what it left waits in its inbox
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.resumed) takeShared();
+  }
+
+  /// Starts a new chat with what was shared from other apps (iPhone's "Share → Hermes"), to send once looked over.
+  Future<void> takeShared() async {
+    try {
+      final shares = await const MethodChannel('herapp/quick').invokeListMethod<Map>('shared') ?? [];
+      if (shares.isEmpty || !mounted) return;
+      ask('');
+      input.text = [for (final s in shares) '${s['text'] ?? ''}'.trim()].where((t) => t.isNotEmpty).join('\n\n');
+      for (final s in shares) {
+        for (final f in (s['files'] as List? ?? const []).cast<Map>()) {
+          final name = '${f['name']}';
+          final image = RegExp(r'\.(png|jpe?g|gif|webp|heic)$', caseSensitive: false).hasMatch(name);
+          setState(() => pending.add((name: name, bytes: f['bytes'] as Uint8List, image: image)));
+        }
+      }
+    } on MissingPluginException {
+      // only the iPhone app has a share extension
+    } catch (e) {
+      debugPrint('Shared: $e');
+    }
   }
 
   /// Opens a new chat on top of everything, sending [question] when there is one, else waiting for it.
