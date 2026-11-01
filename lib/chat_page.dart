@@ -26,6 +26,7 @@ import 'memory_page.dart';
 import 'model_sheet.dart';
 import 'quota_page.dart';
 import 'settings.dart';
+import 'system_page.dart';
 import 'vault_page.dart';
 
 class Chat {
@@ -661,6 +662,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     (l.kanban, CupertinoIcons.square_split_2x1, const KanbanPage()),
     (l.memory, CupertinoIcons.lightbulb, const MemoryPage()),
     (l.vault, CupertinoIcons.lock_shield, const VaultPage()),
+    (l.system, CupertinoIcons.desktopcomputer, const SystemPage()),
   ];
 
   void openPage(Widget page) {
@@ -691,6 +693,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       LogicalKeyboardKey.digit3,
       LogicalKeyboardKey.digit4,
       LogicalKeyboardKey.digit5,
+      LogicalKeyboardKey.digit6,
     ];
     return [
       (l.newChat, key(LogicalKeyboardKey.keyN), newChat),

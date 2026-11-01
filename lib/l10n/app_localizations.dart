@@ -140,6 +140,150 @@ abstract class AppLocalizations {
   /// **'Routine · {job}'**
   String routineResult(String job);
 
+  /// No description provided for @system.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get system;
+
+  /// No description provided for @systemServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server'**
+  String get systemServer;
+
+  /// No description provided for @systemVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get systemVersion;
+
+  /// No description provided for @systemGateway.
+  ///
+  /// In en, this message translates to:
+  /// **'Gateway'**
+  String get systemGateway;
+
+  /// No description provided for @systemRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get systemRunning;
+
+  /// No description provided for @systemStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get systemStopped;
+
+  /// No description provided for @systemHealth.
+  ///
+  /// In en, this message translates to:
+  /// **'Health'**
+  String get systemHealth;
+
+  /// No description provided for @systemHealthy.
+  ///
+  /// In en, this message translates to:
+  /// **'All good'**
+  String get systemHealthy;
+
+  /// No description provided for @systemDegraded.
+  ///
+  /// In en, this message translates to:
+  /// **'Degraded'**
+  String get systemDegraded;
+
+  /// No description provided for @systemSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Active sessions'**
+  String get systemSessions;
+
+  /// No description provided for @systemPlatforms.
+  ///
+  /// In en, this message translates to:
+  /// **'Messaging'**
+  String get systemPlatforms;
+
+  /// No description provided for @systemConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {total} connected'**
+  String systemConnected(int count, int total);
+
+  /// No description provided for @systemUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get systemUpdate;
+
+  /// No description provided for @systemUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes is up to date.'**
+  String get systemUpToDate;
+
+  /// No description provided for @systemUpdateReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get systemUpdateReady;
+
+  /// No description provided for @systemChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 change} other{{count} changes}}'**
+  String systemChanges(int count);
+
+  /// No description provided for @systemUpdateNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Update now'**
+  String get systemUpdateNow;
+
+  /// No description provided for @systemUpdateConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes will update and restart. Replies in progress will stop.'**
+  String get systemUpdateConfirm;
+
+  /// No description provided for @systemUpdating.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating…'**
+  String get systemUpdating;
+
+  /// No description provided for @systemUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Update done.'**
+  String get systemUpdated;
+
+  /// No description provided for @systemRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart the gateway'**
+  String get systemRestart;
+
+  /// No description provided for @systemRestartConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Replies in progress will stop.'**
+  String get systemRestartConfirm;
+
+  /// No description provided for @systemRestarting.
+  ///
+  /// In en, this message translates to:
+  /// **'The gateway is restarting.'**
+  String get systemRestarting;
+
+  /// No description provided for @systemFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'It didn\'t work: {reason}'**
+  String systemFailed(String reason);
+
   /// No description provided for @lockApp.
   ///
   /// In en, this message translates to:

@@ -1094,4 +1094,70 @@ void main() {
     expect(paths.where((p) => p == '/api/sessions/b2/messages'), hasLength(2));
     expect(calls.where((c) => c.$1 == 'session.list' && c.$2['title'] == 'Bot Chat'), isNotEmpty);
   });
+
+  testWidgets('the system page shows the server, updates it and restarts its gateway', (t) async {
+    fakeServer((_, _, _) => null);
+    addTearDown(() => callApi = hermesApi);
+    final posts = <String>[];
+    var updated = false, polls = 0;
+    callApi = (base, method, path, {query, body, user, password}) async {
+      if (method == 'POST') posts.add(path);
+      return jsonEncode(switch (path) {
+        '/api/status' => {
+          'version': '0.22.3',
+          'release_date': '2026-10-20',
+          'gateway_running': true,
+          'gateway_state': 'running',
+          'overall': 'ok',
+          'active_sessions': 3,
+          'components': {
+            'platforms': {'configured': 2, 'connected': 1},
+          },
+        },
+        '/api/hermes/update/check' when updated => {'update_available': false, 'behind': 0, 'can_apply': true},
+        '/api/hermes/update/check' => {
+          'update_available': true,
+          'behind': 12,
+          'can_apply': true,
+          'commits': [
+            {'sha': 'abc1234', 'summary': 'Faster replies'},
+          ],
+        },
+        '/api/hermes/update' => {'ok': true, 'name': 'hermes-update'},
+        '/api/actions/hermes-update/status' => ++polls < 2 ? {'running': true} : {'running': false, 'exit_code': 0},
+        _ => {'ok': true},
+      });
+    };
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('System'));
+    await t.pumpAndSettle();
+    expect(find.text('0.22.3 · Oct 20, 2026'), findsOneWidget);
+    expect(find.text('Running'), findsOneWidget);
+    expect(find.text('All good'), findsOneWidget);
+    expect(find.text('1 of 2 connected'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
+    expect(find.text('12 changes'), findsOneWidget);
+    expect(find.text('Faster replies'), findsOneWidget);
+
+    await t.tap(find.text('Update now'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Update now').last); // confirmed
+    updated = true;
+    for (var i = 0; i < 4; i++) {
+      await t.pump(const Duration(seconds: 2));
+    }
+    await t.pumpAndSettle();
+    expect(posts, ['/api/hermes/update']);
+    expect(find.text('Update done.'), findsOneWidget);
+    expect(find.text('Hermes is up to date.'), findsOneWidget);
+
+    await t.tap(find.text('Restart the gateway'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Restart the gateway').last);
+    await t.pumpAndSettle();
+    expect(posts.last, '/api/gateway/restart');
+    expect(find.text('The gateway is restarting.'), findsOneWidget);
+  });
 }

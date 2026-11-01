@@ -34,6 +34,91 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get system => 'System';
+
+  @override
+  String get systemServer => 'Server';
+
+  @override
+  String get systemVersion => 'Version';
+
+  @override
+  String get systemGateway => 'Gateway';
+
+  @override
+  String get systemRunning => 'Running';
+
+  @override
+  String get systemStopped => 'Stopped';
+
+  @override
+  String get systemHealth => 'Health';
+
+  @override
+  String get systemHealthy => 'All good';
+
+  @override
+  String get systemDegraded => 'Degraded';
+
+  @override
+  String get systemSessions => 'Active sessions';
+
+  @override
+  String get systemPlatforms => 'Messaging';
+
+  @override
+  String systemConnected(int count, int total) {
+    return '$count of $total connected';
+  }
+
+  @override
+  String get systemUpdate => 'Update';
+
+  @override
+  String get systemUpToDate => 'Hermes is up to date.';
+
+  @override
+  String get systemUpdateReady => 'Update available';
+
+  @override
+  String systemChanges(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count changes',
+      one: '1 change',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get systemUpdateNow => 'Update now';
+
+  @override
+  String get systemUpdateConfirm =>
+      'Hermes will update and restart. Replies in progress will stop.';
+
+  @override
+  String get systemUpdating => 'Updating…';
+
+  @override
+  String get systemUpdated => 'Update done.';
+
+  @override
+  String get systemRestart => 'Restart the gateway';
+
+  @override
+  String get systemRestartConfirm => 'Replies in progress will stop.';
+
+  @override
+  String get systemRestarting => 'The gateway is restarting.';
+
+  @override
+  String systemFailed(String reason) {
+    return 'It didn\'t work: $reason';
+  }
+
+  @override
   String get lockApp => 'Lock the app';
 
   @override

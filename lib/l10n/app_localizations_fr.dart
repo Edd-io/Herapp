@@ -34,6 +34,91 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get system => 'Système';
+
+  @override
+  String get systemServer => 'Serveur';
+
+  @override
+  String get systemVersion => 'Version';
+
+  @override
+  String get systemGateway => 'Passerelle';
+
+  @override
+  String get systemRunning => 'En marche';
+
+  @override
+  String get systemStopped => 'Arrêtée';
+
+  @override
+  String get systemHealth => 'Santé';
+
+  @override
+  String get systemHealthy => 'Tout va bien';
+
+  @override
+  String get systemDegraded => 'Dégradée';
+
+  @override
+  String get systemSessions => 'Sessions actives';
+
+  @override
+  String get systemPlatforms => 'Messageries';
+
+  @override
+  String systemConnected(int count, int total) {
+    return '$count sur $total connectées';
+  }
+
+  @override
+  String get systemUpdate => 'Mise à jour';
+
+  @override
+  String get systemUpToDate => 'Hermes est à jour.';
+
+  @override
+  String get systemUpdateReady => 'Mise à jour disponible';
+
+  @override
+  String systemChanges(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nouveautés',
+      one: '1 nouveauté',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get systemUpdateNow => 'Mettre à jour';
+
+  @override
+  String get systemUpdateConfirm =>
+      'Hermes va se mettre à jour et redémarrer. Les réponses en cours s\'arrêteront.';
+
+  @override
+  String get systemUpdating => 'Mise à jour en cours…';
+
+  @override
+  String get systemUpdated => 'Mise à jour terminée.';
+
+  @override
+  String get systemRestart => 'Redémarrer la passerelle';
+
+  @override
+  String get systemRestartConfirm => 'Les réponses en cours s\'arrêteront.';
+
+  @override
+  String get systemRestarting => 'La passerelle redémarre.';
+
+  @override
+  String systemFailed(String reason) {
+    return 'Ça n\'a pas marché : $reason';
+  }
+
+  @override
   String get lockApp => 'Verrouiller l’app';
 
   @override
