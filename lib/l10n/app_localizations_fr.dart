@@ -9,6 +9,15 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get menuFile => 'Fichier';
+
+  @override
+  String get menuView => 'Présentation';
+
+  @override
+  String get menuWindow => 'Fenêtre';
+
+  @override
   String get newChat => 'Nouveau chat';
 
   @override

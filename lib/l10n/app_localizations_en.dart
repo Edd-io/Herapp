@@ -9,6 +9,15 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get menuFile => 'File';
+
+  @override
+  String get menuView => 'View';
+
+  @override
+  String get menuWindow => 'Window';
+
+  @override
   String get newChat => 'New chat';
 
   @override

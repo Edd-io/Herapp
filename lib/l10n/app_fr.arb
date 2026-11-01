@@ -1,4 +1,7 @@
 {
+  "menuFile": "Fichier",
+  "menuView": "Présentation",
+  "menuWindow": "Fenêtre",
   "@@locale": "fr",
   "newChat": "Nouveau chat",
   "emptyHeadline": "Comment puis-je aider ?",

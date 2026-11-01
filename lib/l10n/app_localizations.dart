@@ -98,6 +98,24 @@ abstract class AppLocalizations {
     Locale('fr'),
   ];
 
+  /// No description provided for @menuFile.
+  ///
+  /// In en, this message translates to:
+  /// **'File'**
+  String get menuFile;
+
+  /// No description provided for @menuView.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get menuView;
+
+  /// No description provided for @menuWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Window'**
+  String get menuWindow;
+
   /// No description provided for @newChat.
   ///
   /// In en, this message translates to:

@@ -1,4 +1,7 @@
 {
+  "menuFile": "File",
+  "menuView": "View",
+  "menuWindow": "Window",
   "@@locale": "en",
   "newChat": "New chat",
   "emptyHeadline": "How can I help?",

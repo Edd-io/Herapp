@@ -611,13 +611,57 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   });
 
   @override
-  Widget build(BuildContext context) => CallbackShortcuts(
-    bindings: {
-      for (final (_, key, run) in commands(AppLocalizations.of(context))) key: run,
-      const SingleActivator(LogicalKeyboardKey.escape): closeDrawer,
-    },
-    child: Focus(autofocus: true, child: _frame()),
-  );
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    // a Mac lists the commands in its menu bar, which also answers their keys
+    final mac = defaultTargetPlatform == TargetPlatform.macOS;
+    final body = CallbackShortcuts(
+      bindings: {
+        if (!mac)
+          for (final (_, key, run) in commands(l)) key: run,
+        const SingleActivator(LogicalKeyboardKey.escape): closeDrawer,
+      },
+      child: Focus(autofocus: true, child: _frame()),
+    );
+    if (!mac) return body;
+    PlatformMenuItem item((String, SingleActivator, VoidCallback) x) => PlatformMenuItem(label: x.$1, shortcut: x.$2, onSelected: x.$3);
+    PlatformMenuItemGroup provided(List<PlatformProvidedMenuItemType> types) =>
+        PlatformMenuItemGroup(members: [for (final t in types) PlatformProvidedMenuItem(type: t)]);
+    final all = commands(l);
+    return PlatformMenuBar(
+      menus: [
+        PlatformMenu(
+          label: 'Herapp',
+          menus: [
+            provided([PlatformProvidedMenuItemType.about]),
+            PlatformMenuItemGroup(members: [item(all[2])]),
+            provided([
+              PlatformProvidedMenuItemType.hide,
+              PlatformProvidedMenuItemType.hideOtherApplications,
+              PlatformProvidedMenuItemType.showAllApplications,
+            ]),
+            provided([PlatformProvidedMenuItemType.quit]),
+          ],
+        ),
+        PlatformMenu(label: l.menuFile, menus: [item(all[0]), item(all[1])]),
+        PlatformMenu(
+          label: l.menuView,
+          menus: [
+            PlatformMenuItemGroup(members: [for (final x in all.skip(3)) item(x)]),
+            provided([PlatformProvidedMenuItemType.toggleFullScreen]),
+          ],
+        ),
+        PlatformMenu(
+          label: l.menuWindow,
+          menus: [
+            provided([PlatformProvidedMenuItemType.minimizeWindow, PlatformProvidedMenuItemType.zoomWindow]),
+            provided([PlatformProvidedMenuItemType.arrangeWindowsInFront]),
+          ],
+        ),
+      ],
+      child: body,
+    );
+  }
 
   Widget _frame() {
     final c = Theme.of(context).colorScheme;

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -642,6 +643,23 @@ void main() {
     expect(find.text('Nothing is waiting for you.'), findsNothing);
     await press(LogicalKeyboardKey.keyK);
     expect(t.widget<TextField>(find.byType(TextField).first).focusNode!.hasFocus, isTrue); // the search field
+  });
+
+  testWidgets('a Mac gets a menu bar with the commands', (t) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    fakeServer((_, _, _) => null);
+    Object? menus;
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.menu, (call) async {
+      if (call.method == 'Menu.setMenus') menus = call.arguments;
+      return null;
+    });
+    await t.pumpWidget(const App());
+    await t.pump();
+    final sent = jsonEncode(menus);
+    for (final label in ['File', 'New chat', 'Search', 'Settings', 'View', 'Kanban', 'Window']) {
+      expect(sent, contains('"$label"'));
+    }
+    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('a kanban card in review is answered and approved', (t) async {
