@@ -216,7 +216,11 @@ class _MemoryEditPageState extends State<MemoryEditPage> {
       child: error != null
           ? Padding(
               padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
-              child: Text(serverErrorText(l, error is StateError ? null : error), textAlign: TextAlign.center, style: TextStyle(fontSize: 15, color: c.outline)),
+              child: Text(
+                serverErrorText(l, error is StateError ? null : error),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15, color: c.outline),
+              ),
             )
           : loaded == null
           ? const Center(child: CupertinoActivityIndicator())

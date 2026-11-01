@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:herapp/agents_page.dart';
 import 'package:herapp/cron_page.dart';
 import 'package:herapp/hermes.dart';
+import 'package:herapp/lock.dart';
 import 'package:herapp/main.dart';
 import 'package:herapp/settings.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -670,6 +671,37 @@ void main() {
     expect(find.text('Drop to attach to your message'), findsNothing);
     expect(find.text('notes.txt'), findsOneWidget); // in the draft
     debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('a locked app opens only once the device unlocks', (t) async {
+    final saved = deviceAuth;
+    addTearDown(() => deviceAuth = saved);
+    var answer = false;
+    var asked = 0;
+    deviceAuth = (available: () async => true, confirm: (_) async => ++asked > 0 && answer);
+    settings.lock = true;
+    fakeServer((_, _, _) => null);
+    await t.pumpWidget(const App());
+    await t.pump();
+    expect(asked, 1); // asked at launch, refused
+    expect(find.text('Unlock'), findsOneWidget);
+    answer = true;
+    await t.tap(find.text('Unlock'));
+    await t.pump();
+    expect(find.text('Unlock'), findsNothing);
+
+    // leaving the screen locks it again; coming back asks
+    for (final s in [AppLifecycleState.inactive, AppLifecycleState.hidden]) {
+      t.binding.handleAppLifecycleStateChanged(s);
+    }
+    await t.pump();
+    expect(find.text('Unlock'), findsOneWidget);
+    for (final s in [AppLifecycleState.inactive, AppLifecycleState.resumed]) {
+      t.binding.handleAppLifecycleStateChanged(s);
+    }
+    await t.pump();
+    expect(asked, 3);
+    expect(find.text('Unlock'), findsNothing);
   });
 
   testWidgets('a Mac gets a menu bar with the commands', (t) async {

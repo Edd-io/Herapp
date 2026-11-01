@@ -9,6 +9,15 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get lockApp => 'Lock the app';
+
+  @override
+  String get unlock => 'Unlock';
+
+  @override
+  String get unlockReason => 'Unlock Hermes';
+
+  @override
   String get dropFiles => 'Drop to attach to your message';
 
   @override

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'chat_page.dart';
 import 'l10n/app_localizations.dart';
+import 'lock.dart';
 import 'settings.dart';
 import 'wireguard.dart';
 
@@ -62,15 +63,16 @@ class App extends StatelessWidget {
       ),
       // sizes are set for a phone held close; a computer screen sits further away and its UI runs smaller.
       // A window has no safe area: an inset of its own keeps the content off its edges, through every SafeArea.
-      builder: Platform.isMacOS || Platform.isWindows || Platform.isLinux
-          ? (context, child) {
-              const edges = EdgeInsets.fromLTRB(4, 12, 12, 16);
-              return MediaQuery(
-                data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(.9), padding: edges, viewPadding: edges),
-                child: child!,
-              );
-            }
-          : null,
+      builder: (context, child) {
+        if (!(Platform.isMacOS || Platform.isWindows || Platform.isLinux)) return AppLock(child: child!);
+        const edges = EdgeInsets.fromLTRB(4, 12, 12, 16);
+        return AppLock(
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(.9), padding: edges, viewPadding: edges),
+            child: child!,
+          ),
+        );
+      },
       home: const ChatPage(),
     ),
   );

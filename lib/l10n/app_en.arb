@@ -1,4 +1,7 @@
 {
+  "lockApp": "Lock the app",
+  "unlock": "Unlock",
+  "unlockReason": "Unlock Hermes",
   "dropFiles": "Drop to attach to your message",
   "menuFile": "File",
   "menuView": "View",

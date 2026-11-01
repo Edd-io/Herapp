@@ -246,7 +246,10 @@ class _Workers extends StatelessWidget {
             ),
             // a worker silent for long has likely died without telling the board
             if (t.heartbeat case final hb? when now.difference(hb) > const Duration(minutes: 10))
-              Text(l.workerSilent(durationText(l, now.difference(hb))), style: const TextStyle(fontSize: 13, color: CupertinoColors.systemOrange)),
+              Text(
+                l.workerSilent(durationText(l, now.difference(hb))),
+                style: const TextStyle(fontSize: 13, color: CupertinoColors.systemOrange),
+              ),
             if (t.summary.isNotEmpty) Text(t.summary, maxLines: 2, overflow: TextOverflow.ellipsis, style: small),
           ]),
         if (board.running.isEmpty)

@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'hermes.dart';
 import 'l10n/app_localizations.dart';
+import 'lock.dart';
 import 'wireguard.dart';
 
 final settings = Settings();
@@ -33,6 +34,10 @@ class Settings extends ChangeNotifier {
 
   bool get haptics => _p.getBool('haptics') ?? true;
   set haptics(bool v) => _save(_p.setBool('haptics', v));
+
+  /// Whether the app asks the device's unlock (Face ID, Touch ID, passcode) to open.
+  bool get lock => _p.getBool('lock') ?? false;
+  set lock(bool v) => _save(_p.setBool('lock', v));
 
   /// Last chosen model, used as the default for new chats.
   String get model => _p.getString('model') ?? '';
@@ -205,6 +210,13 @@ class _SettingsSheetState extends State<SettingsSheet> {
   String? importError;
   bool testing = false;
   (bool ok, String text)? testResult;
+  bool canLock = false; // the device has an unlock to ask
+
+  @override
+  void initState() {
+    super.initState();
+    deviceAuth.available().then((v) => mounted ? setState(() => canLock = v) : null);
+  }
 
   /// Checks the URL answers like a Hermes server (GET /api/status, no auth needed).
   Future<void> testServer() async {
@@ -396,6 +408,17 @@ class _SettingsSheetState extends State<SettingsSheet> {
                     title: Text(l.haptics, style: label),
                     trailing: CupertinoSwitch(value: settings.haptics, onChanged: (v) => settings.haptics = v),
                   ),
+                  if (canLock)
+                    CupertinoListTile(
+                      title: Text(l.lockApp, style: label),
+                      // turning it on proves the unlock works, so nobody is shut out
+                      trailing: CupertinoSwitch(
+                        value: settings.lock,
+                        onChanged: (v) async {
+                          if (!v || await confirmOwner(l.unlockReason)) settings.lock = v;
+                        },
+                      ),
+                    ),
                 ]),
                 section(
                   l.hermesServer,

@@ -98,6 +98,24 @@ abstract class AppLocalizations {
     Locale('fr'),
   ];
 
+  /// No description provided for @lockApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock the app'**
+  String get lockApp;
+
+  /// No description provided for @unlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get unlock;
+
+  /// No description provided for @unlockReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock Hermes'**
+  String get unlockReason;
+
   /// No description provided for @dropFiles.
   ///
   /// In en, this message translates to:

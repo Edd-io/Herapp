@@ -110,7 +110,9 @@ class _KanbanPageState extends State<KanbanPage> {
                       footer: counts.isEmpty ? null : Text(counts.join(' · '), style: small),
                       children: [
                         if (list!.isEmpty)
-                          CupertinoListTile(title: Text(l.kanbanNothing, style: TextStyle(fontSize: 16, color: c.outline))),
+                          CupertinoListTile(
+                            title: Text(l.kanbanNothing, style: TextStyle(fontSize: 16, color: c.outline)),
+                          ),
                         for (final k in list)
                           CupertinoListTile(
                             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
@@ -236,7 +238,10 @@ class _KanbanCardPageState extends State<KanbanCardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(padding: const EdgeInsets.only(left: 16, bottom: 6), child: Text(title.toUpperCase(), style: small)),
+          Padding(
+            padding: const EdgeInsets.only(left: 16, bottom: 6),
+            child: Text(title.toUpperCase(), style: small),
+          ),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -267,7 +272,11 @@ class _KanbanCardPageState extends State<KanbanCardPage> {
                   ? const Center(child: CupertinoActivityIndicator())
                   : Padding(
                       padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
-                      child: Text(serverErrorText(l, error is StateError ? null : error), textAlign: TextAlign.center, style: TextStyle(fontSize: 15, color: c.outline)),
+                      child: Text(
+                        serverErrorText(l, error is StateError ? null : error),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 15, color: c.outline),
+                      ),
                     )
             : Column(
                 children: [
@@ -281,8 +290,14 @@ class _KanbanCardPageState extends State<KanbanCardPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SelectableText(d.card.title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: c.onSurface)),
-                              if (d.card.attention.isNotEmpty) ...[const SizedBox(height: 4), Text(attentionText(l, d.card.attention), style: small)],
+                              SelectableText(
+                                d.card.title,
+                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: c.onSurface),
+                              ),
+                              if (d.card.attention.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(attentionText(l, d.card.attention), style: small),
+                              ],
                             ],
                           ),
                         ),
@@ -344,7 +359,11 @@ class _KanbanCardPageState extends State<KanbanCardPage> {
                           IconButton(
                             tooltip: l.kanbanReplyHint,
                             onPressed: reply.text.trim().isEmpty || busy ? null : send,
-                            icon: Icon(CupertinoIcons.arrow_up_circle_fill, size: 32, color: reply.text.trim().isEmpty ? c.outline : c.onSurface),
+                            icon: Icon(
+                              CupertinoIcons.arrow_up_circle_fill,
+                              size: 32,
+                              color: reply.text.trim().isEmpty ? c.outline : c.onSurface,
+                            ),
                           ),
                         ],
                       ),
@@ -387,11 +406,11 @@ class _KanbanAddPageState extends State<KanbanAddPage> {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => saving = true);
     try {
-      await serverApi('POST', '$_api/tasks', body: {
-        'title': title.text.trim(),
-        if (details.text.trim().isNotEmpty) 'body': details.text.trim(),
-        'triage': true,
-      });
+      await serverApi(
+        'POST',
+        '$_api/tasks',
+        body: {'title': title.text.trim(), if (details.text.trim().isNotEmpty) 'body': details.text.trim(), 'triage': true},
+      );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       debugPrint('Kanban add: $e');

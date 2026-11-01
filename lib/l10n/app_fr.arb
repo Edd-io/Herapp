@@ -1,4 +1,7 @@
 {
+  "lockApp": "Verrouiller l’app",
+  "unlock": "Déverrouiller",
+  "unlockReason": "Déverrouille Hermes",
   "dropFiles": "Dépose pour joindre à ton message",
   "menuFile": "Fichier",
   "menuView": "Présentation",

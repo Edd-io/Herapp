@@ -441,7 +441,9 @@ List<Msg> transcript(Object? messages) {
     }
     if (user) {
       // what the app sent along: an attached image's marker, a staged file's @file: reference
-      text = (skillInvocation(text) ?? text).replaceAllMapped(RegExp(r'\[User attached image: ([^\]]+)\]|@file:"([^"]+)"|@file:(\S+)'), (x) {
+      text = (skillInvocation(text) ?? text).replaceAllMapped(RegExp(r'\[User attached image: ([^\]]+)\]|@file:"([^"]+)"|@file:(\S+)'), (
+        x,
+      ) {
         files.add((name: (x[1] ?? x[2] ?? x[3]!).split('/').last, bytes: null, image: x[1] != null));
         return '';
       }).trim();
@@ -457,7 +459,8 @@ List<Msg> transcript(Object? messages) {
 /// The `/skill instruction` a skill-expanded user turn came from, null when [text] isn't one
 /// (the server stores the skill's whole body as the user's message).
 String? skillInvocation(String text) {
-  const prefix = '[IMPORTANT: The user has invoked the "', said = 'The user has provided the following instruction alongside the skill invocation: ';
+  const prefix = '[IMPORTANT: The user has invoked the "',
+      said = 'The user has provided the following instruction alongside the skill invocation: ';
   if (!text.startsWith(prefix)) return null;
   final name = text.substring(prefix.length).split('"').first;
   final at = text.lastIndexOf(said);
