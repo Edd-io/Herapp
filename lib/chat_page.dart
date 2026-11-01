@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_selector/file_selector.dart';
@@ -57,6 +58,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   late Chat chat = chats.first;
   final input = TextEditingController();
   late final focus = FocusNode(onKeyEvent: enterKey);
+  final searchFocus = FocusNode();
   final scroll = ScrollController();
   final models = ValueNotifier<Models>((list: const [], loading: false, error: null));
   late final drawer = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
@@ -228,6 +230,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     paneRefresh.dispose();
     input.dispose();
     focus.dispose();
+    searchFocus.dispose();
     scroll.dispose();
     models.dispose();
     super.dispose();
@@ -545,6 +548,52 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   bool get wide => MediaQuery.sizeOf(context).width >= wideWidth;
 
+  /// The menu's pages, in order; ⌘1… opens them.
+  List<(String, IconData, Widget)> pages(AppLocalizations l) => [
+    (l.quotas, CupertinoIcons.gauge, const QuotaPage()),
+    (l.agents, CupertinoIcons.sparkles, const AgentsPage()),
+    (l.kanban, CupertinoIcons.square_split_2x1, const KanbanPage()),
+    (l.memory, CupertinoIcons.lightbulb, const MemoryPage()),
+    (l.vault, CupertinoIcons.lock_shield, const VaultPage()),
+  ];
+
+  void openPage(Widget page) {
+    closeDrawer();
+    show(page);
+  }
+
+  Future<void> openSettings() async {
+    await showPageSheet<void>(context, (_) => const SettingsSheet());
+    // server, auth or tunnel may have changed
+    dropGateway();
+    loadModels();
+    loadSessions();
+  }
+
+  void findChats() {
+    if (!wide) openDrawer();
+    searchFocus.requestFocus();
+  }
+
+  /// Keyboard commands (⌘ on Apple keyboards, Ctrl elsewhere): new chat, search, settings, the menu's pages; Esc closes.
+  List<(String, SingleActivator, VoidCallback)> commands(AppLocalizations l) {
+    final apple = const [TargetPlatform.macOS, TargetPlatform.iOS].contains(defaultTargetPlatform);
+    SingleActivator key(LogicalKeyboardKey k) => SingleActivator(k, meta: apple, control: !apple);
+    const digits = [
+      LogicalKeyboardKey.digit1,
+      LogicalKeyboardKey.digit2,
+      LogicalKeyboardKey.digit3,
+      LogicalKeyboardKey.digit4,
+      LogicalKeyboardKey.digit5,
+    ];
+    return [
+      (l.newChat, key(LogicalKeyboardKey.keyN), newChat),
+      (l.search, key(LogicalKeyboardKey.keyK), findChats),
+      (l.settings, key(LogicalKeyboardKey.comma), openSettings),
+      for (final (i, (label, _, page)) in pages(l).indexed) (label, key(digits[i]), () => openPage(page)),
+    ];
+  }
+
   /// Opens a menu [page]: over everything on a phone, beside the menu on a wide window.
   void show(Widget page) => (wide ? pane.currentState! : Navigator.of(context)).push(CupertinoPageRoute<void>(builder: (_) => page));
 
@@ -562,7 +611,15 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => CallbackShortcuts(
+    bindings: {
+      for (final (_, key, run) in commands(AppLocalizations.of(context))) key: run,
+      const SingleActivator(LogicalKeyboardKey.escape): closeDrawer,
+    },
+    child: Focus(autofocus: true, child: _frame()),
+  );
+
+  Widget _frame() {
     final c = Theme.of(context).colorScheme;
     final screen = MediaQuery.sizeOf(context).width;
     final width = screen * .82;
@@ -1168,6 +1225,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
+                        focusNode: searchFocus,
                         onChanged: (v) {
                           setState(() => query = v);
                           search(v);
@@ -1187,46 +1245,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               ),
             ),
             tile(AppLocalizations.of(context).newChat, icon: CupertinoIcons.square_pencil, onTap: newChat),
-            tile(
-              AppLocalizations.of(context).quotas,
-              icon: CupertinoIcons.gauge,
-              onTap: () {
-                closeDrawer();
-                show(const QuotaPage());
-              },
-            ),
-            tile(
-              AppLocalizations.of(context).agents,
-              icon: CupertinoIcons.sparkles,
-              onTap: () {
-                closeDrawer();
-                show(const AgentsPage());
-              },
-            ),
-            tile(
-              AppLocalizations.of(context).kanban,
-              icon: CupertinoIcons.square_split_2x1,
-              onTap: () {
-                closeDrawer();
-                show(const KanbanPage());
-              },
-            ),
-            tile(
-              AppLocalizations.of(context).memory,
-              icon: CupertinoIcons.lightbulb,
-              onTap: () {
-                closeDrawer();
-                show(const MemoryPage());
-              },
-            ),
-            tile(
-              AppLocalizations.of(context).vault,
-              icon: CupertinoIcons.lock_shield,
-              onTap: () {
-                closeDrawer();
-                show(const VaultPage());
-              },
-            ),
+            for (final (label, icon, page) in pages(AppLocalizations.of(context))) tile(label, icon: icon, onTap: () => openPage(page)),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
               child: Text(
@@ -1301,17 +1320,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 ],
               ),
             ),
-            tile(
-              AppLocalizations.of(context).settings,
-              icon: CupertinoIcons.gear,
-              onTap: () async {
-                await showPageSheet<void>(context, (_) => const SettingsSheet());
-                // server, auth or tunnel may have changed
-                dropGateway();
-                loadModels();
-                loadSessions();
-              },
-            ),
+            tile(AppLocalizations.of(context).settings, icon: CupertinoIcons.gear, onTap: openSettings),
             const SizedBox(height: 8),
           ],
         ),

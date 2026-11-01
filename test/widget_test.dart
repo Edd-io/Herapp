@@ -619,6 +619,31 @@ void main() {
     expect(find.text('Nothing is waiting for you.'), findsNothing); // back to the chat
   });
 
+  testWidgets('keyboard commands open pages, search and close', (t) async {
+    t.view.physicalSize = const Size(1400, 900);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    fakeServer((_, _, _) => null);
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async => path.endsWith('/board') ? '{"columns":[]}' : '[]';
+    await t.pumpWidget(const App());
+    await t.pumpAndSettle();
+    Future<void> press(LogicalKeyboardKey k) async {
+      await t.sendKeyDownEvent(LogicalKeyboardKey.control);
+      await t.sendKeyEvent(k);
+      await t.sendKeyUpEvent(LogicalKeyboardKey.control);
+      await t.pumpAndSettle();
+    }
+
+    await press(LogicalKeyboardKey.digit3); // the third page: Kanban
+    expect(find.text('Nothing is waiting for you.'), findsOneWidget);
+    await t.sendKeyEvent(LogicalKeyboardKey.escape);
+    await t.pumpAndSettle();
+    expect(find.text('Nothing is waiting for you.'), findsNothing);
+    await press(LogicalKeyboardKey.keyK);
+    expect(t.widget<TextField>(find.byType(TextField).first).focusNode!.hasFocus, isTrue); // the search field
+  });
+
   testWidgets('a kanban card in review is answered and approved', (t) async {
     fakeServer((_, _, _) => null);
     addTearDown(() => callApi = hermesApi);
