@@ -89,6 +89,13 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     });
     loadModels();
     loadSessions();
+    // the Mac's global shortcut (⌥Space) asks for a new question
+    const MethodChannel('herapp/quick').setMethodCallHandler((call) async {
+      if (call.method != 'ask' || !mounted) return;
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      newChat();
+      focus.requestFocus();
+    });
   }
 
   /// Lists the server's stored conversations in the sidebar, after the chats not saved there yet.

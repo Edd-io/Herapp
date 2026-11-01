@@ -704,6 +704,22 @@ void main() {
     expect(find.text('Unlock'), findsNothing);
   });
 
+  testWidgets("the Mac's global shortcut opens a new question", (t) async {
+    fakeServer(replies);
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, 'Salut');
+    await t.sendKeyEvent(LogicalKeyboardKey.enter);
+    await t.pump(const Duration(seconds: 10));
+    await t.binding.defaultBinaryMessenger.handlePlatformMessage(
+      'herapp/quick',
+      const StandardMethodCodec().encodeMethodCall(const MethodCall('ask')),
+      (_) {},
+    );
+    await t.pumpAndSettle();
+    expect(find.text('How can I help?'), findsOneWidget);
+    expect(t.widget<EditableText>(find.byType(EditableText).last).focusNode.hasFocus, isTrue);
+  });
+
   testWidgets('a Mac gets a menu bar with the commands', (t) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     fakeServer((_, _, _) => null);
