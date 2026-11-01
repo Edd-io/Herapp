@@ -95,6 +95,35 @@ Widget readable(Widget child, {double width = 720}) => Align(
 
 bool isWide(BuildContext context) => MediaQuery.sizeOf(context).width >= wideWidth;
 
+/// Lights up what the mouse points at, as desktop buttons do; touch screens never see it.
+class Hover extends StatefulWidget {
+  const Hover({super.key, required this.child, this.radius = 10});
+  final Widget child;
+  final double radius; // of the highlight's corners; a large one makes a round button's circle
+
+  @override
+  State<Hover> createState() => _HoverState();
+}
+
+class _HoverState extends State<Hover> {
+  var on = false;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.click,
+    onEnter: (_) => setState(() => on = true),
+    onExit: (_) => setState(() => on = false),
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      foregroundDecoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: on ? .07 : 0),
+        borderRadius: BorderRadius.circular(widget.radius),
+      ),
+      child: widget.child,
+    ),
+  );
+}
+
 /// A floating window over a wide window's content, [width] wide at most, [height] tall when given.
 Future<T?> _floating<T>(BuildContext context, WidgetBuilder builder, {double width = 560, double? height}) {
   final c = Theme.of(context).colorScheme;
@@ -349,11 +378,14 @@ class _SettingsSheetState extends State<SettingsSheet> {
                       ),
                       Positioned(
                         right: 4,
-                        child: CupertinoButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: Text(
-                            'OK',
-                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
+                        child: Hover(
+                          radius: 8,
+                          child: CupertinoButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: Text(
+                              'OK',
+                              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
+                            ),
                           ),
                         ),
                       ),
@@ -479,29 +511,35 @@ class _SettingsSheetState extends State<SettingsSheet> {
                         ),
                       ),
                     ],
-                    CupertinoListTile(
-                      title: Text(l.serverTest, style: label),
-                      trailing: testing ? const CupertinoActivityIndicator() : null,
-                      onTap: testing ? null : testServer,
+                    Hover(
+                      radius: 0,
+                      child: CupertinoListTile(
+                        title: Text(l.serverTest, style: label),
+                        trailing: testing ? const CupertinoActivityIndicator() : null,
+                        onTap: testing ? null : testServer,
+                      ),
                     ),
                   ],
                   footer: l.hermesServerFooter,
                   status: testResult,
                 ),
                 section(l.wireguard, [
-                  CupertinoListTile(
-                    title: Text(l.wgConfig, style: label),
-                    additionalInfo: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .45),
-                      child: Text(
-                        vpn.config == null ? l.wgImport : vpn.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: c.outline),
+                  Hover(
+                    radius: 0,
+                    child: CupertinoListTile(
+                      title: Text(l.wgConfig, style: label),
+                      additionalInfo: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .45),
+                        child: Text(
+                          vpn.config == null ? l.wgImport : vpn.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: c.outline),
+                        ),
                       ),
+                      trailing: const CupertinoListTileChevron(),
+                      onTap: importConfig,
                     ),
-                    trailing: const CupertinoListTileChevron(),
-                    onTap: importConfig,
                   ),
                   CupertinoListTile(
                     title: Text(l.wgUse, style: label),
@@ -526,9 +564,12 @@ class _SettingsSheetState extends State<SettingsSheet> {
                     trailing: CupertinoSwitch(value: vpn.enabled, onChanged: vpn.config == null ? null : vpn.setEnabled),
                   ),
                   if (vpn.config != null)
-                    CupertinoListTile(
-                      title: Text(l.wgRemove, style: TextStyle(fontSize: 17, color: CupertinoColors.systemRed)),
-                      onTap: vpn.remove,
+                    Hover(
+                      radius: 0,
+                      child: CupertinoListTile(
+                        title: Text(l.wgRemove, style: TextStyle(fontSize: 17, color: CupertinoColors.systemRed)),
+                        onTap: vpn.remove,
+                      ),
                     ),
                 ], footer: importError ?? l.wgFooter),
               ],

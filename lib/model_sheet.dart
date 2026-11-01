@@ -308,17 +308,20 @@ class _ModelTileState extends State<ModelTile> {
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context);
-    return CupertinoListTile(
-      title: Text(l.model, style: TextStyle(fontSize: 16, color: c.onSurface)),
-      additionalInfo: Text(
-        [
-          widget.model.isEmpty ? l.cronServerDefault : modelName(widget.model),
-          if (widget.effort.isNotEmpty) effortText(l, widget.effort),
-        ].join(' · '),
-        style: TextStyle(fontSize: 13, color: c.outline),
+    return Hover(
+      radius: 0,
+      child: CupertinoListTile(
+        title: Text(l.model, style: TextStyle(fontSize: 16, color: c.onSurface)),
+        additionalInfo: Text(
+          [
+            widget.model.isEmpty ? l.cronServerDefault : modelName(widget.model),
+            if (widget.effort.isNotEmpty) effortText(l, widget.effort),
+          ].join(' · '),
+          style: TextStyle(fontSize: 13, color: c.outline),
+        ),
+        trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
+        onTap: pick,
       ),
-      trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
-      onTap: pick,
     );
   }
 }

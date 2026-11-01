@@ -285,35 +285,38 @@ class _AgentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
-        decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(18)),
-        child: Row(
-          children: [
-            Critter(job.id, mood: moodOf(job), size: 60),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    job.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.onSurface),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    moodText(l, job),
-                    style: TextStyle(fontSize: 13, color: moodOf(job) == Mood.trouble ? CupertinoColors.systemRed : c.outline),
-                  ),
-                ],
+    return Hover(
+      radius: 18,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+          decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(18)),
+          child: Row(
+            children: [
+              Critter(job.id, mood: moodOf(job), size: 60),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      job.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.onSurface),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      moodText(l, job),
+                      style: TextStyle(fontSize: 13, color: moodOf(job) == Mood.trouble ? CupertinoColors.systemRed : c.outline),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
-          ],
+              Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
+            ],
+          ),
         ),
       ),
     );
@@ -484,10 +487,13 @@ class _AgentPageState extends State<AgentPage> {
                   final s => SelectableText(s, maxLines: 12, style: body.copyWith(height: 1.4)),
                 },
               ),
-              CupertinoListTile(
-                title: Text(l.cronRuns, style: body),
-                trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
-                onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => CronRunsPage(job: j))),
+              Hover(
+                radius: 0,
+                child: CupertinoListTile(
+                  title: Text(l.cronRuns, style: body),
+                  trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
+                  onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => CronRunsPage(job: j))),
+                ),
               ),
             ]),
             section(header: l.agentMission, [
@@ -523,36 +529,42 @@ class _AgentPageState extends State<AgentPage> {
               ),
             ]),
             section(header: l.agentTeam, [
-              CupertinoListTile(
-                title: team.isEmpty
-                    ? Text(l.agentTeamNone, style: TextStyle(fontSize: 16, color: c.outline))
-                    : Row(
-                        children: [
-                          for (final a in team)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: Tooltip(
-                                message: a.name,
-                                child: Critter(a.id, mood: moodOf(a), size: 34),
+              Hover(
+                radius: 0,
+                child: CupertinoListTile(
+                  title: team.isEmpty
+                      ? Text(l.agentTeamNone, style: TextStyle(fontSize: 16, color: c.outline))
+                      : Row(
+                          children: [
+                            for (final a in team)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: Tooltip(
+                                  message: a.name,
+                                  child: Critter(a.id, mood: moodOf(a), size: 34),
+                                ),
                               ),
-                            ),
-                        ],
-                      ),
-                trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
-                onTap: busy ? null : () => pickTeam(j),
+                          ],
+                        ),
+                  trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
+                  onTap: busy ? null : () => pickTeam(j),
+                ),
               ),
             ]),
             section([
-              CupertinoListTile(
-                title: Text(l.agentSettings, style: body),
-                trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
-                onTap: () async {
-                  final nav = Navigator.of(context);
-                  final changed = await nav.push<bool>(CupertinoPageRoute(builder: (_) => CronEditPage(job: j)));
-                  if (changed != true) return;
-                  await load();
-                  if (mounted && job == null) nav.pop(); // deleted
-                },
+              Hover(
+                radius: 0,
+                child: CupertinoListTile(
+                  title: Text(l.agentSettings, style: body),
+                  trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
+                  onTap: () async {
+                    final nav = Navigator.of(context);
+                    final changed = await nav.push<bool>(CupertinoPageRoute(builder: (_) => CronEditPage(job: j)));
+                    if (changed != true) return;
+                    await load();
+                    if (mounted && job == null) nav.pop(); // deleted
+                  },
+                ),
               ),
             ]),
           ],
@@ -885,15 +897,20 @@ class _BlueprintPageState extends State<BlueprintPage> {
                     ),
                   )
                 else
-                  CupertinoListTile(
-                    title: Text(blueprintText(context, '${f['label'] ?? f['name']}'), style: TextStyle(fontSize: 16, color: c.onSurface)),
-                    subtitle: '${f['help'] ?? ''}'.isEmpty ? null : Text(blueprintText(context, '${f['help']}'), maxLines: 2, style: small),
-                    additionalInfo: Text(
-                      values['${f['name']}']!.isEmpty ? '—' : blueprintText(context, values['${f['name']}']!),
-                      style: small,
+                  Hover(
+                    radius: 0,
+                    child: CupertinoListTile(
+                      title: Text(blueprintText(context, '${f['label'] ?? f['name']}'), style: TextStyle(fontSize: 16, color: c.onSurface)),
+                      subtitle: '${f['help'] ?? ''}'.isEmpty
+                          ? null
+                          : Text(blueprintText(context, '${f['help']}'), maxLines: 2, style: small),
+                      additionalInfo: Text(
+                        values['${f['name']}']!.isEmpty ? '—' : blueprintText(context, values['${f['name']}']!),
+                        style: small,
+                      ),
+                      trailing: Icon(CupertinoIcons.chevron_up_chevron_down, size: 16, color: c.outline),
+                      onTap: () => pick(f),
                     ),
-                    trailing: Icon(CupertinoIcons.chevron_up_chevron_down, size: 16, color: c.outline),
-                    onTap: () => pick(f),
                   ),
             ],
           ),

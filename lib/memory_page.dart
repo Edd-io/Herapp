@@ -98,12 +98,15 @@ class _MemoryPageState extends State<MemoryPage> {
               padding: const EdgeInsets.only(right: 20),
               child: const Icon(CupertinoIcons.trash, color: Colors.white),
             ),
-            child: CupertinoListTile(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-              title: Text(m.title, maxLines: 2, style: TextStyle(fontSize: 16, color: c.onSurface)),
-              subtitle: m.at == null ? null : Text(DateFormat.yMMMd('${Localizations.localeOf(context)}').format(m.at!), style: small),
-              trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
-              onTap: () => edit(m),
+            child: Hover(
+              radius: 0,
+              child: CupertinoListTile(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                title: Text(m.title, maxLines: 2, style: TextStyle(fontSize: 16, color: c.onSurface)),
+                subtitle: m.at == null ? null : Text(DateFormat.yMMMd('${Localizations.localeOf(context)}').format(m.at!), style: small),
+                trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
+                onTap: () => edit(m),
+              ),
             ),
           ),
       ],

@@ -92,9 +92,12 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
                         children: [
                           Icon(CupertinoIcons.lock_fill, size: 48, color: c.onSurface),
                           const SizedBox(height: 16),
-                          CupertinoButton(
-                            onPressed: unlock,
-                            child: Text(AppLocalizations.of(context).unlock, style: TextStyle(fontSize: 17, color: c.onSurface)),
+                          Hover(
+                            radius: 10,
+                            child: CupertinoButton(
+                              onPressed: unlock,
+                              child: Text(AppLocalizations.of(context).unlock, style: TextStyle(fontSize: 17, color: c.onSurface)),
+                            ),
                           ),
                         ],
                       )

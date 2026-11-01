@@ -114,15 +114,18 @@ class _KanbanPageState extends State<KanbanPage> {
                             title: Text(l.kanbanNothing, style: TextStyle(fontSize: 16, color: c.outline)),
                           ),
                         for (final k in list)
-                          CupertinoListTile(
-                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                            title: Text(k.title, maxLines: 2, style: TextStyle(fontSize: 16, color: c.onSurface)),
-                            subtitle: Text(
-                              [attentionText(l, k.attention), if (k.comments > 0) '💬 ${k.comments}'].join(' · '),
-                              style: TextStyle(fontSize: 13, color: k.attention == 'blocked' ? CupertinoColors.systemOrange : c.outline),
+                          Hover(
+                            radius: 0,
+                            child: CupertinoListTile(
+                              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                              title: Text(k.title, maxLines: 2, style: TextStyle(fontSize: 16, color: c.onSurface)),
+                              subtitle: Text(
+                                [attentionText(l, k.attention), if (k.comments > 0) '💬 ${k.comments}'].join(' · '),
+                                style: TextStyle(fontSize: 13, color: k.attention == 'blocked' ? CupertinoColors.systemOrange : c.outline),
+                              ),
+                              trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
+                              onTap: () => open(KanbanCardPage(id: k.id, title: k.title)),
                             ),
-                            trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
-                            onTap: () => open(KanbanCardPage(id: k.id, title: k.title)),
                           ),
                       ],
                     ),

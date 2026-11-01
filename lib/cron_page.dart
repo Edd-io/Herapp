@@ -28,55 +28,58 @@ class CronTile extends StatelessWidget {
     final small = TextStyle(fontSize: 13, color: c.outline);
     final now = DateTime.now();
     final completed = job.state == 'completed';
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    job.name,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.onSurface),
-                  ),
-                  if (job.schedule.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(job.schedule, style: small),
-                    ),
-                  const SizedBox(height: 4),
-                  if (job.state == 'running')
-                    Text(l.cronRunning, style: small)
-                  else if (job.enabled && !completed && job.nextRun != null)
-                    Text(l.cronNext(durationText(l, job.nextRun!.difference(now))), style: small)
-                  else if (completed)
-                    Text(l.cronCompleted, style: small),
-                  if (job.lastError != null)
+    return Hover(
+      radius: 0,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      l.cronLastFailed(job.lastError!),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 13, color: CupertinoColors.systemRed),
-                    )
-                  else if (job.lastRun != null)
-                    Text(l.cronLast(durationText(l, now.difference(job.lastRun!))), style: small),
-                ],
+                      job.name,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.onSurface),
+                    ),
+                    if (job.schedule.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(job.schedule, style: small),
+                      ),
+                    const SizedBox(height: 4),
+                    if (job.state == 'running')
+                      Text(l.cronRunning, style: small)
+                    else if (job.enabled && !completed && job.nextRun != null)
+                      Text(l.cronNext(durationText(l, job.nextRun!.difference(now))), style: small)
+                    else if (completed)
+                      Text(l.cronCompleted, style: small),
+                    if (job.lastError != null)
+                      Text(
+                        l.cronLastFailed(job.lastError!),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, color: CupertinoColors.systemRed),
+                      )
+                    else if (job.lastRun != null)
+                      Text(l.cronLast(durationText(l, now.difference(job.lastRun!))), style: small),
+                  ],
+                ),
               ),
-            ),
-            if (busy)
-              const Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: CupertinoActivityIndicator())
-            else
-              IconButton(
-                tooltip: l.cronRunNow,
-                onPressed: onRun,
-                icon: Icon(CupertinoIcons.play_fill, size: 20, color: c.onSurface),
-              ),
-            CupertinoSwitch(value: job.enabled && !completed, onChanged: busy || completed ? null : onToggle),
-          ],
+              if (busy)
+                const Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: CupertinoActivityIndicator())
+              else
+                IconButton(
+                  tooltip: l.cronRunNow,
+                  onPressed: onRun,
+                  icon: Icon(CupertinoIcons.play_fill, size: 20, color: c.onSurface),
+                ),
+              CupertinoSwitch(value: job.enabled && !completed, onChanged: busy || completed ? null : onToggle),
+            ],
+          ),
         ),
       ),
     );
@@ -300,10 +303,13 @@ class _CronEditPageState extends State<CronEditPage> {
                 children: [
                   if (widget.job case final job?)
                     section('', [
-                      CupertinoListTile(
-                        title: Text(l.cronRuns, style: TextStyle(fontSize: 16, color: c.onSurface)),
-                        trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
-                        onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => CronRunsPage(job: job))),
+                      Hover(
+                        radius: 0,
+                        child: CupertinoListTile(
+                          title: Text(l.cronRuns, style: TextStyle(fontSize: 16, color: c.onSurface)),
+                          trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
+                          onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => CronRunsPage(job: job))),
+                        ),
                       ),
                     ]),
                   section(l.cronGeneral, [
@@ -364,10 +370,13 @@ class _CronEditPageState extends State<CronEditPage> {
                   ]),
                   if (widget.job != null)
                     section('', [
-                      CupertinoListTile(
-                        onTap: saving ? null : delete,
-                        title: Center(
-                          child: Text(l.cronDelete, style: const TextStyle(fontSize: 16, color: CupertinoColors.systemRed)),
+                      Hover(
+                        radius: 0,
+                        child: CupertinoListTile(
+                          onTap: saving ? null : delete,
+                          title: Center(
+                            child: Text(l.cronDelete, style: const TextStyle(fontSize: 16, color: CupertinoColors.systemRed)),
+                          ),
                         ),
                       ),
                     ]),
@@ -449,17 +458,20 @@ class _CronRunsPageState extends State<CronRunsPage> {
                 separatorColor: c.outline.withValues(alpha: .2),
                 children: [
                   for (final r in list)
-                    CupertinoListTile(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
-                      title: Text(
-                        [if (r.at != null) format.format(r.at!), if (r.active) l.cronRunning].join(' · '),
-                        style: TextStyle(fontSize: 16, color: c.onSurface),
-                      ),
-                      subtitle: Text(runText(r, ' — '), maxLines: 2, overflow: TextOverflow.ellipsis, style: small),
-                      trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
-                      onTap: () => Navigator.of(context).push(
-                        CupertinoPageRoute<void>(
-                          builder: (_) => _CronRunPage(run: r, job: widget.job, title: r.at == null ? l.cronRuns : format.format(r.at!)),
+                    Hover(
+                      radius: 0,
+                      child: CupertinoListTile(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+                        title: Text(
+                          [if (r.at != null) format.format(r.at!), if (r.active) l.cronRunning].join(' · '),
+                          style: TextStyle(fontSize: 16, color: c.onSurface),
+                        ),
+                        subtitle: Text(runText(r, ' — '), maxLines: 2, overflow: TextOverflow.ellipsis, style: small),
+                        trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
+                        onTap: () => Navigator.of(context).push(
+                          CupertinoPageRoute<void>(
+                            builder: (_) => _CronRunPage(run: r, job: widget.job, title: r.at == null ? l.cronRuns : format.format(r.at!)),
+                          ),
                         ),
                       ),
                     ),

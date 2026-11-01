@@ -842,42 +842,45 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                               style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, color: c.onSurface),
                             ),
                             const SizedBox(height: 16),
-                            GestureDetector(
-                              onTap: pickModel,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Flexible(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            chat.model.isEmpty ? AppLocalizations.of(context).model : modelName(chat.model),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
-                                          ),
-                                          if ([
-                                                providerOf(chat.model),
-                                                if (chat.effort.isNotEmpty && thinks(chat.model))
-                                                  effortText(AppLocalizations.of(context), chat.effort),
-                                              ].where((t) => t.isNotEmpty).join(' · ')
-                                              case final p when p.isNotEmpty)
+                            Hover(
+                              radius: 20,
+                              child: GestureDetector(
+                                onTap: pickModel,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
                                             Text(
-                                              p,
+                                              chat.model.isEmpty ? AppLocalizations.of(context).model : modelName(chat.model),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(fontSize: 12, color: c.outline),
+                                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
                                             ),
-                                        ],
+                                            if ([
+                                                  providerOf(chat.model),
+                                                  if (chat.effort.isNotEmpty && thinks(chat.model))
+                                                    effortText(AppLocalizations.of(context), chat.effort),
+                                                ].where((t) => t.isNotEmpty).join(' · ')
+                                                case final p when p.isNotEmpty)
+                                              Text(
+                                                p,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(fontSize: 12, color: c.outline),
+                                              ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Icon(CupertinoIcons.chevron_down, size: 13, color: c.outline),
-                                  ],
+                                      const SizedBox(width: 8),
+                                      Icon(CupertinoIcons.chevron_down, size: 13, color: c.outline),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -908,20 +911,23 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                               scale: atBottom ? 0 : 1,
                               duration: const Duration(milliseconds: 200),
                               curve: Curves.easeOutBack,
-                              child: GestureDetector(
-                                onTap: toBottom,
-                                child: Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: c.surface,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: c.surfaceContainerHighest),
-                                    boxShadow: [
-                                      BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 8, offset: const Offset(0, 2)),
-                                    ],
+                              child: Hover(
+                                radius: 999,
+                                child: GestureDetector(
+                                  onTap: toBottom,
+                                  child: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: c.surface,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: c.surfaceContainerHighest),
+                                      boxShadow: [
+                                        BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 8, offset: const Offset(0, 2)),
+                                      ],
+                                    ),
+                                    child: Icon(CupertinoIcons.arrow_down, size: 18, color: c.onSurface),
                                   ),
-                                  child: Icon(CupertinoIcons.arrow_down, size: 18, color: c.onSurface),
                                 ),
                               ),
                             ),
@@ -1071,23 +1077,26 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     ];
     Widget button(String k) {
       final main = k == 'once';
-      return GestureDetector(
-        onTap: () => answer(m, k),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-          decoration: BoxDecoration(color: main ? c.primary : c.surface, borderRadius: BorderRadius.circular(20)),
-          child: Text(
-            switch (k) {
-              'once' => l.approveOnce,
-              'session' => l.approveSession,
-              'always' => l.approveAlways,
-              'deny' => l.approveDeny,
-              _ => k,
-            },
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: main ? c.onPrimary : (k == 'deny' ? const Color(0xFFD93025) : c.onSurface),
+      return Hover(
+        radius: 10,
+        child: GestureDetector(
+          onTap: () => answer(m, k),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(color: main ? c.primary : c.surface, borderRadius: BorderRadius.circular(20)),
+            child: Text(
+              switch (k) {
+                'once' => l.approveOnce,
+                'session' => l.approveSession,
+                'always' => l.approveAlways,
+                'deny' => l.approveDeny,
+                _ => k,
+              },
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: main ? c.onPrimary : (k == 'deny' ? const Color(0xFFD93025) : c.onSurface),
+              ),
             ),
           ),
         ),
@@ -1166,26 +1175,29 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       padding: const EdgeInsets.symmetric(vertical: 6),
       children: [
         for (final s in slashes)
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => pickSlash(s),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    s.display.startsWith('/') ? s.display : '/${s.display}',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.onSurface),
-                  ),
-                  if (s.meta.isNotEmpty)
+          Hover(
+            radius: 0,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => pickSlash(s),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      s.meta,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: c.outline),
+                      s.display.startsWith('/') ? s.display : '/${s.display}',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.onSurface),
                     ),
-                ],
+                    if (s.meta.isNotEmpty)
+                      Text(
+                        s.meta,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: c.outline),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1199,13 +1211,16 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          GestureDetector(
-            onTap: streaming ? null : attachFiles,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(color: c.surfaceContainerHighest, shape: BoxShape.circle),
-              child: Icon(CupertinoIcons.add, size: 22, color: c.onSurface),
+          Hover(
+            radius: 999,
+            child: GestureDetector(
+              onTap: streaming ? null : attachFiles,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: c.surfaceContainerHighest, shape: BoxShape.circle),
+                child: Icon(CupertinoIcons.add, size: 22, color: c.onSurface),
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -1233,23 +1248,26 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                     transitionBuilder: (child, a) => ScaleTransition(scale: a, child: child),
                     child: !hasText && !streaming
                         ? const SizedBox(height: 44)
-                        : GestureDetector(
+                        : Hover(
                             key: ValueKey(streaming),
-                            onTap: streaming ? stop : send,
-                            child: Container(
-                              width: 36,
-                              height: 36,
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
-                              child: streaming
-                                  ? Center(
-                                      child: Container(
-                                        width: 12,
-                                        height: 12,
-                                        decoration: BoxDecoration(color: c.onPrimary, borderRadius: BorderRadius.circular(2)),
-                                      ),
-                                    )
-                                  : Icon(CupertinoIcons.arrow_up, size: 20, color: c.onPrimary),
+                            radius: 999,
+                            child: GestureDetector(
+                              onTap: streaming ? stop : send,
+                              child: Container(
+                                width: 36,
+                                height: 36,
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+                                child: streaming
+                                    ? Center(
+                                        child: Container(
+                                          width: 12,
+                                          height: 12,
+                                          decoration: BoxDecoration(color: c.onPrimary, borderRadius: BorderRadius.circular(2)),
+                                        ),
+                                      )
+                                    : Icon(CupertinoIcons.arrow_up, size: 20, color: c.onPrimary),
+                              ),
                             ),
                           ),
                   );
@@ -1329,27 +1347,31 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   Widget _sidebar(ColorScheme c) {
     final q = query.toLowerCase();
     final listed = chats.where((ch) => ch.title.isNotEmpty && ch.title.toLowerCase().contains(q));
-    Widget tile(String label, {IconData? icon, bool selected = false, required VoidCallback onTap}) => GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        decoration: BoxDecoration(
-          color: selected ? c.surfaceContainerHighest : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            if (icon != null) ...[Icon(icon, size: 20, color: c.onSurface), const SizedBox(width: 12)],
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 16, color: c.onSurface),
-              ),
+    Widget tile(String label, {IconData? icon, bool selected = false, required VoidCallback onTap}) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Hover(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: selected ? c.surfaceContainerHighest : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
             ),
-          ],
+            child: Row(
+              children: [
+                if (icon != null) ...[Icon(icon, size: 20, color: c.onSurface), const SizedBox(width: 12)],
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 16, color: c.onSurface),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1428,37 +1450,40 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                       ),
                     ),
                     for (final f in more)
-                      GestureDetector(
-                        onTap: () => openFound(f),
-                        behavior: HitTestBehavior.opaque,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                f.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 16, color: c.onSurface),
-                              ),
-                              const SizedBox(height: 2),
-                              Text.rich(
-                                TextSpan(
-                                  children: [
-                                    // the server marks the hits >>>like this<<<
-                                    for (final (i, part) in f.snippet.split(RegExp('>>>|<<<')).indexed)
-                                      TextSpan(
-                                        text: part,
-                                        style: i.isOdd ? TextStyle(fontWeight: FontWeight.w600, color: c.onSurface) : null,
-                                      ),
-                                  ],
+                      Hover(
+                        radius: 8,
+                        child: GestureDetector(
+                          onTap: () => openFound(f),
+                          behavior: HitTestBehavior.opaque,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  f.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 16, color: c.onSurface),
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 13, color: c.outline),
-                              ),
-                            ],
+                                const SizedBox(height: 2),
+                                Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      // the server marks the hits >>>like this<<<
+                                      for (final (i, part) in f.snippet.split(RegExp('>>>|<<<')).indexed)
+                                        TextSpan(
+                                          text: part,
+                                          style: i.isOdd ? TextStyle(fontWeight: FontWeight.w600, color: c.onSurface) : null,
+                                        ),
+                                    ],
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 13, color: c.outline),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -1519,13 +1544,16 @@ class _Attachment extends StatelessWidget {
         Positioned(
           top: -6,
           right: -6,
-          child: GestureDetector(
-            onTap: onRemove,
-            child: Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(color: c.onSurface, shape: BoxShape.circle),
-              child: Icon(CupertinoIcons.xmark, size: 12, color: c.surface),
+          child: Hover(
+            radius: 999,
+            child: GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(color: c.onSurface, shape: BoxShape.circle),
+                child: Icon(CupertinoIcons.xmark, size: 12, color: c.surface),
+              ),
             ),
           ),
         ),
@@ -1591,16 +1619,19 @@ class _ToolsState extends State<_Tools> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Column(
         children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => open = !open),
-            child: row(
-              Icon(CupertinoIcons.wrench, size: 14, color: c.onSurfaceVariant),
-              Row(
-                children: [
-                  Text(AppLocalizations.of(context).toolsUsed(widget.tools.length), style: style),
-                  Icon(open ? CupertinoIcons.chevron_up : CupertinoIcons.chevron_down, size: 13, color: c.onSurfaceVariant),
-                ],
+          Hover(
+            radius: 8,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => open = !open),
+              child: row(
+                Icon(CupertinoIcons.wrench, size: 14, color: c.onSurfaceVariant),
+                Row(
+                  children: [
+                    Text(AppLocalizations.of(context).toolsUsed(widget.tools.length), style: style),
+                    Icon(open ? CupertinoIcons.chevron_up : CupertinoIcons.chevron_down, size: 13, color: c.onSurfaceVariant),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1618,7 +1649,10 @@ class _IconBtn extends StatelessWidget {
   final bool small;
 
   @override
-  Widget build(BuildContext context) => CupertinoButton(padding: EdgeInsets.all(small ? 6 : 14), onPressed: onTap, child: child);
+  Widget build(BuildContext context) => Hover(
+    radius: 12,
+    child: CupertinoButton(padding: EdgeInsets.all(small ? 6 : 14), onPressed: onTap, child: child),
+  );
 }
 
 /// Menu icon with two uneven bars.
@@ -1785,17 +1819,20 @@ class _CodeState extends State<_Code> {
               Expanded(
                 child: Text(widget.lang, style: TextStyle(fontSize: 12, color: c.outline)),
               ),
-              CupertinoButton(
-                padding: const EdgeInsets.all(8),
-                minimumSize: Size.zero,
-                onPressed: () async {
-                  await Clipboard.setData(ClipboardData(text: widget.code));
-                  settings.haptic();
-                  setState(() => copied = true);
-                  await Future<void>.delayed(const Duration(seconds: 2));
-                  if (mounted) setState(() => copied = false);
-                },
-                child: Icon(copied ? CupertinoIcons.checkmark_alt : CupertinoIcons.doc_on_doc, size: 16, color: c.outline),
+              Hover(
+                radius: 8,
+                child: CupertinoButton(
+                  padding: const EdgeInsets.all(8),
+                  minimumSize: Size.zero,
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: widget.code));
+                    settings.haptic();
+                    setState(() => copied = true);
+                    await Future<void>.delayed(const Duration(seconds: 2));
+                    if (mounted) setState(() => copied = false);
+                  },
+                  child: Icon(copied ? CupertinoIcons.checkmark_alt : CupertinoIcons.doc_on_doc, size: 16, color: c.outline),
+                ),
               ),
             ],
           ),
