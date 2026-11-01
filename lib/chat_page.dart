@@ -445,13 +445,21 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           case 'tool.start':
             final p = e.payload;
             setState(() {
-              reply.tools.add(Tool('${p['tool_id']}', '${p['name']}', '${p['context'] ?? p['preview'] ?? ''}'));
+              reply.tools.add(
+                Tool(
+                  '${p['tool_id']}',
+                  '${p['name']}',
+                  '${p['context'] ?? p['preview'] ?? ''}',
+                  args: p['args'] is Map ? p['args'] as Map : const {},
+                ),
+              );
               phase = '${p['name']}';
             });
           case 'tool.complete':
             setState(() {
               for (final t in reply.tools.where((t) => t.id == '${e.payload['tool_id']}')) {
                 t.done = true;
+                if (t.name == 'memory' && !memorySaved(e.payload['result'])) t.args = const {}; // no card for a refused write
               }
               phase = '';
             });
@@ -1078,6 +1086,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (m.tools.isNotEmpty) _Tools(m.tools, live: live),
+          for (final t in m.tools.where((t) => t.done))
+            if (memoryChanges(t) case final changes when changes.isNotEmpty) _memoryCard(c, changes),
           if (m.ask case final ask?) _approval(c, m, ask.params),
           if (m.text.trim().isNotEmpty)
             _Markdown(m.text.trimLeft(), style: body.copyWith(color: c.onSurface)) // text after a tool call starts with blank lines
@@ -1124,6 +1134,49 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             child: Text(AppLocalizations.of(context).queued, style: TextStyle(fontSize: 12, color: c.outline)),
           ),
         ],
+      ),
+    ),
+  );
+
+  /// What a reply wrote to Hermes' memory (struck through when forgotten); a tap opens the memory.
+  Widget _memoryCard(ColorScheme c, List<(String, bool)> changes) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Hover(
+      radius: 14,
+      child: GestureDetector(
+        onTap: () => show(const MemoryPage()),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(14)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(CupertinoIcons.lightbulb, size: 14, color: c.outline),
+                  const SizedBox(width: 6),
+                  Text(
+                    AppLocalizations.of(context).memoryUpdated.toUpperCase(),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: .4, color: c.outline),
+                  ),
+                ],
+              ),
+              for (final (text, gone) in changes)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    text,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: gone ? c.outline : c.onSurface,
+                      decoration: gone ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     ),
   );

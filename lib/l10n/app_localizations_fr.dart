@@ -26,6 +26,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get queued => 'En attente · touche pour modifier';
 
   @override
+  String get memoryUpdated => 'Mémoire mise à jour';
+
+  @override
   String get lockApp => 'Verrouiller l’app';
 
   @override

@@ -5,6 +5,7 @@
   "@statusTool": {"placeholders": {"tool": {"type": "String"}}},
   "composerQueueHint": "Queue a message",
   "queued": "Queued · tap to edit",
+  "memoryUpdated": "Memory updated",
   "lockApp": "Lock the app",
   "unlock": "Unlock",
   "unlockReason": "Unlock Hermes",

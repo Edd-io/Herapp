@@ -205,6 +205,42 @@ void main() {
     expect(contextOf({'context_percent': null}), isNull);
   });
 
+  test('transcript keeps what memory calls wrote', () {
+    Map call(String id, Map args) => {
+      'id': id,
+      'function': {'name': 'memory', 'arguments': jsonEncode(args)},
+    };
+    final msgs = transcript([
+      {
+        'role': 'assistant',
+        'content': '',
+        'tool_calls': [
+          call('m1', {'action': 'add', 'target': 'user', 'content': 'Likes tea'}),
+          call('m2', {'action': 'add', 'content': 'Staged note'}),
+          call('m3', {
+            'action': 'batch',
+            'operations': [
+              {'action': 'remove', 'old_text': 'Likes coffee'},
+              {'action': 'replace', 'old_text': 'x', 'content': 'Lives in Lyon'},
+            ],
+          }),
+        ],
+      },
+      {'role': 'tool', 'tool_call_id': 'm1', 'tool_name': 'memory', 'content': '{"success": true}'},
+      {'role': 'tool', 'tool_call_id': 'm2', 'tool_name': 'memory', 'content': '{"success": true, "staged": true}'},
+      {'role': 'tool', 'tool_call_id': 'm3', 'tool_name': 'memory', 'content': '{"success": true}'},
+      {'role': 'assistant', 'content': 'Noted'},
+    ]);
+    expect(
+      [for (final t in msgs.last.tools) memoryChanges(t)],
+      [
+        [('Likes tea', false)],
+        <(String, bool)>[], // waiting for approval: nothing written yet
+        [('Likes coffee', true), ('Lives in Lyon', false)],
+      ],
+    );
+  });
+
   test('transcript shows a skill as typed and attachments apart', () {
     const skill =
         '[IMPORTANT: The user has invoked the "github" skill, indicating they want you to follow its instructions. '

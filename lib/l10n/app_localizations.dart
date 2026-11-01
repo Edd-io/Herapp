@@ -128,6 +128,12 @@ abstract class AppLocalizations {
   /// **'Queued · tap to edit'**
   String get queued;
 
+  /// No description provided for @memoryUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory updated'**
+  String get memoryUpdated;
+
   /// No description provided for @lockApp.
   ///
   /// In en, this message translates to:

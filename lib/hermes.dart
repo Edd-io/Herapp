@@ -21,12 +21,27 @@ class Msg {
 /// A photo or file sent with a message; [bytes] is null for one read back from the server's history.
 typedef Attachment = ({String name, Uint8List? bytes, bool image});
 
-/// One tool call of a reply; [detail] is what it works on (a command, a path, a query).
+/// One tool call of a reply; [detail] is what it works on (a command, a path, a query), [args] its arguments.
 class Tool {
-  Tool(this.id, this.name, this.detail, {this.done = false});
+  Tool(this.id, this.name, this.detail, {this.done = false, this.args = const {}});
   final String id, name, detail;
   bool done;
+  Map args;
 }
+
+/// What a `memory` tool call wrote, as (entry, forgotten) pairs; empty for another tool.
+List<(String, bool)> memoryChanges(Tool t) => [
+  if (t.name == 'memory')
+    for (final o in t.args['action'] == 'batch' ? (t.args['operations'] as List? ?? const []).whereType<Map>() : [t.args])
+      if ((o['action'] == 'remove' ? o['old_text'] : o['content'] ?? o['new_text']) case final String text when text.trim().isNotEmpty)
+        (text.trim(), o['action'] == 'remove'),
+];
+
+/// Whether a `memory` tool [result] wrote to memory (not refused, nor staged for approval).
+bool memorySaved(Object? result) => switch (result is String ? _json(result) : result) {
+  {'success': true} && final Map r => r['staged'] != true,
+  _ => false,
+};
 
 /// A model offered by the Hermes server; [id] = "providerSlug/model".
 /// A server model; [reasoning] is false for one that takes no reasoning effort.
@@ -417,11 +432,20 @@ List<Session> parseSessions(Map result) => [
 List<Msg> transcript(Object? messages) {
   final out = <Msg>[];
   var tools = <Tool>[];
+  final args = <String, Map>{}; // of each tool call, by id, from the assistant turn that made it
   for (final m in (messages is List ? messages : const []).whereType<Map>()) {
     // compaction notes and the gateway's own notices (background jobs done...) aren't the user's words
     if (m['display_kind'] == 'hidden' || m['display_kind'] == 'internal_notification') continue;
+    for (final call in (m['tool_calls'] is List ? m['tool_calls'] as List : const []).whereType<Map>()) {
+      final a = (call['function'] as Map?)?['arguments'];
+      if ((a is String ? _json(a) : a) case final Map map) args['${call['id']}'] = map;
+    }
     if (m['role'] == 'tool') {
-      tools.add(Tool('${m['tool_call_id'] ?? tools.length}', '${m['name'] ?? m['tool_name'] ?? 'tool'}', '', done: true));
+      final name = '${m['name'] ?? m['tool_name'] ?? 'tool'}';
+      final tool = Tool('${m['tool_call_id'] ?? tools.length}', name, '', done: true);
+      // a memory card only for what was really written
+      if (name != 'memory' || memorySaved(m['content'])) tool.args = args[tool.id] ?? const {};
+      tools.add(tool);
     }
     if (m['role'] != 'user' && m['role'] != 'assistant') continue;
     final user = m['role'] == 'user';

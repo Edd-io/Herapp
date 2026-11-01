@@ -26,6 +26,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queued => 'Queued · tap to edit';
 
   @override
+  String get memoryUpdated => 'Memory updated';
+
+  @override
   String get lockApp => 'Lock the app';
 
   @override

@@ -1012,4 +1012,42 @@ void main() {
     expect(find.textContaining('Hello there'), findsOneWidget);
     await t.pump(const Duration(seconds: 10));
   });
+
+  testWidgets('what a reply writes to memory shows as a card', (t) async {
+    fakeServer((method, params, emit) {
+      if (method != 'prompt.submit') return replies(method, params, emit);
+      emit('tool.start', {
+        'tool_id': 'm1',
+        'name': 'memory',
+        'args': {'action': 'add', 'target': 'user', 'content': 'Likes green tea'},
+      });
+      emit('tool.complete', {
+        'tool_id': 'm1',
+        'name': 'memory',
+        'result': {'success': true},
+      });
+      emit('tool.start', {
+        'tool_id': 'm2',
+        'name': 'memory',
+        'args': {'action': 'add', 'content': 'Refused note'},
+      });
+      emit('tool.complete', {
+        'tool_id': 'm2',
+        'name': 'memory',
+        'result': {'success': false, 'error': 'disabled'},
+      });
+      emit('message.complete', {'text': 'Noted', 'status': 'complete'});
+      return {'status': 'streaming'};
+    });
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, 'I like green tea');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 1));
+    await t.pump(const Duration(seconds: 1));
+    expect(find.text('MEMORY UPDATED'), findsOneWidget);
+    expect(find.text('Likes green tea'), findsOneWidget);
+    expect(find.text('Refused note'), findsNothing);
+    await t.pump(const Duration(seconds: 10));
+  });
 }
