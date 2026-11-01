@@ -98,6 +98,12 @@ abstract class AppLocalizations {
     Locale('fr'),
   ];
 
+  /// No description provided for @dropFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop to attach to your message'**
+  String get dropFiles;
+
   /// No description provided for @menuFile.
   ///
   /// In en, this message translates to:

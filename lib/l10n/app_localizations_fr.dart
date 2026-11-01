@@ -9,6 +9,9 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get dropFiles => 'Dépose pour joindre à ton message';
+
+  @override
   String get menuFile => 'Fichier';
 
   @override

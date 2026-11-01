@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter_highlight/themes/atom-one-dark.dart';
 import 'package:flutter_highlight/themes/github.dart';
@@ -69,6 +70,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   String query = '';
   List<Found> found = []; // conversations whose messages match [query]
   final pending = <Attachment>[]; // photos and files for the next message
+  bool dragging = false; // files held over the window
   final pane = GlobalKey<NavigatorState>();
   final paneRefresh = ValueNotifier(0);
   List<Slash> slashes = []; // skills matching the `/` being typed
@@ -313,13 +315,18 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         'files' => [for (final x in await openFiles()) (x, false)],
         _ => const <(XFile, bool)>[],
       };
-      for (final (x, image) in picked) {
-        final bytes = await x.readAsBytes();
-        final looksImage = image || RegExp(r'\.(png|jpe?g|gif|webp|heic)$', caseSensitive: false).hasMatch(x.name);
-        if (mounted) setState(() => pending.add((name: x.name, bytes: bytes, image: looksImage)));
-      }
+      await addFiles(picked);
     } catch (e) {
       debugPrint('Attach: $e');
+    }
+  }
+
+  /// Queues [picked] for the next message; a file named like a picture goes as one.
+  Future<void> addFiles(Iterable<(XFile, bool)> picked) async {
+    for (final (x, image) in picked) {
+      final bytes = await x.readAsBytes();
+      final looksImage = image || RegExp(r'\.(png|jpe?g|gif|webp|heic)$', caseSensitive: false).hasMatch(x.name);
+      if (mounted) setState(() => pending.add((name: x.name, bytes: bytes, image: looksImage)));
     }
   }
 
@@ -732,155 +739,204 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _main(ColorScheme c) => ColoredBox(
-    color: c.surface,
-    child: SafeArea(
-      child: Column(
-        children: [
-          SizedBox(
-            height: 52,
-            child: Row(
-              children: [
-                if (wide) const SizedBox(width: 52) else _IconBtn(onTap: openDrawer, child: _MenuIcon(c.onSurface)),
-                Expanded(
-                  // empty: no title, the centered pill is the picker
-                  child: chat.msgs.isEmpty
-                      ? const SizedBox()
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+  Widget _main(ColorScheme c) {
+    final main = ColoredBox(
+      color: c.surface,
+      child: SafeArea(
+        child: Column(
+          children: [
+            SizedBox(
+              height: 52,
+              child: Row(
+                children: [
+                  if (wide) const SizedBox(width: 52) else _IconBtn(onTap: openDrawer, child: _MenuIcon(c.onSurface)),
+                  Expanded(
+                    // empty: no title, the centered pill is the picker
+                    child: chat.msgs.isEmpty
+                        ? const SizedBox()
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Hermes',
+                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  modelName(chat.model),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 17, color: c.outline),
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                  _IconBtn(
+                    onTap: newChat,
+                    child: Icon(CupertinoIcons.square_pencil, size: 24, color: c.onSurface),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: chat.loading
+                  ? const Center(child: CupertinoActivityIndicator())
+                  : chat.msgs.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'Hermes',
-                              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
+                              AppLocalizations.of(context).emptyHeadline,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, color: c.onSurface),
                             ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                modelName(chat.model),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 17, color: c.outline),
+                            const SizedBox(height: 16),
+                            GestureDetector(
+                              onTap: pickModel,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            chat.model.isEmpty ? AppLocalizations.of(context).model : modelName(chat.model),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
+                                          ),
+                                          if ([
+                                                providerOf(chat.model),
+                                                if (chat.effort.isNotEmpty && thinks(chat.model))
+                                                  effortText(AppLocalizations.of(context), chat.effort),
+                                              ].where((t) => t.isNotEmpty).join(' · ')
+                                              case final p when p.isNotEmpty)
+                                            Text(
+                                              p,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(fontSize: 12, color: c.outline),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Icon(CupertinoIcons.chevron_down, size: 13, color: c.outline),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
                         ),
-                ),
-                _IconBtn(
-                  onTap: newChat,
-                  child: Icon(CupertinoIcons.square_pencil, size: 24, color: c.onSurface),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: chat.loading
-                ? const Center(child: CupertinoActivityIndicator())
-                : chat.msgs.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            AppLocalizations.of(context).emptyHeadline,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, color: c.onSurface),
-                          ),
-                          const SizedBox(height: 16),
-                          GestureDetector(
-                            onTap: pickModel,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Flexible(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          chat.model.isEmpty ? AppLocalizations.of(context).model : modelName(chat.model),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
-                                        ),
-                                        if ([
-                                              providerOf(chat.model),
-                                              if (chat.effort.isNotEmpty && thinks(chat.model))
-                                                effortText(AppLocalizations.of(context), chat.effort),
-                                            ].where((t) => t.isNotEmpty).join(' · ')
-                                            case final p when p.isNotEmpty)
-                                          Text(
-                                            p,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(fontSize: 12, color: c.outline),
-                                          ),
-                                      ],
-                                    ),
+                      ),
+                    )
+                  : Stack(
+                      children: [
+                        LayoutBuilder(
+                          builder: (context, box) {
+                            final side = math.max(16.0, (box.maxWidth - 760) / 2); // a readable column, scrollable edge to edge
+                            return ListView.builder(
+                              controller: scroll,
+                              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                              padding: EdgeInsets.fromLTRB(side, 8, side, 24),
+                              itemCount: chat.msgs.length,
+                              itemBuilder: (_, i) => _message(c, chat.msgs[i], i == chat.msgs.length - 1),
+                            );
+                          },
+                        ),
+                        Positioned(
+                          bottom: 12,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: AnimatedScale(
+                              scale: atBottom ? 0 : 1,
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeOutBack,
+                              child: GestureDetector(
+                                onTap: toBottom,
+                                child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: c.surface,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: c.surfaceContainerHighest),
+                                    boxShadow: [
+                                      BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 8, offset: const Offset(0, 2)),
+                                    ],
                                   ),
-                                  const SizedBox(width: 8),
-                                  Icon(CupertinoIcons.chevron_down, size: 13, color: c.outline),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : Stack(
-                    children: [
-                      LayoutBuilder(
-                        builder: (context, box) {
-                          final side = math.max(16.0, (box.maxWidth - 760) / 2); // a readable column, scrollable edge to edge
-                          return ListView.builder(
-                            controller: scroll,
-                            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                            padding: EdgeInsets.fromLTRB(side, 8, side, 24),
-                            itemCount: chat.msgs.length,
-                            itemBuilder: (_, i) => _message(c, chat.msgs[i], i == chat.msgs.length - 1),
-                          );
-                        },
-                      ),
-                      Positioned(
-                        bottom: 12,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: AnimatedScale(
-                            scale: atBottom ? 0 : 1,
-                            duration: const Duration(milliseconds: 200),
-                            curve: Curves.easeOutBack,
-                            child: GestureDetector(
-                              onTap: toBottom,
-                              child: Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: c.surface,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: c.surfaceContainerHighest),
-                                  boxShadow: [
-                                    BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 8, offset: const Offset(0, 2)),
-                                  ],
+                                  child: Icon(CupertinoIcons.arrow_down, size: 18, color: c.onSurface),
                                 ),
-                                child: Icon(CupertinoIcons.arrow_down, size: 18, color: c.onSurface),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-          ),
-          readable(_composer(c), width: 792),
+                      ],
+                    ),
+            ),
+            readable(_composer(c), width: 792),
+          ],
+        ),
+      ),
+    );
+    if (!const [TargetPlatform.macOS, TargetPlatform.windows, TargetPlatform.linux].contains(defaultTargetPlatform)) return main;
+    // files dropped on the chat join the next message
+    return DropTarget(
+      onDragEntered: (_) => setState(() => dragging = true),
+      onDragExited: (_) => setState(() => dragging = false),
+      onDragDone: (d) async {
+        setState(() => dragging = false);
+        for (final x in d.files.where((x) => x is! DropItemDirectory)) {
+          // the sandbox opens a file from outside the app only while its bookmark is held
+          final bookmark = x.extraAppleBookmark ?? Uint8List(0);
+          final held = await DesktopDrop.instance.startAccessingSecurityScopedResource(bookmark: bookmark);
+          try {
+            await addFiles([(x, false)]);
+          } catch (e) {
+            debugPrint('Drop: $e');
+          } finally {
+            if (held) DesktopDrop.instance.stopAccessingSecurityScopedResource(bookmark: bookmark).ignore();
+          }
+        }
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          main,
+          if (dragging)
+            IgnorePointer(
+              child: Container(
+                margin: const EdgeInsets.all(12),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: c.surface.withValues(alpha: .85),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: c.outline, width: 2),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(CupertinoIcons.paperclip, size: 40, color: c.onSurface),
+                    const SizedBox(height: 12),
+                    Text(AppLocalizations.of(context).dropFiles, style: TextStyle(fontSize: 17, color: c.onSurface)),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
-    ),
-  );
+    );
+  }
 
   Widget _message(ColorScheme c, Msg m, bool last) {
     const body = TextStyle(fontSize: 17, height: 1.45);

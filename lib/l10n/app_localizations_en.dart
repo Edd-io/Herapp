@@ -9,6 +9,9 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get dropFiles => 'Drop to attach to your message';
+
+  @override
   String get menuFile => 'File';
 
   @override

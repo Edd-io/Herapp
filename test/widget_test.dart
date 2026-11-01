@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -643,6 +644,32 @@ void main() {
     expect(find.text('Nothing is waiting for you.'), findsNothing);
     await press(LogicalKeyboardKey.keyK);
     expect(t.widget<TextField>(find.byType(TextField).first).focusNode!.hasFocus, isTrue); // the search field
+  });
+
+  testWidgets('a file dropped on the window joins the next message', (t) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    final dir = Directory.systemTemp.createTempSync();
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final file = File('${dir.path}/notes.txt')..writeAsStringSync('hi');
+    fakeServer((_, _, _) => null);
+    await t.pumpWidget(const App());
+    await t.pump();
+    Future<void> platform(String method, Object args) => t.binding.defaultBinaryMessenger.handlePlatformMessage(
+      'desktop_drop',
+      const StandardMethodCodec().encodeMethodCall(MethodCall(method, args)),
+      (_) {},
+    );
+    await platform('entered', [400.0, 300.0]);
+    await t.pump();
+    expect(find.text('Drop to attach to your message'), findsOneWidget);
+    await t.runAsync(() async {
+      await platform('performOperation', [file.path]);
+      await Future<void>.delayed(const Duration(milliseconds: 200)); // the file is read for real
+    });
+    await t.pump();
+    expect(find.text('Drop to attach to your message'), findsNothing);
+    expect(find.text('notes.txt'), findsOneWidget); // in the draft
+    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('a Mac gets a menu bar with the commands', (t) async {
