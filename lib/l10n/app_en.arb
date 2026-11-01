@@ -1,4 +1,10 @@
 {
+  "statusThinking": "Thinking…",
+  "statusWriting": "Writing…",
+  "statusTool": "Using {tool}…",
+  "@statusTool": {"placeholders": {"tool": {"type": "String"}}},
+  "composerQueueHint": "Queue a message",
+  "queued": "Queued · tap to edit",
   "lockApp": "Lock the app",
   "unlock": "Unlock",
   "unlockReason": "Unlock Hermes",

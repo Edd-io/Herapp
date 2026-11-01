@@ -9,6 +9,23 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get statusThinking => 'Thinking…';
+
+  @override
+  String get statusWriting => 'Writing…';
+
+  @override
+  String statusTool(String tool) {
+    return 'Using $tool…';
+  }
+
+  @override
+  String get composerQueueHint => 'Queue a message';
+
+  @override
+  String get queued => 'Queued · tap to edit';
+
+  @override
   String get lockApp => 'Lock the app';
 
   @override

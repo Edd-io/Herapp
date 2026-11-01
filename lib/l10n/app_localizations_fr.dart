@@ -9,6 +9,23 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get statusThinking => 'Réfléchit…';
+
+  @override
+  String get statusWriting => 'Écrit…';
+
+  @override
+  String statusTool(String tool) {
+    return 'Utilise $tool…';
+  }
+
+  @override
+  String get composerQueueHint => 'Message suivant';
+
+  @override
+  String get queued => 'En attente · touche pour modifier';
+
+  @override
   String get lockApp => 'Verrouiller l’app';
 
   @override

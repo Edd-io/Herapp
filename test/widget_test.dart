@@ -961,4 +961,55 @@ void main() {
     expect((calls.last.$1, calls.last.$2['id']), ('vault.remove', 'v1'));
     expect(find.text('Forge'), findsNothing);
   });
+
+  testWidgets('a message sent during a reply waits, then goes after it', (t) async {
+    late void Function(String, Map) push;
+    final calls = fakeServer((method, params, emit) {
+      if (method != 'prompt.submit') return replies(method, params, emit);
+      if (params['queued'] == true) return replies(method, params, emit);
+      push = emit;
+      emit('message.delta', {'text': 'Working'});
+      return {'status': 'streaming'};
+    });
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, 'First');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 1));
+    expect(find.textContaining('Writing… 0:'), findsOneWidget); // the header tells what the turn does
+    expect(find.text('Queue a message'), findsOneWidget);
+
+    // the stop button turns into send (the reply's own animations keep pumpAndSettle from settling)
+    Future<void> swap() async {
+      for (final d in const [Duration.zero, Duration(milliseconds: 300), Duration.zero]) {
+        await t.pump(d);
+      }
+    }
+
+    await t.enterText(find.byType(EditableText).last, 'And then?');
+    await swap();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up)); // with text, the button queues instead of stopping
+    await t.pump(const Duration(milliseconds: 300));
+    expect(find.text('Queued · tap to edit'), findsOneWidget);
+    expect(calls.where((c) => c.$1 == 'prompt.submit'), hasLength(1));
+
+    // a tap takes it back to edit; sent again, it waits again
+    await t.tap(find.text('And then?'));
+    await t.pump(const Duration(milliseconds: 300));
+    expect(find.text('Queued · tap to edit'), findsNothing);
+    expect(t.widget<EditableText>(find.byType(EditableText).last).controller.text, 'And then?');
+    await swap();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(milliseconds: 300));
+
+    push('message.complete', {'text': 'Working', 'status': 'complete'});
+    await t.pump(const Duration(seconds: 1));
+    await t.pump(const Duration(seconds: 1));
+    final submits = calls.where((c) => c.$1 == 'prompt.submit').toList();
+    expect(submits.last.$2, {'session_id': 'rt', 'text': 'And then?', 'queued': true});
+    expect(calls.where((c) => c.$1 == 'session.interrupt'), isEmpty); // a finished turn isn't interrupted
+    expect(find.text('Queued · tap to edit'), findsNothing);
+    expect(find.textContaining('Hello there'), findsOneWidget);
+    await t.pump(const Duration(seconds: 10));
+  });
 }

@@ -98,6 +98,36 @@ abstract class AppLocalizations {
     Locale('fr'),
   ];
 
+  /// No description provided for @statusThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get statusThinking;
+
+  /// No description provided for @statusWriting.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing…'**
+  String get statusWriting;
+
+  /// No description provided for @statusTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Using {tool}…'**
+  String statusTool(String tool);
+
+  /// No description provided for @composerQueueHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue a message'**
+  String get composerQueueHint;
+
+  /// No description provided for @queued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued · tap to edit'**
+  String get queued;
+
   /// No description provided for @lockApp.
   ///
   /// In en, this message translates to:

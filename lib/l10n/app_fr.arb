@@ -1,4 +1,9 @@
 {
+  "statusThinking": "Réfléchit…",
+  "statusWriting": "Écrit…",
+  "statusTool": "Utilise {tool}…",
+  "composerQueueHint": "Message suivant",
+  "queued": "En attente · touche pour modifier",
   "lockApp": "Verrouiller l’app",
   "unlock": "Déverrouiller",
   "unlockReason": "Déverrouille Hermes",

@@ -75,6 +75,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   final paneRefresh = ValueNotifier(0);
   List<Slash> slashes = []; // skills matching the `/` being typed
   String slashFor = '';
+  final queue = <Msg>[]; // sent while Hermes answers, each sent once the reply before it is done
+  String phase = ''; // what the running turn does: '' thinks, 'writing', else the tool it runs
+  DateTime since = DateTime.now(); // when the running turn started
 
   @override
   void initState() {
@@ -296,17 +299,32 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   void send() {
     final text = input.text.trim();
-    if ((text.isEmpty && pending.isEmpty) || streaming) return;
+    if (text.isEmpty && pending.isEmpty) return;
     settings.haptic();
     input.clear();
     final m = Msg(true, text, null, [...pending]);
+    final later = streaming; // Hermes is still answering: it goes once the reply is done
     setState(() {
       pending.clear();
-      chat.msgs.add(m);
+      (later ? queue : chat.msgs).add(m);
       fresh = m;
     });
-    respond();
+    if (!later) respond();
   }
+
+  /// Takes [msgs] off the queue and back into the composer, to edit or send again.
+  void unqueue(List<Msg> msgs) => setState(() {
+    queue.removeWhere(msgs.contains);
+    input.text = [for (final m in msgs) m.text, input.text].where((t) => t.trim().isNotEmpty).join('\n\n');
+    pending.insertAll(0, [for (final m in msgs) ...m.files]);
+  });
+
+  /// What the running turn does, for the header.
+  String status(AppLocalizations l) => switch (phase) {
+    '' => l.statusThinking,
+    'writing' => l.statusWriting,
+    final tool => l.statusTool(tool),
+  };
 
   /// Offers the server's skills while a `/name` is typed at the start of the message.
   void complete() {
@@ -376,8 +394,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     }
   }
 
-  /// Sends the last user message to Hermes and streams the reply in; [again] replaces the previous reply.
-  Future<void> respond({bool again = false}) async {
+  /// Sends the last user message to Hermes and streams the reply in; [again] replaces the previous reply,
+  /// [queued] waits for a turn the server may still be closing.
+  Future<void> respond({bool again = false, bool queued = false}) async {
     final c = chat;
     final asked = c.msgs.last;
     var prompt = asked.text;
@@ -386,6 +405,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     setState(() {
       c.msgs.add(reply);
       streaming = true;
+      phase = '';
+      since = DateTime.now();
     });
     toBottom();
     void fail(Object? e) {
@@ -416,16 +437,23 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         if (e.session != sid) return;
         switch (e.type) {
           case 'message.delta' when e.payload['text'] is String:
-            setState(() => reply.text += e.payload['text'] as String);
+            setState(() {
+              reply.text += e.payload['text'] as String;
+              phase = 'writing';
+            });
             if (atBottom) toBottom(jump: true);
           case 'tool.start':
             final p = e.payload;
-            setState(() => reply.tools.add(Tool('${p['tool_id']}', '${p['name']}', '${p['context'] ?? p['preview'] ?? ''}')));
+            setState(() {
+              reply.tools.add(Tool('${p['tool_id']}', '${p['name']}', '${p['context'] ?? p['preview'] ?? ''}'));
+              phase = '${p['name']}';
+            });
           case 'tool.complete':
             setState(() {
               for (final t in reply.tools.where((t) => t.id == '${e.payload['tool_id']}')) {
                 t.done = true;
               }
+              phase = '';
             });
           case 'request.cancel' when reply.ask?.id == e.payload['id']:
             setState(() => reply.ask = null);
@@ -436,7 +464,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             c.context = contextOf(p['usage']) ?? c.context;
             if (reply.text.trim().isEmpty && p['text'] is String) reply.text = p['text'] as String;
             if (p['status'] == 'error') return fail('${p['error'] ?? p['failure_reason'] ?? 'error'}');
-            stop();
+            streaming = false; // over: nothing left to interrupt
+            stop(next: true);
           case 'error':
             fail('${e.payload['message']}');
         }
@@ -476,6 +505,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         'text': prompt,
         if (typed.isNotEmpty) 'title_preview': typed,
         if (again) ...{'truncate_before_user_ordinal': turn, 'confirm_truncate': true},
+        if (queued) 'queued': true,
       });
     } catch (e) {
       debugPrint('Chat: $e');
@@ -483,7 +513,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     }
   }
 
-  void stop() {
+  /// Ends the turn; [next] sends the first queued message, else the queue goes back to the composer.
+  void stop({bool next = false}) {
     final g = chat.on;
     if (streaming && g != null && !g.closed && chat.live.isNotEmpty) g.call('session.interrupt', {'session_id': chat.live}).ignore();
     sub?.cancel();
@@ -495,6 +526,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     setState(() => streaming = false);
     loadSessions(); // a first message adds the chat to the server's list
     if (chat.stored.isNotEmpty) loadCost(chat);
+    if (queue.isEmpty) return;
+    if (!next) return unqueue([...queue]); // the turn it waited for failed or was left: nothing is lost
+    setState(() => chat.msgs.add(queue.removeAt(0)));
+    respond(queued: true);
   }
 
   /// Sends the user's [choice] for the command [m] is waiting on.
@@ -809,12 +844,18 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                               ),
                               const SizedBox(width: 6),
                               Flexible(
-                                child: Text(
-                                  modelName(chat.model),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontSize: 17, color: c.outline),
-                                ),
+                                child: streaming
+                                    ? _Elapsed(
+                                        status(AppLocalizations.of(context)),
+                                        since,
+                                        style: TextStyle(fontSize: 17, color: c.outline),
+                                      )
+                                    : Text(
+                                        modelName(chat.model),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(fontSize: 17, color: c.outline),
+                                      ),
                               ),
                             ],
                           ),
@@ -897,8 +938,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                               controller: scroll,
                               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                               padding: EdgeInsets.fromLTRB(side, 8, side, 24),
-                              itemCount: chat.msgs.length,
-                              itemBuilder: (_, i) => _message(c, chat.msgs[i], i == chat.msgs.length - 1),
+                              itemCount: chat.msgs.length + queue.length,
+                              itemBuilder: (_, i) => i < chat.msgs.length
+                                  ? _message(c, chat.msgs[i], i == chat.msgs.length - 1)
+                                  : _queued(c, queue[i - chat.msgs.length]),
                             );
                           },
                         ),
@@ -1067,6 +1110,24 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     );
   }
 
+  /// A message waiting for the reply before it; a tap takes it back to edit.
+  Widget _queued(ColorScheme c, Msg m) => GestureDetector(
+    onTap: () => unqueue([m]),
+    child: Opacity(
+      opacity: .55,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _message(c, m, false),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(AppLocalizations.of(context).queued, style: TextStyle(fontSize: 12, color: c.outline)),
+          ),
+        ],
+      ),
+    ),
+  );
+
   /// The card asking whether Hermes may run a command, with the choices the server allows.
   Widget _approval(ColorScheme c, Msg m, Map p) {
     final l = AppLocalizations.of(context);
@@ -1206,6 +1267,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   );
 
   Widget _composerRow(ColorScheme c, bool hasText) {
+    final stopping = streaming && !hasText; // the button stops the reply; with text, it queues it
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
       child: Row(
@@ -1214,7 +1276,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           Hover(
             radius: 999,
             child: GestureDetector(
-              onTap: streaming ? null : attachFiles,
+              onTap: attachFiles, // mid-reply too, for the queued message
               child: Container(
                 width: 44,
                 height: 44,
@@ -1249,16 +1311,16 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                     child: !hasText && !streaming
                         ? const SizedBox(height: 44)
                         : Hover(
-                            key: ValueKey(streaming),
+                            key: ValueKey(stopping),
                             radius: 999,
                             child: GestureDetector(
-                              onTap: streaming ? stop : send,
+                              onTap: stopping ? stop : send,
                               child: Container(
                                 width: 36,
                                 height: 36,
                                 margin: const EdgeInsets.symmetric(vertical: 4),
                                 decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
-                                child: streaming
+                                child: stopping
                                     ? Center(
                                         child: Container(
                                           width: 12,
@@ -1290,7 +1352,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                               isDense: true,
                               border: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                              hintText: AppLocalizations.of(context).composerHint,
+                              hintText: streaming
+                                  ? AppLocalizations.of(context).composerQueueHint
+                                  : AppLocalizations.of(context).composerHint,
                               hintStyle: TextStyle(fontSize: 17, color: c.outline),
                             ),
                           ),
@@ -1849,6 +1913,44 @@ class _CodeState extends State<_Code> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// [label] and the time since [since] (m:ss), ticking each second.
+class _Elapsed extends StatefulWidget {
+  const _Elapsed(this.label, this.since, {required this.style});
+  final String label;
+  final DateTime since;
+  final TextStyle style;
+
+  @override
+  State<_Elapsed> createState() => _ElapsedState();
+}
+
+class _ElapsedState extends State<_Elapsed> {
+  late final Timer tick;
+
+  @override
+  void initState() {
+    super.initState();
+    tick = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    tick.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = DateTime.now().difference(widget.since).inSeconds;
+    return Text(
+      '${widget.label} ${s ~/ 60}:${'${s % 60}'.padLeft(2, '0')}',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: widget.style.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
     );
   }
 }
