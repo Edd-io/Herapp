@@ -29,6 +29,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memoryUpdated => 'Memory updated';
 
   @override
+  String routineResult(String job) {
+    return 'Routine · $job';
+  }
+
+  @override
   String get lockApp => 'Lock the app';
 
   @override

@@ -43,6 +43,12 @@ bool memorySaved(Object? result) => switch (result is String ? _json(result) : r
   _ => false,
 };
 
+/// A scheduled job's output delivered into a chat (the Bot Chat) as an inbound turn; null for the user's own words.
+({String job, String output})? cronDelivery(String text) => switch (RegExp(r'^\[Cronjob "(.*?)" output — [^\]]*\]\s*').firstMatch(text)) {
+  final m? => (job: m[1]!, output: text.substring(m.end)),
+  _ => null,
+};
+
 /// A model offered by the Hermes server; [id] = "providerSlug/model".
 /// A server model; [reasoning] is false for one that takes no reasoning effort.
 typedef Model = ({String provider, String name, String id, bool reasoning});

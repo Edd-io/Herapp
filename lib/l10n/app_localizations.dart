@@ -134,6 +134,12 @@ abstract class AppLocalizations {
   /// **'Memory updated'**
   String get memoryUpdated;
 
+  /// No description provided for @routineResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Routine · {job}'**
+  String routineResult(String job);
+
   /// No description provided for @lockApp.
   ///
   /// In en, this message translates to:

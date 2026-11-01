@@ -1050,4 +1050,48 @@ void main() {
     expect(find.text('Refused note'), findsNothing);
     await t.pump(const Duration(seconds: 10));
   });
+
+  testWidgets('the Bot Chat opens from the menu, with routine results apart', (t) async {
+    final calls = fakeServer(
+      (method, params, emit) => switch (method) {
+        'session.list' when params['title'] == 'Bot Chat' => {
+          'sessions': [
+            {'id': 'b1', 'resolved_id': 'b2', 'title': 'Bot Chat'},
+          ],
+        },
+        'session.list' => {'sessions': []},
+        _ => null,
+      },
+    );
+    addTearDown(() => callApi = hermesApi);
+    final paths = <String>[];
+    callApi = (base, method, path, {query, body, user, password}) async {
+      paths.add(path);
+      return jsonEncode({
+        'messages': [
+          {'role': 'user', 'content': '[Cronjob "Daily news" output — scheduled job, not the user. Review it.]\n\nRain in Lyon'},
+          {'role': 'assistant', 'content': 'Take an umbrella today.'},
+        ],
+      });
+    };
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Bot Chat'));
+    await t.pumpAndSettle();
+    expect(paths, contains('/api/sessions/b2/messages')); // the live end of the chat
+    expect(find.text('ROUTINE · DAILY NEWS'), findsOneWidget);
+    expect(find.text('Rain in Lyon'), findsOneWidget);
+    expect(find.textContaining('[Cronjob'), findsNothing); // not shown as the user's words
+    expect(find.text('Take an umbrella today.'), findsOneWidget);
+
+    // it isn't listed again among the chats, and reopening it reads what came in meanwhile
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    expect(find.text('Bot Chat'), findsOneWidget);
+    await t.tap(find.text('Bot Chat'));
+    await t.pumpAndSettle();
+    expect(paths.where((p) => p == '/api/sessions/b2/messages'), hasLength(2));
+    expect(calls.where((c) => c.$1 == 'session.list' && c.$2['title'] == 'Bot Chat'), isNotEmpty);
+  });
 }

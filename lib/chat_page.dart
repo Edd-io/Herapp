@@ -78,6 +78,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   final queue = <Msg>[]; // sent while Hermes answers, each sent once the reply before it is done
   String phase = ''; // what the running turn does: '' thinks, 'writing', else the tool it runs
   DateTime since = DateTime.now(); // when the running turn started
+  Chat? bot; // the server's Bot Chat, where scheduled jobs deliver their results
 
   @override
   void initState() {
@@ -108,14 +109,22 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       final g = await gateway();
       if (g == null) return;
       final rows = parseSessions(await g.call('session.list', {'limit': 50}));
+      // hidden from the list, the Bot Chat is found by its name (an older server ignores the title and lists all)
+      final canonical = switch (await g.call('session.list', {'title': 'Bot Chat'}).catchError((Object _) => const {})) {
+        {'sessions': [{'title': 'Bot Chat'} && final Map s, ...]} => '${s['resolved_id'] ?? s['id']}',
+        _ => '',
+      };
       if (!mounted) return;
-      final known = {for (final c in chats) c.stored: c};
+      final known = {
+        for (final c in [...chats, ?bot]) c.stored: c,
+      };
       setState(() {
+        bot = canonical.isEmpty ? null : known[canonical] ?? Chat(stored: canonical, name: 'Bot Chat');
         chats = [
           ...chats.where((c) => c.stored.isEmpty),
           for (final r in rows) (known[r.id]?..name = r.title) ?? Chat(stored: r.id, name: r.title),
           // the server's list is the truth; only the open chat stays if it's missing from it
-          if (chat.stored.isNotEmpty && !rows.any((r) => r.id == chat.stored)) chat,
+          if (chat.stored.isNotEmpty && !identical(chat, bot) && !rows.any((r) => r.id == chat.stored)) chat,
         ];
       });
     } catch (e) {
@@ -611,7 +620,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     stop();
     setState(() => chat = c);
     closeDrawer();
-    if (!c.loaded && !c.loading) open(c);
+    // the Bot Chat also fills up while away, from the scheduled jobs
+    if ((!c.loaded || identical(c, bot)) && !c.loading) open(c);
     toBottom(jump: true);
   }
 
@@ -1044,6 +1054,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   Widget _message(ColorScheme c, Msg m, bool last) {
     const body = TextStyle(fontSize: 17, height: 1.45);
     if (m.user) {
+      if (cronDelivery(m.text) case final d?) return _routine(c, d);
       final bubble = Align(
         alignment: Alignment.centerRight,
         child: Container(
@@ -1135,6 +1146,38 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           ),
         ],
       ),
+    ),
+  );
+
+  /// A scheduled job's result delivered into the chat for Hermes to read: the job's words, not the user's.
+  Widget _routine(ColorScheme c, ({String job, String output}) d) => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.symmetric(vertical: 12),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      border: Border.all(color: c.surfaceContainerHighest, width: 1.5),
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(CupertinoIcons.clock, size: 14, color: c.outline),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                AppLocalizations.of(context).routineResult(d.job).toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: .4, color: c.outline),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _Markdown(d.output.trim(), style: TextStyle(fontSize: 15, height: 1.4, color: c.onSurface)),
+      ],
     ),
   );
 
@@ -1456,7 +1499,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   }
 
   void openFound(Found f) {
-    final known = chats.where((ch) => ch.stored == f.id).firstOrNull;
+    final known = [...chats, ?bot].where((ch) => ch.stored == f.id).firstOrNull;
     if (known == null) setState(() => chats.add(Chat(stored: f.id, name: f.title)));
     select(known ?? chats.last);
   }
@@ -1542,6 +1585,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
+                  if (bot case final b? when b.name.toLowerCase().contains(q))
+                    tile(b.name, icon: CupertinoIcons.bubble_left_bubble_right, selected: identical(b, chat), onTap: () => select(b)),
                   for (final ch in listed)
                     // swipe left to delete, as in iOS lists
                     Dismissible(

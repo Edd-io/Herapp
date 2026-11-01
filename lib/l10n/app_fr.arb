@@ -5,6 +5,7 @@
   "composerQueueHint": "Message suivant",
   "queued": "En attente · touche pour modifier",
   "memoryUpdated": "Mémoire mise à jour",
+  "routineResult": "Routine · {job}",
   "lockApp": "Verrouiller l’app",
   "unlock": "Déverrouiller",
   "unlockReason": "Déverrouille Hermes",

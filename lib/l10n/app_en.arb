@@ -6,6 +6,8 @@
   "composerQueueHint": "Queue a message",
   "queued": "Queued · tap to edit",
   "memoryUpdated": "Memory updated",
+  "routineResult": "Routine · {job}",
+  "@routineResult": {"placeholders": {"job": {"type": "String"}}},
   "lockApp": "Lock the app",
   "unlock": "Unlock",
   "unlockReason": "Unlock Hermes",

@@ -205,12 +205,13 @@ void main() {
     expect(contextOf({'context_percent': null}), isNull);
   });
 
-  test('transcript keeps what memory calls wrote', () {
+  test('transcript keeps what memory calls wrote, and a routine result apart', () {
     Map call(String id, Map args) => {
       'id': id,
       'function': {'name': 'memory', 'arguments': jsonEncode(args)},
     };
     final msgs = transcript([
+      {'role': 'user', 'content': '[Cronjob "Daily news" output — scheduled job, not the user. Review it.]\n\nRain today'},
       {
         'role': 'assistant',
         'content': '',
@@ -239,6 +240,8 @@ void main() {
         [('Likes coffee', true), ('Lives in Lyon', false)],
       ],
     );
+    expect(cronDelivery(msgs.first.text), (job: 'Daily news', output: 'Rain today'));
+    expect(cronDelivery('Hello'), isNull);
   });
 
   test('transcript shows a skill as typed and attachments apart', () {
