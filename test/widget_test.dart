@@ -123,6 +123,31 @@ void main() {
     expect(calls.where((c) => c.$1 == 'prompt.submit').single.$2, {'session_id': 'rt', 'text': 'Two'});
   });
 
+  testWidgets('a code block in a reply names its language and copies', (t) async {
+    const code = 'void main() {\n  print(1);\n}';
+    fakeServer((method, params, emit) {
+      if (method != 'prompt.submit') return replies(method, params, emit);
+      emit('message.delta', {'text': 'Voici :\n\n```dart\n$code\n```\n'});
+      emit('message.complete', {'status': 'complete'});
+      return {'status': 'streaming'};
+    });
+    String? copied;
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') copied = (call.arguments as Map)['text'] as String;
+      return null;
+    });
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, 'Code');
+    await t.sendKeyEvent(LogicalKeyboardKey.enter);
+    await t.pump(const Duration(seconds: 10));
+    expect(find.text('dart'), findsOneWidget);
+    await t.tap(find.byIcon(CupertinoIcons.doc_on_doc).first); // the block's, above the reply's own
+    await t.pump();
+    expect(copied, code);
+    await t.pump(const Duration(seconds: 3)); // the check mark goes back
+    expect(find.byIcon(CupertinoIcons.doc_on_doc), findsNWidgets(2));
+  });
+
   testWidgets('a skill is picked after / and the server expands it', (t) async {
     final calls = fakeServer((method, params, emit) {
       switch (method) {

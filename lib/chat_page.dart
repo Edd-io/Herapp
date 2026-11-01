@@ -7,8 +7,13 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter_highlight/themes/atom-one-dark.dart';
+import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:highlight/highlight.dart' as hl;
 import 'package:image_picker/image_picker.dart';
+import 'package:markdown/markdown.dart' as md;
+import 'package:url_launcher/url_launcher.dart';
 
 import 'agents_page.dart';
 import 'hermes.dart';
@@ -1496,7 +1501,6 @@ class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixi
   );
 }
 
-/// Text whose newly appended chunks fade in.
 /// A reply's Markdown (headings, lists, code, tables, quotes), rendered as it streams in.
 class _Markdown extends StatelessWidget {
   const _Markdown(this.text, {required this.style});
@@ -1511,6 +1515,13 @@ class _Markdown extends StatelessWidget {
     return MarkdownBody(
       data: text,
       selectable: true,
+      builders: {'pre': _CodeBlock(mono)},
+      onTapLink: (_, href, _) {
+        // only web and mail links leave the app; anything else a reply writes stays text
+        if (Uri.tryParse(href ?? '') case final u? when const ['http', 'https', 'mailto'].contains(u.scheme)) {
+          launchUrl(u, mode: LaunchMode.externalApplication);
+        }
+      },
       styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
         p: style,
         a: style.copyWith(decoration: TextDecoration.underline),
@@ -1524,7 +1535,9 @@ class _Markdown extends StatelessWidget {
         codeblockPadding: const EdgeInsets.all(14),
         codeblockDecoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
         blockquote: style.copyWith(color: c.onSurfaceVariant),
-        blockquoteDecoration: BoxDecoration(border: Border(left: BorderSide(color: c.outline, width: 3))),
+        blockquoteDecoration: BoxDecoration(
+          border: Border(left: BorderSide(color: c.outline, width: 3)),
+        ),
         blockquotePadding: const EdgeInsets.only(left: 14),
         tableHead: style.copyWith(fontWeight: FontWeight.w600),
         tableBody: style,
@@ -1532,6 +1545,97 @@ class _Markdown extends StatelessWidget {
         tableCellsPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         horizontalRuleDecoration: BoxDecoration(border: Border(top: line)),
       ),
+    );
+  }
+}
+
+/// A fenced code block: its language, a copy button and the code colored by [highlight].
+class _CodeBlock extends MarkdownElementBuilder {
+  _CodeBlock(this.mono);
+  final TextStyle mono;
+
+  @override
+  bool isBlockElement() => true;
+
+  @override
+  Widget visitElementAfterWithContext(BuildContext context, md.Element element, TextStyle? preferredStyle, TextStyle? parentStyle) {
+    final code = element.textContent.replaceFirst(RegExp(r'\n$'), '');
+    final lang = switch (element.children?.firstOrNull) {
+      md.Element(attributes: {'class': final String k}) when k.startsWith('language-') => k.substring(9),
+      _ => '',
+    };
+    return _Code(code: code, lang: lang, mono: mono);
+  }
+}
+
+class _Code extends StatefulWidget {
+  const _Code({required this.code, required this.lang, required this.mono});
+  final String code, lang;
+  final TextStyle mono;
+
+  @override
+  State<_Code> createState() => _CodeState();
+}
+
+class _CodeState extends State<_Code> {
+  var copied = false;
+
+  List<TextSpan> spans(List<hl.Node> nodes, Map<String, TextStyle> theme) => [
+    for (final n in nodes)
+      TextSpan(text: n.value, style: theme[n.className], children: n.children == null ? null : spans(n.children!, theme)),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final theme = Theme.of(context).brightness == Brightness.dark ? atomOneDarkTheme : githubTheme;
+    // an unknown or missing language stays plain
+    final colored = widget.lang.isEmpty
+        ? null
+        : (() {
+            try {
+              return hl.highlight.parse(widget.code, language: widget.lang).nodes;
+            } catch (_) {
+              return null;
+            }
+          })();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 4, 4, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(widget.lang, style: TextStyle(fontSize: 12, color: c.outline)),
+              ),
+              CupertinoButton(
+                padding: const EdgeInsets.all(8),
+                minimumSize: Size.zero,
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: widget.code));
+                  settings.haptic();
+                  setState(() => copied = true);
+                  await Future<void>.delayed(const Duration(seconds: 2));
+                  if (mounted) setState(() => copied = false);
+                },
+                child: Icon(copied ? CupertinoIcons.checkmark_alt : CupertinoIcons.doc_on_doc, size: 16, color: c.outline),
+              ),
+            ],
+          ),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          child: SelectableText.rich(
+            TextSpan(
+              style: widget.mono,
+              text: colored == null ? widget.code : null,
+              children: colored == null ? null : spans(colored, theme),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
