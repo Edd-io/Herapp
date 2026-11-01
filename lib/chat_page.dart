@@ -89,13 +89,12 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     });
     loadModels();
     loadSessions();
-    // the Mac's global shortcut (⌥Space) asks for a new question
-    const MethodChannel('herapp/quick').setMethodCallHandler((call) async {
-      if (call.method != 'ask' || !mounted) return;
-      Navigator.of(context).popUntil((r) => r.isFirst);
-      newChat();
-      focus.requestFocus();
+    // a new question from outside: the Mac's global shortcut (⌥Space), or Siri and Shortcuts with the question itself
+    const quick = MethodChannel('herapp/quick');
+    quick.setMethodCallHandler((call) async {
+      if (call.method == 'ask') ask(call.arguments is String ? call.arguments as String : '');
     });
+    quick.invokeListMethod<String>('ready').then((asked) => asked?.forEach(ask)).catchError((Object _) {}); // only iPhone queues them
   }
 
   /// Lists the server's stored conversations in the sidebar, after the chats not saved there yet.
@@ -253,6 +252,16 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     if (HardwareKeyboard.instance.isShiftPressed || input.value.composing.isValid) return KeyEventResult.ignored;
     send();
     return KeyEventResult.handled;
+  }
+
+  /// Opens a new chat on top of everything, sending [question] when there is one, else waiting for it.
+  void ask(String question) {
+    if (!mounted) return;
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    newChat();
+    if (question.trim().isEmpty) return focus.requestFocus();
+    input.text = question;
+    send();
   }
 
   void send() {

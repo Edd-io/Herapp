@@ -720,6 +720,17 @@ void main() {
     expect(t.widget<EditableText>(find.byType(EditableText).last).focusNode.hasFocus, isTrue);
   });
 
+  testWidgets('a question asked through Siri is sent in a new chat', (t) async {
+    final calls = fakeServer(replies);
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('herapp/quick'), (call) async {
+      return call.method == 'ready' ? ['Quel temps demain ?'] : null; // asked before the app was up
+    });
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('herapp/quick'), null));
+    await t.pumpWidget(const App());
+    await t.pump(const Duration(seconds: 10));
+    expect(calls.where((c) => c.$1 == 'prompt.submit').single.$2['text'], 'Quel temps demain ?');
+  });
+
   testWidgets('a Mac gets a menu bar with the commands', (t) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     fakeServer((_, _, _) => null);
