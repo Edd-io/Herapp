@@ -1366,4 +1366,48 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get imageFailed => 'Le serveur n’a pas pu créer l’image.';
+
+  @override
+  String get connectors => 'Connecteurs';
+
+  @override
+  String get connectorsUnavailable =>
+      'Les connecteurs ne sont pas disponibles sur ce serveur.';
+
+  @override
+  String get connectorsConnected => 'Connectés';
+
+  @override
+  String get connectorsFooter =>
+      'Éteint, le bot ne s’en sert plus, sans le déconnecter.';
+
+  @override
+  String get connectorsMore => 'Autres services';
+
+  @override
+  String get connectorConnect => 'Connecter';
+
+  @override
+  String connectorConnected(String name) {
+    return '$name est connecté.';
+  }
+
+  @override
+  String get connectorNotConnected => 'La connexion n’a pas abouti.';
+
+  @override
+  String get connectorAccounts => 'Comptes';
+
+  @override
+  String get connectorRemove => 'Déconnecter';
+
+  @override
+  String get connectorReconnect => 'Reconnecter ou ajouter un compte';
+
+  @override
+  String get connectorActions => 'Ce que le bot peut faire';
+
+  @override
+  String get connectorActionsFooter =>
+      '✎ écrit, ⚠ supprime ou agit sans retour possible.';
 }

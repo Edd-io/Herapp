@@ -1346,4 +1346,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get imageFailed => 'The server couldn’t create the image.';
+
+  @override
+  String get connectors => 'Connectors';
+
+  @override
+  String get connectorsUnavailable =>
+      'Connectors aren’t available on this server.';
+
+  @override
+  String get connectorsConnected => 'Connected';
+
+  @override
+  String get connectorsFooter =>
+      'Switched off, the bot stops using it, still connected.';
+
+  @override
+  String get connectorsMore => 'More services';
+
+  @override
+  String get connectorConnect => 'Connect';
+
+  @override
+  String connectorConnected(String name) {
+    return '$name is connected.';
+  }
+
+  @override
+  String get connectorNotConnected => 'The connection didn’t go through.';
+
+  @override
+  String get connectorAccounts => 'Accounts';
+
+  @override
+  String get connectorRemove => 'Disconnect';
+
+  @override
+  String get connectorReconnect => 'Reconnect or add an account';
+
+  @override
+  String get connectorActions => 'What the bot may do';
+
+  @override
+  String get connectorActionsFooter =>
+      '✎ writes, ⚠ deletes or can’t be undone.';
 }
