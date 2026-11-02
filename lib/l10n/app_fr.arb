@@ -331,5 +331,6 @@
   "gitCommitted": "Validé",
   "gitPushed": "Poussé",
   "gitPrOpened": "Pull request ouverte",
-  "gitFailed": "Git : {error}"
+  "gitFailed": "Git : {error}",
+  "voiceUnavailable": "Dictée indisponible : autorise le micro et la reconnaissance vocale dans les réglages du système."
 }

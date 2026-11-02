@@ -29,6 +29,7 @@ import 'model_sheet.dart';
 import 'quota_page.dart';
 import 'screen_page.dart';
 import 'tools_page.dart';
+import 'voice.dart';
 import 'settings.dart';
 import 'system_page.dart';
 import 'vault_page.dart';
@@ -312,6 +313,23 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   /// Whether [id] takes a reasoning effort (assumed while the list is unknown).
   bool thinks(String id) => models.value.list.where((m) => m.id == id).firstOrNull?.reasoning ?? true;
+
+  /// Dictates into the composer, after what is already typed; again, stops.
+  Future<void> dictate() async {
+    if (voice.listening) return voice.stopDictating();
+    final messenger = ScaffoldMessenger.of(context);
+    final l = AppLocalizations.of(context);
+    settings.haptic();
+    final before = input.text.trimRight();
+    final ok = await voice.dictate((words) {
+      final text = before.isEmpty || words.isEmpty ? '$before$words' : '$before $words';
+      input.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    });
+    if (!ok) messenger.showSnackBar(SnackBar(content: Text(l.voiceUnavailable)));
+  }
 
   @override
   void dispose() {
@@ -1386,6 +1404,18 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                     },
                     child: Icon(CupertinoIcons.doc_on_doc, size: 18, color: c.onSurfaceVariant),
                   ),
+                  ListenableBuilder(
+                    listenable: voice,
+                    builder: (context, _) => _IconBtn(
+                      small: true,
+                      onTap: () => voice.read(m, text),
+                      child: Icon(
+                        identical(voice.reading, m) ? CupertinoIcons.stop_circle : CupertinoIcons.speaker_2,
+                        size: 18,
+                        color: c.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
                   if (last)
                     _IconBtn(
                       small: true,
@@ -1842,38 +1872,64 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                   final style = TextStyle(fontSize: 17, color: c.onSurface);
                   // the ring fades away while typing; nothing to measure before the first message
                   final showRing = chat.msgs.isNotEmpty && input.text.isEmpty;
-                  final sendBtn = AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    switchInCurve: Curves.easeOutBack,
-                    switchOutCurve: Curves.easeIn,
-                    transitionBuilder: (child, a) => FadeTransition(
-                      opacity: a,
-                      child: ScaleTransition(scale: a, child: child),
-                    ),
-                    child: !hasText && !streaming
-                        ? const SizedBox(height: 44)
-                        : Hover(
-                            key: ValueKey(stopping),
-                            radius: 999,
-                            child: GestureDetector(
-                              onTap: stopping ? stop : send,
-                              child: Container(
-                                width: 36,
-                                height: 36,
-                                margin: const EdgeInsets.symmetric(vertical: 4),
-                                decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
-                                child: stopping
-                                    ? Center(
-                                        child: Container(
-                                          width: 12,
-                                          height: 12,
-                                          decoration: BoxDecoration(color: c.onPrimary, borderRadius: BorderRadius.circular(2)),
+                  final sendBtn = ListenableBuilder(
+                    listenable: voice,
+                    builder: (context, _) => AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      switchInCurve: Curves.easeOutBack,
+                      switchOutCurve: Curves.easeIn,
+                      transitionBuilder: (child, a) => FadeTransition(
+                        opacity: a,
+                        child: ScaleTransition(scale: a, child: child),
+                      ),
+                      // nothing typed: the microphone (Linux has no system speech recognition)
+                      child: voice.listening || (!hasText && !streaming)
+                          ? Platform.isLinux
+                                ? const SizedBox(height: 44)
+                                : Hover(
+                                    key: ValueKey('mic${voice.listening}'),
+                                    radius: 999,
+                                    child: GestureDetector(
+                                      onTap: dictate,
+                                      child: Container(
+                                        width: 36,
+                                        height: 36,
+                                        margin: const EdgeInsets.symmetric(vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: voice.listening ? const Color(0xFFFF3B30) : Colors.transparent,
+                                          shape: BoxShape.circle,
                                         ),
-                                      )
-                                    : Icon(CupertinoIcons.arrow_up, size: 20, color: c.onPrimary),
+                                        child: Icon(
+                                          voice.listening ? CupertinoIcons.mic_fill : CupertinoIcons.mic,
+                                          size: 20,
+                                          color: voice.listening ? Colors.white : c.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                          : Hover(
+                              key: ValueKey(stopping),
+                              radius: 999,
+                              child: GestureDetector(
+                                onTap: stopping ? stop : send,
+                                child: Container(
+                                  width: 36,
+                                  height: 36,
+                                  margin: const EdgeInsets.symmetric(vertical: 4),
+                                  decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+                                  child: stopping
+                                      ? Center(
+                                          child: Container(
+                                            width: 12,
+                                            height: 12,
+                                            decoration: BoxDecoration(color: c.onPrimary, borderRadius: BorderRadius.circular(2)),
+                                          ),
+                                        )
+                                      : Icon(CupertinoIcons.arrow_up, size: 20, color: c.onPrimary),
+                                ),
                               ),
                             ),
-                          ),
+                    ),
                   );
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.end,

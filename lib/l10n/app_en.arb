@@ -616,5 +616,6 @@
   "gitPushed": "Pushed",
   "gitPrOpened": "Pull request opened",
   "gitFailed": "Git: {error}",
-  "@gitFailed": {"placeholders": {"error": {"type": "String"}}}
+  "@gitFailed": {"placeholders": {"error": {"type": "String"}}},
+  "voiceUnavailable": "Dictation isn't available: allow the microphone and speech recognition in the system settings."
 }

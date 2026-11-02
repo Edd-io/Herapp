@@ -2089,6 +2089,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Git: {error}'**
   String gitFailed(String error);
+
+  /// No description provided for @voiceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictation isn\'t available: allow the microphone and speech recognition in the system settings.'**
+  String get voiceUnavailable;
 }
 
 class _AppLocalizationsDelegate

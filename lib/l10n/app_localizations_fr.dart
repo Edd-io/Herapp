@@ -1180,4 +1180,8 @@ class AppLocalizationsFr extends AppLocalizations {
   String gitFailed(String error) {
     return 'Git : $error';
   }
+
+  @override
+  String get voiceUnavailable =>
+      'Dictée indisponible : autorise le micro et la reconnaissance vocale dans les réglages du système.';
 }
