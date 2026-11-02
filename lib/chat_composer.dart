@@ -89,82 +89,24 @@ extension _Composer on _ChatPageState {
               ),
             ),
           _composerRow(c, hasText),
-          if (const [TargetPlatform.macOS, TargetPlatform.windows, TargetPlatform.linux].contains(defaultTargetPlatform)) _folderChip(c),
         ],
       ),
     );
   }
 
-  /// The folder the chat works in, under the composer; it changes between turns.
-  Widget _folderChip(ColorScheme c) {
+  /// The folder the chat works in, in the composer's bar; it changes between turns.
+  Widget _folderButton(ColorScheme c, bool busy) {
     final l = AppLocalizations.of(context);
-    final busy = streaming || chat.shell.busy;
     final home = MacShell.home;
     final path = chat.folderHere && (chat.folder == home || chat.folder.startsWith('$home/'))
         ? '~${chat.folder.substring(home.length)}'
         : chat.folder;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(58, 0, 12, 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(child: _folderButton(c, busy, path)),
-            // what the bot changed there (no folder picked: the server's default one)
-            Hover(
-              radius: 8,
-              child: GestureDetector(
-                onTap: () => show(GitPage(path: chat.folder, here: chat.folderHere)),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(CupertinoIcons.arrow_branch, size: 14, color: c.outline),
-                      const SizedBox(width: 4),
-                      Text(l.gitTitle, style: TextStyle(fontSize: 13, color: c.outline)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _folderButton(ColorScheme c, bool busy, String path) {
-    final l = AppLocalizations.of(context);
-    return Opacity(
-      opacity: busy ? .5 : 1,
-      child: Hover(
-        radius: 8,
-        child: GestureDetector(
-          onTap: busy ? null : pickFolder,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(chat.folderHere ? CupertinoIcons.desktopcomputer : CupertinoIcons.folder, size: 14, color: c.outline),
-                const SizedBox(width: 5),
-                Flexible(
-                  child: Text(
-                    path.isEmpty ? l.folder : '$path · ${chat.folderHere ? l.folderOnHere : l.folderOnServer}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, color: c.outline),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(CupertinoIcons.chevron_down, size: 10, color: c.outline),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return _toolChip(
+      c,
+      path.isEmpty ? l.folder : '$path · ${chat.folderHere ? l.folderOnHere : l.folderOnServer}',
+      icon: chat.folderHere ? CupertinoIcons.desktopcomputer : CupertinoIcons.folder,
+      menu: true,
+      onTap: busy ? null : pickFolder,
     );
   }
 
@@ -208,167 +150,194 @@ extension _Composer on _ChatPageState {
     ),
   );
 
+  /// One pill: the field on top, and under it the attach button, the model, the folder (on a computer),
+  /// how full the context is, and the microphone that turns into the send button once something is typed.
   Widget _composerRow(ColorScheme c, bool hasText) {
     final stopping = streaming && !hasText; // the button stops the reply; with text, it queues it
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Hover(
-            radius: 999,
-            label: l.a11yAttach,
-            child: GestureDetector(
-              onTap: attachFiles, // mid-reply too, for the queued message
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(color: c.surfaceContainerHighest, shape: BoxShape.circle),
-                child: Icon(CupertinoIcons.add, size: 22, color: c.onSurface),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ListenableBuilder(
-              listenable: focus,
-              builder: (context, child) => AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                padding: const EdgeInsets.only(left: 16, right: 4),
-                decoration: BoxDecoration(
-                  color: c.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: focus.hasFocus ? c.onSurface.withValues(alpha: .12) : Colors.transparent,
-                    strokeAlign: BorderSide.strokeAlignOutside, // no layout shift
-                  ),
-                ),
-                child: child,
-              ),
-              child: Builder(
-                builder: (context) {
-                  final style = TextStyle(fontSize: 17, color: c.onSurface);
-                  // the ring fades away while typing; nothing to measure before the first message
-                  final showRing = chat.msgs.isNotEmpty && input.text.isEmpty;
-                  final sendBtn = ListenableBuilder(
-                    listenable: voice,
-                    builder: (context, _) => AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      switchInCurve: Curves.easeOutBack,
-                      switchOutCurve: Curves.easeIn,
-                      transitionBuilder: (child, a) => FadeTransition(
-                        opacity: a,
-                        child: ScaleTransition(scale: a, child: child),
-                      ),
-                      // nothing typed: the microphone (Linux has no system speech recognition)
-                      child: voice.listening || (!hasText && !streaming)
-                          ? Platform.isLinux
-                                ? const SizedBox(height: 44)
-                                : Hover(
-                                    key: ValueKey('mic${voice.listening}'),
-                                    label: voice.listening ? l.a11yStopDictating : l.a11yDictate,
-                                    radius: 999,
-                                    child: GestureDetector(
-                                      onTap: dictate,
-                                      child: Container(
-                                        width: 36,
-                                        height: 36,
-                                        margin: const EdgeInsets.symmetric(vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: voice.listening ? const Color(0xFFFF3B30) : Colors.transparent,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                          voice.listening ? CupertinoIcons.mic_fill : CupertinoIcons.mic,
-                                          size: 20,
-                                          color: voice.listening ? Colors.white : c.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                          : Hover(
-                              key: ValueKey(stopping),
-                              label: stopping ? l.macStop : l.a11ySend,
-                              radius: 999,
-                              child: GestureDetector(
-                                onTap: stopping ? stop : send,
-                                child: Container(
-                                  width: 36,
-                                  height: 36,
-                                  margin: const EdgeInsets.symmetric(vertical: 4),
-                                  decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
-                                  child: stopping
-                                      ? Center(
-                                          child: Container(
-                                            width: 12,
-                                            height: 12,
-                                            decoration: BoxDecoration(color: c.onPrimary, borderRadius: BorderRadius.circular(2)),
-                                          ),
-                                        )
-                                      : Icon(CupertinoIcons.arrow_up, size: 20, color: c.onPrimary),
-                                ),
-                              ),
-                            ),
-                    ),
-                  );
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        // centered in 44 pt while single-line, grows afterwards
+    final style = TextStyle(fontSize: 17, color: c.onSurface);
+    // the ring fades away while typing; nothing to measure before the first message
+    final showRing = chat.msgs.isNotEmpty && input.text.isEmpty;
+    final desktop = const [TargetPlatform.macOS, TargetPlatform.windows, TargetPlatform.linux].contains(defaultTargetPlatform);
+    final sendBtn = ListenableBuilder(
+      listenable: voice,
+      builder: (context, _) => AnimatedSwitcher(
+        duration: const Duration(milliseconds: 180),
+        switchInCurve: Curves.easeOutBack,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, a) => FadeTransition(
+          opacity: a,
+          child: ScaleTransition(scale: a, child: child),
+        ),
+        // nothing typed: the microphone (Linux has no system speech recognition)
+        child: voice.listening || (!hasText && !streaming)
+            ? Platform.isLinux
+                  ? const SizedBox(height: 44)
+                  : Hover(
+                      key: ValueKey('mic${voice.listening}'),
+                      label: voice.listening ? l.a11yStopDictating : l.a11yDictate,
+                      radius: 999,
+                      child: GestureDetector(
+                        onTap: dictate,
                         child: Container(
-                          constraints: const BoxConstraints(minHeight: 44),
-                          alignment: Alignment.centerLeft,
-                          child: TextField(
-                            controller: input,
-                            focusNode: focus,
-                            minLines: 1,
-                            maxLines: 6,
-                            textCapitalization: TextCapitalization.sentences,
-                            style: style,
-                            decoration: InputDecoration(
-                              isDense: true,
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                              hintText: streaming
-                                  ? AppLocalizations.of(context).composerQueueHint
-                                  : AppLocalizations.of(context).composerHint,
-                              hintStyle: TextStyle(fontSize: 17, color: c.outline),
-                            ),
+                          width: 36,
+                          height: 36,
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          decoration: BoxDecoration(
+                            color: voice.listening ? const Color(0xFFFF3B30) : Colors.transparent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            voice.listening ? CupertinoIcons.mic_fill : CupertinoIcons.mic,
+                            size: 20,
+                            color: voice.listening ? Colors.white : c.onSurfaceVariant,
                           ),
                         ),
                       ),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        switchInCurve: Curves.easeOut,
-                        switchOutCurve: Curves.easeIn,
-                        transitionBuilder: (child, a) => FadeTransition(
-                          opacity: a,
-                          child: SizeTransition(sizeFactor: a, axis: Axis.horizontal, axisAlignment: -1, child: child),
-                        ),
-                        child: showRing
-                            ? Padding(
-                                key: const ValueKey('ring'),
-                                padding: const EdgeInsets.only(left: 8, right: 12, bottom: 12),
-                                child: _ContextRing(
-                                  chat.context ?? contextUse([for (final m in chat.msgs) m.text].join()),
-                                  cost: chat.cost,
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                      sendBtn,
-                    ],
-                  );
-                },
+                    )
+            : Hover(
+                key: ValueKey(stopping),
+                label: stopping ? l.macStop : l.a11ySend,
+                radius: 999,
+                child: GestureDetector(
+                  onTap: stopping ? stop : send,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+                    child: stopping
+                        ? Center(
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(color: c.onPrimary, borderRadius: BorderRadius.circular(2)),
+                            ),
+                          )
+                        : Icon(CupertinoIcons.arrow_up, size: 20, color: c.onPrimary),
+                  ),
+                ),
               ),
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+      child: ListenableBuilder(
+        listenable: focus,
+        builder: (context, child) => AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+          decoration: BoxDecoration(
+            color: c.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: focus.hasFocus ? c.onSurface.withValues(alpha: .12) : Colors.transparent,
+              strokeAlign: BorderSide.strokeAlignOutside, // no layout shift
             ),
           ),
-        ],
+          child: child,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+              child: TextField(
+                controller: input,
+                focusNode: focus,
+                minLines: 1,
+                maxLines: 8,
+                textCapitalization: TextCapitalization.sentences,
+                style: style,
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                  hintText: streaming ? AppLocalizations.of(context).composerQueueHint : AppLocalizations.of(context).composerHint,
+                  hintStyle: TextStyle(fontSize: 17, color: c.outline),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Hover(
+                  radius: 999,
+                  label: l.a11yAttach,
+                  child: GestureDetector(
+                    onTap: attachFiles, // mid-reply too, for the queued message
+                    child: SizedBox(width: 36, height: 36, child: Icon(CupertinoIcons.add, size: 22, color: c.onSurface)),
+                  ),
+                ),
+                // the welcome screen has its own model picker
+                if (chat.msgs.isNotEmpty)
+                  Flexible(child: _toolChip(c, chat.model.isEmpty ? l.model : modelName(chat.model), onTap: streaming ? null : pickModel)),
+                if (desktop) ...[
+                  Flexible(child: _folderButton(c, streaming || chat.shell.busy)),
+                  // what the bot changed there (no folder picked: the server's default one)
+                  _toolChip(
+                    c,
+                    l.gitTitle,
+                    icon: CupertinoIcons.arrow_branch,
+                    onTap: () => show(GitPage(path: chat.folder, here: chat.folderHere)),
+                  ),
+                ],
+                const Spacer(),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  transitionBuilder: (child, a) => FadeTransition(
+                    opacity: a,
+                    child: SizeTransition(sizeFactor: a, axis: Axis.horizontal, axisAlignment: -1, child: child),
+                  ),
+                  child: showRing
+                      ? Padding(
+                          key: const ValueKey('ring'),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: _ContextRing(chat.context ?? contextUse([for (final m in chat.msgs) m.text].join()), cost: chat.cost),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                sendBtn,
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  /// A small control of the composer's bar.
+  Widget _toolChip(ColorScheme c, String label, {IconData? icon, VoidCallback? onTap, bool menu = false}) => Opacity(
+    opacity: onTap == null ? .5 : 1,
+    child: Hover(
+      radius: 8,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[Icon(icon, size: 15, color: c.onSurfaceVariant), const SizedBox(width: 5)],
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.onSurfaceVariant),
+                ),
+              ),
+              if (menu || icon == null) ...[
+                const SizedBox(width: 3),
+                Icon(CupertinoIcons.chevron_down, size: 10, color: c.onSurfaceVariant),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /// The results the app handed Hermes for the steps a reply asked: one line, opened to read them.

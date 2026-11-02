@@ -1326,21 +1326,17 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                                 'Herapp',
                                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
                               ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: streaming
-                                    ? _Elapsed(
-                                        status(AppLocalizations.of(context)),
-                                        since,
-                                        style: TextStyle(fontSize: 17, color: c.outline),
-                                      )
-                                    : Text(
-                                        modelName(chat.model),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(fontSize: 17, color: c.outline),
-                                      ),
-                              ),
+                              // what the reply does while it runs; the model is in the composer's bar
+                              if (streaming) ...[
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: _Elapsed(
+                                    status(AppLocalizations.of(context)),
+                                    since,
+                                    style: TextStyle(fontSize: 17, color: c.outline),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                   ),

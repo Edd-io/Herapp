@@ -180,6 +180,9 @@ void main() {
     await t.tap(find.byIcon(CupertinoIcons.chevron_back));
     await t.pumpAndSettle();
 
+    ScaffoldMessenger.of(t.element(find.byType(EditableText).last)).clearSnackBars(); // off the composer's bar
+    await t.pumpAndSettle();
+
     // the session starts there, as the server names it
     await t.enterText(find.byType(EditableText).last, 'Salut');
     await t.pumpAndSettle();
