@@ -91,5 +91,9 @@ void resetApp() {
     dropGateway();
     subagents.value = const {};
     addTearDown(() => connectGateway = hermesGateway);
+    // a phone tall enough for the whole menu (its pages, then the chats) to be in view
+    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.implicitView!;
+    view.physicalSize = const Size(2400, 3000);
+    addTearDown(view.resetPhysicalSize);
   });
 }
