@@ -55,6 +55,15 @@ List<MacStep> macSteps(String text, String token) => [
     m[2] == null ? (script: m[3]!.trimRight(), path: '', content: '') : (script: '', path: m[2]!, content: m[3]!),
 ];
 
+/// [text] with its `MEDIA:/path` lines, Hermes's way of handing over a file of its machine, turned to Markdown:
+/// a picture as an image (`media:` + its encoded path, fetched through `/api/media`), any other file named.
+String withMedia(String text) => text.replaceAllMapped(RegExp(r'^[ \t]*MEDIA:[ \t]*(\S[^\n]*?)[ \t]*$', multiLine: true), (m) {
+  final path = m[1]!, name = path.split('/').last;
+  return RegExp(r'\.(png|jpe?g|gif|webp|bmp)$', caseSensitive: false).hasMatch(path)
+      ? '![$name](media:${Uri.encodeComponent(path)})'
+      : '📎 `$name`';
+});
+
 /// [text] without its steps, shown as cards instead.
 String withoutMacSteps(String text, String token) => text.replaceAll(_macBlock(token), '').trim();
 

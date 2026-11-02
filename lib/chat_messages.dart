@@ -551,7 +551,14 @@ class _Attachment extends StatelessWidget {
               ],
             ),
           );
-    if (onRemove == null) return tile;
+    if (onRemove == null) {
+      return file.image && bytes != null
+          ? GestureDetector(
+              onTap: () => showImage(context, MemoryImage(bytes), name: file.name, bytes: bytes),
+              child: tile,
+            )
+          : tile;
+    }
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -929,9 +936,10 @@ class _Markdown extends StatelessWidget {
     final mono = TextStyle(fontFamily: 'Menlo', fontFamilyFallback: const ['Courier'], fontSize: style.fontSize! * .85, color: c.onSurface);
     final line = BorderSide(color: c.outline.withValues(alpha: .3));
     return MarkdownBody(
-      data: text,
+      data: withMedia(text),
       selectable: true,
       builders: {'pre': _CodeBlock(mono)},
+      imageBuilder: (uri, _, alt) => _ReplyImage(uri, name: alt ?? ''),
       onTapLink: (_, href, _) {
         // only web and mail links leave the app; anything else a reply writes stays text
         if (Uri.tryParse(href ?? '') case final u? when const ['http', 'https', 'mailto'].contains(u.scheme)) {
@@ -1320,3 +1328,145 @@ class _AskState extends State<_Ask> {
     );
   }
 }
+
+/// A picture in a reply: one of the server's (`media:` + its path, read through `/api/media`) or from the web.
+/// It opens full screen; one that can't be read is named instead.
+class _ReplyImage extends StatefulWidget {
+  const _ReplyImage(this.uri, {required this.name});
+  final Uri uri;
+  final String name;
+
+  // fetched once per path while the app runs: a reply is rebuilt on every word streamed in
+  static final _fetched = <String, Future<Uint8List?>>{};
+
+  @override
+  State<_ReplyImage> createState() => _ReplyImageState();
+}
+
+class _ReplyImageState extends State<_ReplyImage> {
+  late final bool local = widget.uri.scheme == 'media';
+  late final Future<Uint8List?> bytes = !local
+      ? Future.value(null)
+      : _ReplyImage._fetched.putIfAbsent(widget.uri.path, () async {
+          try {
+            final body = await serverApi('GET', '/api/media', query: {'path': Uri.decodeComponent(widget.uri.path)});
+            final url = '${(jsonDecode(body ?? '{}') as Map)['data_url'] ?? ''}';
+            return url.contains(',') ? base64Decode(url.substring(url.indexOf(',') + 1)) : null;
+          } catch (e) {
+            debugPrint('Media: $e');
+            return null;
+          }
+        });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    Widget named(IconData icon) => Text.rich(
+      TextSpan(
+        children: [
+          WidgetSpan(child: Icon(icon, size: 16, color: c.outline)),
+          TextSpan(text: ' ${widget.name}'),
+        ],
+      ),
+      style: TextStyle(fontSize: 15, color: c.onSurfaceVariant),
+    );
+    if (!local && !const ['http', 'https'].contains(widget.uri.scheme)) return named(CupertinoIcons.photo);
+    return FutureBuilder(
+      future: bytes,
+      builder: (context, got) {
+        if (local && got.connectionState != ConnectionState.done) {
+          return Container(
+            width: 220,
+            height: 160,
+            decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+            child: const CupertinoActivityIndicator(),
+          );
+        }
+        if (local && got.data == null) return named(CupertinoIcons.photo);
+        final ImageProvider image = local ? MemoryImage(got.data!) : NetworkImage('${widget.uri}');
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: GestureDetector(
+            onTap: () => showImage(context, image, name: widget.name, bytes: got.data),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.zoomIn,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 360),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image(
+                    image: image,
+                    fit: BoxFit.contain,
+                    semanticLabel: widget.name,
+                    errorBuilder: (_, _, _) => named(CupertinoIcons.photo),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// [image] full screen over a dark backdrop: pinched or scrolled to zoom, saved on a computer when its [bytes]
+/// are at hand; a tap outside, Escape or the close button brings the chat back.
+Future<void> showImage(BuildContext context, ImageProvider image, {String name = '', Uint8List? bytes}) => showGeneralDialog(
+  context: context,
+  barrierDismissible: true,
+  barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+  barrierColor: Colors.black.withValues(alpha: .9),
+  transitionDuration: const Duration(milliseconds: 180),
+  transitionBuilder: (_, a, _, child) => FadeTransition(opacity: a, child: child),
+  pageBuilder: (context, _, _) {
+    final l = AppLocalizations.of(context);
+    final computer = Platform.isMacOS || Platform.isLinux || Platform.isWindows;
+    Widget button(IconData icon, String label, VoidCallback onTap) => Hover(
+      radius: 999,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(color: Colors.white.withValues(alpha: .14), shape: BoxShape.circle),
+          child: Icon(icon, size: 20, color: Colors.white),
+        ),
+      ),
+    );
+    return SafeArea(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: InteractiveViewer(
+                maxScale: 6,
+                child: Center(
+                  child: Image(image: image, semanticLabel: name),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Row(
+              children: [
+                if (computer && bytes != null) ...[
+                  button(CupertinoIcons.arrow_down_to_line, l.imageSave, () async {
+                    final to = await getSaveLocation(suggestedName: name.isEmpty ? 'hermes-image.png' : name);
+                    if (to != null) await File(to.path).writeAsBytes(bytes);
+                  }),
+                  const SizedBox(width: 10),
+                ],
+                button(CupertinoIcons.xmark, l.cancel, () => Navigator.pop(context)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  },
+);

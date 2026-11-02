@@ -500,4 +500,11 @@ rm -rf ~
     ]);
     expect(msgs.first.text, 'List my files');
   });
+
+  test('MEDIA lines become pictures, or named files', () {
+    expect(
+      withMedia('Here:\n\nMEDIA:/workspace/my shot.png\nMEDIA: /tmp/notes.md\nsee MEDIA:/x.png inline'),
+      'Here:\n\n![my shot.png](media:%2Fworkspace%2Fmy%20shot.png)\n📎 `notes.md`\nsee MEDIA:/x.png inline',
+    );
+  });
 }

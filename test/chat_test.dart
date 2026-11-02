@@ -490,6 +490,43 @@ void main() {
     await t.pump(const Duration(seconds: 10));
   });
 
+  testWidgets('a picture the reply hands over shows in it, and opens full screen', (t) async {
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    fakeServer((method, params, emit) {
+      switch (method) {
+        case 'session.create':
+          return {'session_id': 'rt', 'stored_session_id': 's1'};
+        case 'prompt.submit':
+          emit('message.complete', {'text': 'Done:\n\nMEDIA:/workspace/logo.png', 'status': 'complete'});
+      }
+      return null;
+    });
+    addTearDown(() => callApi = hermesApi);
+    final asked = <String>[];
+    callApi = (base, method, path, {query, body, user, password}) async {
+      if (path == '/api/media') asked.add(query!['path']!);
+      return path == '/api/media' ? '{"data_url":"data:image/png;base64,$png"}' : '[]';
+    };
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, 'Draw a logo');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 1));
+    await t.pump();
+    expect(asked, ['/workspace/logo.png']);
+    expect(find.textContaining('MEDIA:'), findsNothing);
+    final picture = find.bySemanticsLabel('logo.png');
+    expect(picture, findsOneWidget);
+
+    // a 1-pixel picture is too small to tap at: its tap handler is called instead
+    t.widget<GestureDetector>(find.ancestor(of: picture, matching: find.byType(GestureDetector)).first).onTap!();
+    await t.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    await t.tap(find.byIcon(CupertinoIcons.xmark));
+    await t.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsNothing);
+  });
+
   testWidgets('a reply browsing the web shows the bot screen, which opens to take over', (t) async {
     const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     final calls = fakeServer((method, params, emit) {
