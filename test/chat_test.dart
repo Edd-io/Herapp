@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -465,7 +467,7 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Plan a trip'), findsOneWidget);
     expect(find.text('Day 1: Vieux Lyon'), findsOneWidget);
-    expect(find.text('claude-sonnet-5-5'), findsOneWidget); // the session's own model
+    expect(find.text('claude-sonnet-5-5'), findsNWidgets(2)); // the session's own model: in the title, over its reply
     expect(find.text('1 action'), findsOneWidget); // the tool it ran
     expect(t.widget<CircularProgressIndicator>(find.byType(CircularProgressIndicator)).value, closeTo(.07, .001));
     expect(
@@ -705,7 +707,7 @@ void main() {
       'model': 'openai/gpt-5',
       'reasoning_effort': 'high',
     });
-    expect(find.text('openai/gpt-5'), findsOneWidget); // title shown, pill gone
+    expect(find.text('openai/gpt-5'), findsNWidgets(2)); // title shown and over the reply, pill gone
   });
 
   testWidgets('a message sent during a reply waits, then goes after it', (t) async {
@@ -1009,5 +1011,29 @@ void main() {
     push('subagent.start', {'subagent_id': 'a1', 'goal': 'Read the docs', 'task_count': 1, 'task_index': 0});
     await t.pump(const Duration(milliseconds: 100));
     expect(find.text('1 subagent at work'), findsOneWidget);
+  });
+
+  testWidgets('on a computer, an earlier reply shows its actions only under the mouse', (t) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    fakeServer(replies);
+    await t.pumpWidget(const App());
+    for (final q in ['One', 'Two']) {
+      await t.enterText(find.byType(EditableText).last, q);
+      await t.pump(const Duration(seconds: 1));
+      await t.sendKeyEvent(LogicalKeyboardKey.enter);
+      await t.pump(const Duration(seconds: 10));
+      await t.pump(const Duration(seconds: 1));
+    }
+    double shown(Finder copy) => t.widget<AnimatedOpacity>(find.ancestor(of: copy, matching: find.byType(AnimatedOpacity)).first).opacity;
+    final copies = find.byTooltip('Copy');
+    expect(shown(copies.first), 0); // the first reply's, till hovered
+    expect(shown(copies.last), 1); // the latest reply's stay in sight
+
+    final mouse = await t.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: t.getCenter(find.textContaining('Hello there').first));
+    await t.pump(const Duration(milliseconds: 200));
+    expect(shown(copies.first), 1);
+    await mouse.removePointer();
+    debugDefaultTargetPlatformOverride = null;
   });
 }

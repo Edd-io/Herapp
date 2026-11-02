@@ -107,28 +107,34 @@ extension _Messages on _ChatPageState {
       );
       final bubble = !actions
           ? text
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                text,
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _IconBtn(
-                      small: true,
-                      label: l.a11yEdit,
-                      onTap: () => edit(m),
-                      child: Icon(CupertinoIcons.pencil, size: 18, color: c.onSurfaceVariant),
+          : _Hovered(
+              builder: (shown) => Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  text,
+                  _reveal(
+                    shown,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _IconBtn(
+                          small: true,
+                          label: l.a11yEdit,
+                          onTap: () => edit(m),
+                          child: Icon(CupertinoIcons.pencil, size: 18, color: c.onSurfaceVariant),
+                        ),
+                        _IconBtn(
+                          small: true,
+                          label: l.a11yResend,
+                          onTap: () => resend(m),
+                          child: Icon(CupertinoIcons.arrow_2_circlepath, size: 18, color: c.onSurfaceVariant),
+                        ),
+                        if (hovers) Text(_time(m.at), style: TextStyle(fontSize: 12, color: c.outline)),
+                      ],
                     ),
-                    _IconBtn(
-                      small: true,
-                      label: l.a11yResend,
-                      onTap: () => resend(m),
-                      child: Icon(CupertinoIcons.arrow_2_circlepath, size: 18, color: c.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             );
       if (!identical(m, fresh)) return bubble;
       return TweenAnimationBuilder<double>(
@@ -148,64 +154,116 @@ extension _Messages on _ChatPageState {
     // the steps it asks of this computer show as cards, under its words
     final steps = macOn ? macSteps(m.text, settings.macToken) : const <MacStep>[];
     final text = steps.isEmpty ? m.text : withoutMacSteps(m.text, settings.macToken);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (m.tools.isNotEmpty) _Tools(m.tools, live: live),
-          // its browser runs on the bot's screen: watched as it goes, taken over for a CAPTCHA
-          if (last && m.tools.any((t) => t.name.startsWith('browser') || t.name == 'computer_use'))
-            _ScreenPreview(live: live, onOpen: () => show(const ScreenPage())),
-          for (final t in m.tools.where((t) => t.done))
-            if (memoryChanges(t) case final changes when changes.isNotEmpty) _memoryCard(c, changes),
-          if (m.ask case final ask?) _approval(c, m, ask.params),
-          if (text.trim().isNotEmpty)
-            _Markdown(text.trimLeft(), style: body.copyWith(color: c.onSurface)) // text after a tool call starts with blank lines
-          else if (live && m.ask == null && m.tools.every((t) => t.done))
-            _PulseDot(c.onSurface),
-          for (final (i, s) in steps.indexed) _macCard(c, s, m.mac.elementAtOrNull(i)),
-          if (!live && m.text.isNotEmpty)
+    return _Hovered(
+      builder: (shown) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // who answers, as a messaging app names the sender; when, on hover (always on a touch screen)
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 children: [
-                  _IconBtn(
-                    small: true,
-                    label: l.a11yCopy,
-                    onTap: () {
-                      Clipboard.setData(ClipboardData(text: m.text.trim()));
-                      settings.haptic();
-                    },
-                    child: Icon(CupertinoIcons.doc_on_doc, size: 18, color: c.onSurfaceVariant),
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+                    child: Icon(CupertinoIcons.sparkles, size: 13, color: c.onPrimary),
                   ),
-                  ListenableBuilder(
-                    listenable: voice,
-                    builder: (context, _) => _IconBtn(
-                      small: true,
-                      label: identical(voice.reading, m) ? l.a11yStopReading : l.a11yRead,
-                      onTap: () => voice.read(m, text),
-                      child: Icon(
-                        identical(voice.reading, m) ? CupertinoIcons.stop_circle : CupertinoIcons.speaker_2,
-                        size: 18,
-                        color: c.onSurfaceVariant,
-                      ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      switch (m.model.isNotEmpty ? m.model : chat.model) {
+                        '' => 'Herapp',
+                        final id => modelName(id),
+                      },
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.onSurface),
                     ),
                   ),
-                  if (last)
-                    _IconBtn(
-                      small: true,
-                      label: l.a11yRegenerate,
-                      onTap: regenerate,
-                      child: Icon(CupertinoIcons.arrow_2_circlepath, size: 18, color: c.onSurfaceVariant),
-                    ),
+                  const SizedBox(width: 8),
+                  AnimatedOpacity(
+                    opacity: shown || !hovers ? 1 : 0,
+                    duration: const Duration(milliseconds: 150),
+                    child: Text(_time(m.at), style: TextStyle(fontSize: 12, color: c.outline)),
+                  ),
                 ],
               ),
             ),
-        ],
+            if (m.tools.isNotEmpty) _Tools(m.tools, live: live),
+            // its browser runs on the bot's screen: watched as it goes, taken over for a CAPTCHA
+            if (last && m.tools.any((t) => t.name.startsWith('browser') || t.name == 'computer_use'))
+              _ScreenPreview(live: live, onOpen: () => show(const ScreenPage())),
+            for (final t in m.tools.where((t) => t.done))
+              if (memoryChanges(t) case final changes when changes.isNotEmpty) _memoryCard(c, changes),
+            if (m.ask case final ask?) _approval(c, m, ask.params),
+            if (text.trim().isNotEmpty)
+              _Markdown(text.trimLeft(), style: body.copyWith(color: c.onSurface)) // text after a tool call starts with blank lines
+            else if (live && m.ask == null && m.tools.every((t) => t.done))
+              _PulseDot(c.onSurface),
+            for (final (i, s) in steps.indexed) _macCard(c, s, m.mac.elementAtOrNull(i)),
+            if (!live && m.text.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                // the latest reply's actions stay in sight; the others come with the mouse
+                child: _reveal(
+                  shown || last,
+                  Row(
+                    children: [
+                      _IconBtn(
+                        small: true,
+                        label: l.a11yCopy,
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: m.text.trim()));
+                          settings.haptic();
+                        },
+                        child: Icon(CupertinoIcons.doc_on_doc, size: 18, color: c.onSurfaceVariant),
+                      ),
+                      ListenableBuilder(
+                        listenable: voice,
+                        builder: (context, _) => _IconBtn(
+                          small: true,
+                          label: identical(voice.reading, m) ? l.a11yStopReading : l.a11yRead,
+                          onTap: () => voice.read(m, text),
+                          child: Icon(
+                            identical(voice.reading, m) ? CupertinoIcons.stop_circle : CupertinoIcons.speaker_2,
+                            size: 18,
+                            color: c.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      if (last)
+                        _IconBtn(
+                          small: true,
+                          label: l.a11yRegenerate,
+                          onTap: regenerate,
+                          child: Icon(CupertinoIcons.arrow_2_circlepath, size: 18, color: c.onSurfaceVariant),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
+
+  /// A computer shows a message's actions and time on hover; a touch screen, always.
+  bool get hovers => const [TargetPlatform.macOS, TargetPlatform.windows, TargetPlatform.linux].contains(defaultTargetPlatform);
+
+  /// [child], in sight when [shown] (or on a touch screen); its room is kept, so nothing jumps.
+  Widget _reveal(bool shown, Widget child) {
+    final on = shown || !hovers;
+    return IgnorePointer(
+      ignoring: !on,
+      child: AnimatedOpacity(opacity: on ? 1 : 0, duration: const Duration(milliseconds: 150), child: child),
+    );
+  }
+
+  String _time(DateTime at) => DateFormat.Hm('${Localizations.localeOf(context)}').format(at);
 
   /// A message waiting for the reply before it; a tap takes it back to edit.
   Widget _queued(ColorScheme c, Msg m) => GestureDetector(
@@ -911,4 +969,21 @@ class _CodeState extends State<_Code> {
       ],
     );
   }
+}
+
+/// [builder] told whether the mouse is over it.
+class _Hovered extends StatefulWidget {
+  const _Hovered({required this.builder});
+  final Widget Function(bool hovered) builder;
+
+  @override
+  State<_Hovered> createState() => _HoveredState();
+}
+
+class _HoveredState extends State<_Hovered> {
+  var on = false;
+
+  @override
+  Widget build(BuildContext context) =>
+      MouseRegion(onEnter: (_) => setState(() => on = true), onExit: (_) => setState(() => on = false), child: widget.builder(on));
 }

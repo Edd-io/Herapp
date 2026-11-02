@@ -8,6 +8,10 @@ class Msg {
   final bool user;
   String text;
 
+  /// When it was sent (now, for one made here) and, for a reply, the model that wrote it ('' = the chat's).
+  DateTime at = DateTime.now();
+  String model = '';
+
   /// What the user attached to this message.
   final List<Attachment> files;
 
@@ -657,7 +661,7 @@ List<Msg> transcript(Object? messages) {
       }).trim();
     }
     if (text.trim().isNotEmpty || files.isNotEmpty) {
-      out.add(Msg(user, text, user ? null : tools, files));
+      out.add(Msg(user, text, user ? null : tools, files)..at = _seconds(m['timestamp']) ?? DateTime.now());
       tools = [];
     }
   }

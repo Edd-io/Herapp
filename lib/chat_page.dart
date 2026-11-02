@@ -562,7 +562,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     final asked = c.msgs.last;
     var prompt = asked.text;
     final turn = c.msgs.where((m) => m.user).length - 1; // the server's user-turn ordinal
-    final reply = Msg(false, '');
+    final reply = Msg(false, '')..model = c.model;
     setState(() {
       c.msgs.add(reply);
       c.streaming = true;
