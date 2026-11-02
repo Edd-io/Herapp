@@ -1275,11 +1275,15 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                             ],
                           ),
                   ),
-                  _IconBtn(
-                    label: l.newChat,
-                    onTap: newChat,
-                    child: Icon(CupertinoIcons.square_pencil, size: 24, color: c.onSurface),
-                  ),
+                  // a wide window has it in the menu beside: the same room, for the title to stay centered
+                  if (wide)
+                    const SizedBox(width: 52)
+                  else
+                    _IconBtn(
+                      label: l.newChat,
+                      onTap: newChat,
+                      child: Icon(CupertinoIcons.square_pencil, size: 24, color: c.onSurface),
+                    ),
                 ],
               ),
             ),
