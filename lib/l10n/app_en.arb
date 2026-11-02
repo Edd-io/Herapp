@@ -58,6 +58,24 @@
   "themeDark": "Dark",
   "general": "General",
   "haptics": "Haptic feedback",
+  "macShell": "Commands on this computer",
+  "macShellHint": "Hermes can ask from the chat to run commands here; you approve them in the app.",
+  "macTitle": "On this computer",
+  "macWrite": "Write {path}",
+  "macRun": "Run",
+  "macAlways": "Always in this chat",
+  "macRefuse": "Refuse",
+  "macStop": "Stop",
+  "macRefused": "Refused",
+  "macSkipped": "Not run",
+  "macResults": "Results sent to Hermes",
+  "@macWrite": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "hermesServer": "Hermes server",
   "hermesServerFooter": "Address the app will send messages to.",
   "wireguard": "WireGuard",

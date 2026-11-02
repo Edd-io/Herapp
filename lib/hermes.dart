@@ -16,7 +16,146 @@ class Msg {
 
   /// A command waiting for the user's approval: the server request [GatewayEvent.id] and its params.
   ({Object id, Map params})? ask;
+
+  /// What this reply asked of this computer, as it runs here (empty for a reply read back from history).
+  List<MacRun> mac = [];
 }
+
+/// A step a reply asks this computer to take: a [script] for the chat's shell, or [content] to write to [path].
+typedef MacStep = ({String script, String path, String content});
+
+/// One [step] as it goes: 'wait' for the steps before it, 'ask' the user, 'running', 'done', 'refused', or
+/// 'skipped' after a refusal.
+class MacRun {
+  MacRun(this.step);
+  final MacStep step;
+  String state = 'wait';
+  String out = '';
+  int? code;
+  Completer<bool>? decision; // the user's answer, while asked
+}
+
+const macNoteTag = '<herapp-mac>', macResultTag = '<herapp-mac-result>';
+
+// a ```mac-<token>``` block runs, a ```mac-<token>-write <path>``` one writes; ~~~ fences hold content with ``` in it
+RegExp _macBlock(String token) =>
+    RegExp('^(`{3,}|~{3,})mac-$token(?:-write[ \\t]+(\\S.*?))?[ \\t]*\\n([\\s\\S]*?)^\\1[ \\t]*\$\\n?', multiLine: true);
+
+/// The steps [text] asks of this computer, in order.
+List<MacStep> macSteps(String text, String token) => [
+  for (final m in _macBlock(token).allMatches(text))
+    m[2] == null ? (script: m[3]!.trimRight(), path: '', content: '') : (script: '', path: m[2]!, content: m[3]!),
+];
+
+/// [text] without its steps, shown as cards instead.
+String withoutMacSteps(String text, String token) => text.replaceAll(_macBlock(token), '').trim();
+
+/// [text] without the instructions the app put before the user's words.
+String withoutMacNote(String text) => text.replaceFirst(RegExp(r'^<herapp-mac>[\s\S]*?</herapp-mac>\s*'), '');
+
+/// [path] made absolute: `~` is [home], a relative path starts in [cwd].
+String macPath(String path, {required String home, required String cwd}) => switch (path) {
+  '~' => home,
+  _ when path.startsWith('~/') => '$home${path.substring(1)}',
+  _ when path.startsWith('/') => path,
+  _ => '$cwd/$path',
+};
+
+/// Whether [s] must be asked for: what can do real harm always is; else, unless the chat is [trusted], all
+/// but read-only commands.
+bool macAsks(MacStep s, {required bool trusted, required String home, required String cwd}) =>
+    macRisky(s, home: home, cwd: cwd) || (!trusted && (s.path.isNotEmpty || !macReadOnly(s.script)));
+
+// ponytail: patterns, not a shell parser; what they miss (eval, an alias) still asks unless the chat is trusted
+/// Whether [s] can do real harm: sudo, deleting recursively or by force, disks, secrets (keys, credentials), or
+/// writing outside [home] (and /tmp).
+bool macRisky(MacStep s, {required String home, required String cwd}) {
+  final secrets = RegExp(r'\.ssh|\.gnupg|\.aws|Keychains|\.netrc|\.env\b|id_rsa|id_ed25519');
+  bool outside(String p) {
+    final abs = macPath(p, home: home, cwd: cwd);
+    return ![home, '/tmp', '/private/tmp'].any((d) => abs == d || abs.startsWith('$d/'));
+  }
+
+  if (s.path.isNotEmpty) return outside(s.path) || secrets.hasMatch(s.path);
+  return secrets.hasMatch(s.script) ||
+      RegExp(
+        r'\bsudo\b|\brm\s+(-\w*[rRf]|--recursive|--force)|\bmkfs|\bdd\s|\bdiskutil\b|\bchmod\s+-R|\bchown\b|\bkillall\b|\bshutdown\b|\breboot\b|\|\s*(ba|z)?sh\b',
+      ).hasMatch(s.script) ||
+      RegExp(r'>>?\s*([~/][^\s;|&)]*)').allMatches(s.script).any((m) => m[1] != '/dev/null' && outside(m[1]!));
+}
+
+/// Whether [script] only reads: each of its commands is a known reader, nothing is redirected into a file,
+/// and nothing nested runs.
+bool macReadOnly(String script) {
+  final s = script.replaceAll(RegExp(r'\d?>\s*/dev/null|2>&1'), '');
+  if (RegExp(r'[>`]|\$\(|\b(eval|exec|source|xargs)\b|-exec|-delete|-ok\b').hasMatch(s)) {
+    return false;
+  }
+  return s
+      .split(RegExp(r'&&|\|\||[;|\n]'))
+      .map((c) => c.trim())
+      .where((c) => c.isNotEmpty)
+      .every(
+        (c) => RegExp(
+          r'^(cd|ls|pwd|cat|head|tail|wc|grep|rg|find|which|whoami|date|uname|sw_vers|df|du|file|stat|echo|tree|sort|uniq|git (status|log|diff|show))(\s|$)',
+        ).hasMatch(c),
+      );
+}
+
+/// [out] cut in the middle when longer than [max], to spare the model's context.
+String macClip(String out, {int max = 8000}) => out.length <= max
+    ? out
+    : '${out.substring(0, max ~/ 4)}\n[… ${out.length - max} characters cut …]\n${out.substring(out.length - max * 3 ~/ 4)}';
+
+/// The message that hands Hermes what [runs] did.
+String macResult(List<MacRun> runs) => [
+  macResultTag,
+  for (final r in runs) ...[
+    r.step.path.isNotEmpty ? 'write ${r.step.path}' : '\$ ${r.step.script}',
+    switch (r.state) {
+      'refused' => '(refused by the user)',
+      'skipped' => '(not run: an earlier step was refused)',
+      _ => 'exit ${r.code}\n${macClip(r.out.trimRight())}',
+    },
+    '',
+  ],
+  '</herapp-mac-result>',
+].join('\n');
+
+/// What the app tells Hermes about this computer, once per chat (and again after a compression may have lost it).
+String macNote({
+  required String token,
+  required String host,
+  required String os,
+  required String shell,
+  required String home,
+  required String cwd,
+}) =>
+    '''
+$macNoteTag
+The user's computer ($host, $os) is connected to this chat through the Herapp app, which can run commands on it for you. Your own terminal tool runs on the server: whenever a request concerns the user's computer (its files, apps, projects), use this instead.
+
+To run commands there, end your message with one or more blocks fenced as `mac-$token`:
+
+```mac-$token
+cd ~/Documents && ls
+```
+
+To write a file there as is (no quoting), use `mac-$token-write <path>`:
+
+```mac-$token-write ~/notes/todo.md
+- buy milk
+```
+
+When the content itself holds ``` lines, fence the block with ~~~~ instead.
+
+- Put the blocks at the very end of your message, then stop: the app runs them in order and sends their results back in the next message, between $macResultTag tags. Never guess a result.
+- Each block is a script for $shell, run in one shell kept for this chat: the directory and variables carry over. It is now in $cwd (home: $home).
+- There is no terminal: nothing interactive (editors, pagers, prompts); use flags like -y or --no-pager.
+- The user approves commands in the app (read-only ones may run at once). Don't retry a refused step unasked.
+- Long outputs are cut in the middle: narrow them (grep, head, tail) when you can.
+- Write `mac-$token` only in blocks meant to run.
+</herapp-mac>''';
 
 /// A photo or file sent with a message; [bytes] is null for one read back from the server's history.
 typedef Attachment = ({String name, Uint8List? bytes, bool image});
@@ -470,6 +609,7 @@ List<Msg> transcript(Object? messages) {
         }
     }
     if (user) {
+      text = withoutMacNote(text);
       // what the app sent along: an attached image's marker, a staged file's @file: reference
       text = (skillInvocation(text) ?? text).replaceAllMapped(RegExp(r'\[User attached image: ([^\]]+)\]|@file:"([^"]+)"|@file:(\S+)'), (
         x,

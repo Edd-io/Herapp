@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'hermes.dart';
 import 'l10n/app_localizations.dart';
 import 'lock.dart';
+import 'mac.dart';
 import 'wireguard.dart';
 
 final settings = Settings();
@@ -38,6 +40,20 @@ class Settings extends ChangeNotifier {
   /// Whether the app asks the device's unlock (Face ID, Touch ID, passcode) to open.
   bool get lock => _p.getBool('lock') ?? false;
   set lock(bool v) => _save(_p.setBool('lock', v));
+
+  /// Whether Hermes may ask this computer to run commands, through the chat (see mac.dart).
+  bool get macShell => _p.getBool('macShell') ?? false;
+  set macShell(bool v) => _save(_p.setBool('macShell', v));
+
+  /// The secret in the blocks Hermes writes to run commands here, so that one quoted from elsewhere doesn't.
+  String get macToken => switch (_p.getString('macToken')) {
+    final t? => t,
+    _ => (() {
+      final t = Random.secure().nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
+      _p.setString('macToken', t);
+      return t;
+    })(),
+  };
 
   /// Last chosen model, used as the default for new chats.
   String get model => _p.getString('model') ?? '';
@@ -487,6 +503,12 @@ class _SettingsSheetState extends State<SettingsSheet> {
                           if (!v || await confirmOwner(l.unlockReason)) settings.lock = v;
                         },
                       ),
+                    ),
+                  if (macCapable)
+                    CupertinoListTile(
+                      title: Text(l.macShell, style: label),
+                      subtitle: Text(l.macShellHint, maxLines: 3, style: TextStyle(fontSize: 13, color: c.outline)),
+                      trailing: CupertinoSwitch(value: settings.macShell, onChanged: (v) => settings.macShell = v),
                     ),
                 ]),
                 section(

@@ -416,6 +416,72 @@ abstract class AppLocalizations {
   /// **'Haptic feedback'**
   String get haptics;
 
+  /// No description provided for @macShell.
+  ///
+  /// In en, this message translates to:
+  /// **'Commands on this computer'**
+  String get macShell;
+
+  /// No description provided for @macShellHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes can ask from the chat to run commands here; you approve them in the app.'**
+  String get macShellHint;
+
+  /// No description provided for @macTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'On this computer'**
+  String get macTitle;
+
+  /// No description provided for @macWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Write {path}'**
+  String macWrite(String path);
+
+  /// No description provided for @macRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get macRun;
+
+  /// No description provided for @macAlways.
+  ///
+  /// In en, this message translates to:
+  /// **'Always in this chat'**
+  String get macAlways;
+
+  /// No description provided for @macRefuse.
+  ///
+  /// In en, this message translates to:
+  /// **'Refuse'**
+  String get macRefuse;
+
+  /// No description provided for @macStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get macStop;
+
+  /// No description provided for @macRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'Refused'**
+  String get macRefused;
+
+  /// No description provided for @macSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Not run'**
+  String get macSkipped;
+
+  /// No description provided for @macResults.
+  ///
+  /// In en, this message translates to:
+  /// **'Results sent to Hermes'**
+  String get macResults;
+
   /// No description provided for @hermesServer.
   ///
   /// In en, this message translates to:

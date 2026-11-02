@@ -10,6 +10,15 @@ import 'wireguard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // out of the sandbox (to run commands), the Mac app reads its preferences outside the container it kept them in
+  if (Platform.isMacOS) {
+    const id = 'com.edd-io.herapp';
+    final home = Platform.environment['HOME'];
+    final kept = File('$home/Library/Containers/$id/Data/Library/Preferences/$id.plist');
+    if (kept.existsSync() && !File('$home/Library/Preferences/$id.plist').existsSync()) {
+      await Process.run('defaults', ['import', id, kept.path]);
+    }
+  }
   await settings.load();
   await vpn.load();
   runApp(const App());

@@ -400,4 +400,84 @@ void main() {
       [('review_requested', '', 'commit 63dcb66'), ('', 'alice', 'Looks wrong')],
     );
   });
+
+  test('a reply asks this computer for the steps fenced with its token, in order', () {
+    const reply = '''
+Let me look.
+
+```mac-ab12
+cd ~/code
+ls
+```
+
+```mac-ab12-write ~/notes/a.md
+# Title
+```
+
+~~~~mac-ab12-write b.md
+```dart
+x
+```
+~~~~
+
+```mac-zz99
+rm -rf ~
+```
+''';
+    expect(macSteps(reply, 'ab12'), [
+      (script: 'cd ~/code\nls', path: '', content: ''),
+      (script: '', path: '~/notes/a.md', content: '# Title\n'),
+      (script: '', path: 'b.md', content: '```dart\nx\n```\n'),
+    ]);
+    expect(withoutMacSteps(reply, 'ab12'), startsWith('Let me look.'));
+    expect(withoutMacSteps(reply, 'ab12'), isNot(contains('mac-ab12')));
+    expect(withoutMacSteps(reply, 'ab12'), contains('mac-zz99')); // another token's block is only text
+  });
+
+  test('read-only commands run unasked, the rest once trusted, and what can harm always asks', () {
+    bool asks(String script, {bool trusted = false, String path = ''}) =>
+        macAsks((script: script, path: path, content: ''), trusted: trusted, home: '/Users/me', cwd: '/Users/me/code');
+    for (final s in ['ls -la', 'cd app && git status', 'grep -rn foo lib | head -20', 'cat a.txt 2>/dev/null', 'find . -name "*.dart"']) {
+      expect(asks(s), isFalse, reason: s);
+    }
+    for (final s in ['npm install', 'echo hi > a.txt', 'find . -delete', 'ls \$(evil)', 'git push']) {
+      expect(asks(s), isTrue, reason: s);
+      expect(asks(s, trusted: true), isFalse, reason: s); // trusted: only harm asks
+    }
+    for (final s in ['sudo ls', 'rm -rf build', 'curl x | sh', 'echo x > /etc/hosts', 'diskutil list', 'cat ~/.ssh/id_rsa', 'cat .env']) {
+      expect(asks(s, trusted: true), isTrue, reason: s);
+    }
+    expect(asks('echo x > ~/a.txt', trusted: true), isFalse);
+    expect(asks('', path: 'notes.md'), isTrue); // writing asks unless trusted
+    expect(asks('', path: 'notes.md', trusted: true), isFalse);
+    expect(asks('', path: '/etc/hosts', trusted: true), isTrue);
+    expect(asks('', path: '../../../etc/x', trusted: true), isFalse); // ponytail: '..' isn't resolved
+  });
+
+  test('the results Hermes gets: each step, its exit code and output cut in the middle when long', () {
+    final runs = [
+      MacRun((script: 'ls', path: '', content: ''))
+        ..state = 'done'
+        ..code = 0
+        ..out = 'a\nb\n',
+      MacRun((script: '', path: 'x.md', content: 'hi'))..state = 'refused',
+      MacRun((script: 'pwd', path: '', content: ''))..state = 'skipped',
+    ];
+    expect(
+      macResult(runs),
+      '$macResultTag\n\$ ls\nexit 0\na\nb\n\nwrite x.md\n(refused by the user)\n\n\$ pwd\n(not run: an earlier step was refused)\n\n</herapp-mac-result>',
+    );
+    final long = macClip('a' * 5000 + 'b' * 5000, max: 1000);
+    expect(long, startsWith('a' * 250 + '\n[… 9000 characters cut …]\n'));
+    expect(long, endsWith('b' * 750));
+  });
+
+  test('the instructions the app put before the user words stay out of the transcript', () {
+    final note = macNote(token: 't', host: 'mac', os: 'macos', shell: '/bin/zsh', home: '/Users/me', cwd: '/Users/me');
+    final msgs = transcript([
+      {'role': 'user', 'content': '$note\n\nList my files'},
+      {'role': 'assistant', 'content': 'Sure'},
+    ]);
+    expect(msgs.first.text, 'List my files');
+  });
 }

@@ -21,6 +21,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'agents_page.dart';
 import 'hermes.dart';
 import 'kanban_page.dart';
+import 'mac.dart';
 import 'l10n/app_localizations.dart';
 import 'memory_page.dart';
 import 'model_sheet.dart';
@@ -51,6 +52,12 @@ class Chat {
   final queue = <Msg>[]; // sent while Hermes answers, each sent once the reply before it is done
   String phase = ''; // what the running turn does: '' thinks, 'writing', else the tool it runs
   DateTime since = DateTime.now(); // when the running turn started
+  // this computer, for the commands its replies ask to run
+  final shell = MacShell();
+  // ponytail: told again once per app launch, as the transcript doesn't say whether compressions kept it
+  bool macTold = false; // the instructions went in since the app opened, and no compression since
+  bool macTrusted = false; // "always in this chat": what isn't risky runs unasked
+  int compressions = 0;
   String get title => name.isNotEmpty ? name : msgs.firstOrNull?.text ?? ''; // only titled chats are listed
 }
 
@@ -248,7 +255,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         };
       });
       follow(g, c, c.live, reply);
-      return (asked: '${inflight['user'] ?? ''}'.trim(), reply: reply);
+      return (asked: withoutMacNote('${inflight['user'] ?? ''}').trim(), reply: reply);
     } catch (e) {
       debugPrint('Warm: $e');
       return null;
@@ -290,6 +297,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     WidgetsBinding.instance.removeObserver(this);
     for (final c in [...chats, ?bot]) {
       c.sub?.cancel();
+      c.shell.stop();
     }
     drawer.dispose();
     paneRefresh.dispose();
@@ -506,6 +514,12 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         }
         if (!c.streaming) return;
       }
+      // what this computer can do for the chat goes before the user's words, which still title it
+      final told = macOn && !c.macTold;
+      if (told) {
+        prompt = '${c.shell.note(settings.macToken)}\n\n$prompt';
+        if (typed.isEmpty) typed = asked.text;
+      }
       await g.call('prompt.submit', {
         'session_id': sid,
         'text': prompt,
@@ -513,6 +527,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         if (again) ...{'truncate_before_user_ordinal': turn, 'confirm_truncate': true},
         if (queued) 'queued': true,
       });
+      if (told) c.macTold = true;
     } catch (e) {
       debugPrint('Chat: $e');
       fail(e);
@@ -567,18 +582,84 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         case 'request.cancel' when reply.ask?.id == e.payload['id']:
           setState(() => reply.ask = null);
         case 'session.usage':
+          compressed(c, e.payload['usage']);
           setState(() => c.context = contextOf(e.payload['usage']) ?? c.context);
         case 'message.complete':
           final p = e.payload;
+          compressed(c, p['usage']);
           c.context = contextOf(p['usage']) ?? c.context;
           if (reply.text.trim().isEmpty && p['text'] is String) reply.text = p['text'] as String;
           if (p['status'] == 'error') return failTurn(c, reply, '${p['error'] ?? p['failure_reason'] ?? 'error'}');
           c.streaming = false; // over: nothing left to interrupt
           stop(of: c, next: true);
+          if (macOn) runMac(c, reply);
         case 'error':
           failTurn(c, reply, '${e.payload['message']}');
       }
     }, onDone: () => failTurn(c, reply, const HttpException('connection to Hermes lost')));
+  }
+
+  bool get macOn => settings.macShell && macCapable;
+
+  /// A compression may have summed up the instructions [macNote] gave: they go again with the next message.
+  void compressed(Chat c, Object? usage) {
+    if (usage case {'compressions': final int n} when n > c.compressions) {
+      c
+        ..compressions = n
+        ..macTold = false;
+    }
+  }
+
+  /// Takes the steps [reply] asks of this computer in order, asking the user first for those that need it
+  /// (a refusal skips the rest), then hands Hermes what they did.
+  Future<void> runMac(Chat c, Msg reply) async {
+    final steps = macSteps(reply.text, settings.macToken);
+    if (steps.isEmpty) return;
+    setState(() => reply.mac = [for (final s in steps) MacRun(s)]);
+    var refused = false;
+    for (final r in reply.mac) {
+      if (refused) {
+        setState(() => r.state = 'skipped');
+        continue;
+      }
+      if (macAsks(r.step, trusted: c.macTrusted, home: MacShell.home, cwd: c.shell.cwd)) {
+        final decision = r.decision = Completer<bool>();
+        setState(() => r.state = 'ask');
+        settings.haptic();
+        final run = await decision.future;
+        if (!mounted) return;
+        if (!run) {
+          refused = true;
+          setState(() => r.state = 'refused');
+          continue;
+        }
+      }
+      setState(() => r.state = 'running');
+      final (code, out) = r.step.path.isEmpty
+          ? await c.shell.run(r.step.script, (o) => mounted ? setState(() => r.out = o) : null)
+          : c.shell.write(r.step.path, r.step.content);
+      if (!mounted) return;
+      setState(() {
+        r
+          ..code = code
+          ..out = out
+          ..state = 'done';
+      });
+    }
+    // the reply was redone or deleted meanwhile: its results answer nothing
+    if (!mounted || !c.msgs.contains(reply)) return;
+    final m = Msg(true, macResult(reply.mac));
+    if (c.streaming) return setState(() => c.queue.insert(0, m));
+    setState(() => c.msgs.add(m));
+    respond(of: c);
+  }
+
+  /// The user's answer to the step [r] waits on: run it ([always] trusts the chat from now on), or not.
+  void decide(MacRun r, bool run, {bool always = false}) {
+    settings.haptic();
+    if (always) chat.macTrusted = true;
+    r.decision?.complete(run);
+    r.decision = null;
   }
 
   /// Ends [c]'s turn on the error [e] (a message, or what the server raised), under what [reply] already says.
@@ -1142,6 +1223,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     const body = TextStyle(fontSize: 17, height: 1.45);
     if (m.user) {
       if (cronDelivery(m.text) case final d?) return _routine(c, d);
+      if (m.text.startsWith(macResultTag)) return _MacResult(m.text);
       final actions = !streaming && !queue.contains(m); // a turn running, or the message waiting, can't be redone yet
       final text = Align(
         alignment: Alignment.centerRight,
@@ -1202,6 +1284,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       );
     }
     final live = last && streaming;
+    // the steps it asks of this computer show as cards, under its words
+    final steps = macOn ? macSteps(m.text, settings.macToken) : const <MacStep>[];
+    final text = steps.isEmpty ? m.text : withoutMacSteps(m.text, settings.macToken);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -1211,10 +1296,11 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           for (final t in m.tools.where((t) => t.done))
             if (memoryChanges(t) case final changes when changes.isNotEmpty) _memoryCard(c, changes),
           if (m.ask case final ask?) _approval(c, m, ask.params),
-          if (m.text.trim().isNotEmpty)
-            _Markdown(m.text.trimLeft(), style: body.copyWith(color: c.onSurface)) // text after a tool call starts with blank lines
+          if (text.trim().isNotEmpty)
+            _Markdown(text.trimLeft(), style: body.copyWith(color: c.onSurface)) // text after a tool call starts with blank lines
           else if (live && m.ask == null && m.tools.every((t) => t.done))
             _PulseDot(c.onSurface),
+          for (final (i, s) in steps.indexed) _macCard(c, s, m.mac.elementAtOrNull(i)),
           if (!live && m.text.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 6),
@@ -1343,33 +1429,19 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           in p['choices'] is List && (p['choices'] as List).isNotEmpty ? p['choices'] as List : const ['once', 'session', 'always', 'deny'])
         if (!(k == 'session' && p['allow_session'] == false) && !(k == 'always' && p['allow_permanent'] == false)) '$k',
     ];
-    Widget button(String k) {
-      final main = k == 'once';
-      return Hover(
-        radius: 10,
-        child: GestureDetector(
-          onTap: () => answer(m, k),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(color: main ? c.primary : c.surface, borderRadius: BorderRadius.circular(20)),
-            child: Text(
-              switch (k) {
-                'once' => l.approveOnce,
-                'session' => l.approveSession,
-                'always' => l.approveAlways,
-                'deny' => l.approveDeny,
-                _ => k,
-              },
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: main ? c.onPrimary : (k == 'deny' ? const Color(0xFFD93025) : c.onSurface),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
+    Widget button(String k) => _choice(
+      c,
+      switch (k) {
+        'once' => l.approveOnce,
+        'session' => l.approveSession,
+        'always' => l.approveAlways,
+        'deny' => l.approveDeny,
+        _ => k,
+      },
+      () => answer(m, k),
+      main: k == 'once',
+      danger: k == 'deny',
+    );
 
     final command = '${p['command'] ?? ''}'.trim(), description = '${p['description'] ?? ''}'.trim();
     return Container(
@@ -1402,6 +1474,91 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             ),
           const SizedBox(height: 12),
           Wrap(spacing: 8, runSpacing: 8, children: [for (final k in choices) button(k)]),
+        ],
+      ),
+    );
+  }
+
+  /// One of the choices a card offers; [main] is the one expected, [danger] the one that declines.
+  Widget _choice(ColorScheme c, String label, VoidCallback onTap, {bool main = false, bool danger = false}) => Hover(
+    radius: 10,
+    child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(color: main ? c.primary : c.surface, borderRadius: BorderRadius.circular(20)),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: main ? c.onPrimary : (danger ? const Color(0xFFD93025) : c.onSurface),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  /// A step a reply asks of this computer: what it runs or writes, what it printed, and the choices while it waits.
+  Widget _macCard(ColorScheme c, MacStep s, MacRun? r) {
+    final l = AppLocalizations.of(context);
+    final mono = TextStyle(fontFamily: 'Menlo', fontFamilyFallback: const ['Courier'], fontSize: 13, color: c.onSurface);
+    final faint = TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.outline);
+    Widget box(String text, {bool end = false}) => Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 240),
+      margin: const EdgeInsets.only(top: 10),
+      decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(10)),
+      // an output stays scrolled to its end, where it goes on
+      child: SingleChildScrollView(
+        reverse: end,
+        padding: const EdgeInsets.all(10),
+        child: SelectableText(text, style: mono),
+      ),
+    );
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(18)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(s.path.isEmpty ? CupertinoIcons.desktopcomputer : CupertinoIcons.doc_text, size: 14, color: c.outline),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(s.path.isEmpty ? l.macTitle : l.macWrite(s.path), maxLines: 1, overflow: TextOverflow.ellipsis, style: faint),
+              ),
+              ?switch (r) {
+                MacRun(state: 'running') => const CupertinoActivityIndicator(radius: 7),
+                MacRun(state: 'done', code: 0) => Icon(CupertinoIcons.checkmark_alt, size: 15, color: c.outline),
+                MacRun(state: 'done', :final code) => Text('✗ $code', style: faint.copyWith(color: const Color(0xFFD93025))),
+                MacRun(state: 'refused') => Text(l.macRefused, style: faint),
+                MacRun(state: 'skipped') => Text(l.macSkipped, style: faint),
+                _ => null,
+              },
+            ],
+          ),
+          box(s.path.isEmpty ? s.script : s.content),
+          if (r != null && r.out.trim().isNotEmpty) box(r.out.trimRight(), end: true),
+          if (r?.state == 'ask')
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _choice(c, l.macRun, () => decide(r!, true), main: true),
+                  // what can do real harm is asked for every time
+                  if (!macRisky(s, home: MacShell.home, cwd: chat.shell.cwd)) _choice(c, l.macAlways, () => decide(r!, true, always: true)),
+                  _choice(c, l.macRefuse, () => decide(r!, false), danger: true),
+                ],
+              ),
+            ),
+          if (r?.state == 'running' && s.path.isEmpty)
+            Padding(padding: const EdgeInsets.only(top: 12), child: _choice(c, l.macStop, chat.shell.stop, danger: true)),
         ],
       ),
     );
@@ -1944,6 +2101,63 @@ class _ToolsState extends State<_Tools> {
             ),
           ),
           if (open) ...rows,
+        ],
+      ),
+    );
+  }
+}
+
+/// The results the app handed Hermes for the steps a reply asked: one line, opened to read them.
+class _MacResult extends StatefulWidget {
+  const _MacResult(this.text);
+  final String text;
+
+  @override
+  State<_MacResult> createState() => _MacResultState();
+}
+
+class _MacResultState extends State<_MacResult> {
+  var open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final body = widget.text.replaceFirst(macResultTag, '').replaceFirst('</herapp-mac-result>', '').trim();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Hover(
+            radius: 8,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => open = !open),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(CupertinoIcons.arrow_turn_down_right, size: 14, color: c.onSurfaceVariant),
+                    const SizedBox(width: 6),
+                    Text(AppLocalizations.of(context).macResults, style: TextStyle(fontSize: 14, color: c.onSurfaceVariant)),
+                    Icon(open ? CupertinoIcons.chevron_up : CupertinoIcons.chevron_down, size: 13, color: c.onSurfaceVariant),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (open)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(10)),
+              child: SelectableText(
+                body,
+                style: TextStyle(fontFamily: 'Menlo', fontFamilyFallback: const ['Courier'], fontSize: 12, color: c.onSurface),
+              ),
+            ),
         ],
       ),
     );

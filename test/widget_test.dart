@@ -11,6 +11,7 @@ import 'package:herapp/agents_page.dart';
 import 'package:herapp/cron_page.dart';
 import 'package:herapp/hermes.dart';
 import 'package:herapp/lock.dart';
+import 'package:herapp/mac.dart';
 import 'package:herapp/main.dart';
 import 'package:herapp/settings.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -117,6 +118,57 @@ void main() {
     expect(find.textContaining('Hello there'), findsOneWidget); // replaced, not appended
     expect(calls.where((c) => c.$1 == 'session.create'), hasLength(1));
   });
+
+  testWidgets('a reply runs its steps on this computer, asking for those that need it, and hands back the results', (t) async {
+    settings.macShell = true;
+    final token = settings.macToken;
+    var prompts = 0;
+    final calls = fakeServer((method, params, emit) {
+      if (method == 'session.create') return {'session_id': 'rt', 'stored_session_id': 's1'};
+      if (method != 'prompt.submit') return null;
+      final text = prompts++ == 0 ? 'Je regarde.\n\n```mac-$token\necho auto-ran\n```\n\n```mac-$token\nprintf asked\n```\n' : 'Vu.';
+      emit('message.delta', {'text': text});
+      emit('message.complete', {'text': text, 'status': 'complete'});
+      return {'status': 'streaming'};
+    });
+    Future<void> until(bool Function() done) async {
+      for (var i = 0; i < 100 && !done(); i++) {
+        await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+        await t.pump(const Duration(milliseconds: 100));
+      }
+      expect(done(), isTrue);
+    }
+
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, 'Salut');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 1));
+    // the instructions go before the first message, which still titles the chat
+    final asked = calls.where((c) => c.$1 == 'prompt.submit').single.$2;
+    expect(asked['text'], allOf(startsWith(macNoteTag), contains('mac-$token'), endsWith('\n\nSalut')));
+    expect(asked['title_preview'], 'Salut');
+
+    // the read-only step ran at once; the other waits for the user
+    await until(() => find.text('Run').evaluate().isNotEmpty);
+    expect(find.text('Je regarde.'), findsOneWidget);
+    expect(find.textContaining('mac-$token'), findsNothing); // the blocks are cards
+    expect(find.text('auto-ran'), findsOneWidget);
+    await t.ensureVisible(find.text('Run'));
+    await t.pump();
+    await t.tap(find.text('Run'));
+    await until(() => calls.where((c) => c.$1 == 'prompt.submit').length == 2);
+    expect(
+      calls.where((c) => c.$1 == 'prompt.submit').last.$2['text'],
+      '$macResultTag\n\$ echo auto-ran\nexit 0\nauto-ran\n\n\$ printf asked\nexit 0\nasked\n\n</herapp-mac-result>', // told once
+    );
+    await t.pump(const Duration(seconds: 1));
+    // the cards push the end out of view
+    await t.drag(find.ancestor(of: find.text('Je regarde.'), matching: find.byType(Scrollable)).last, const Offset(0, -2000));
+    await t.pumpAndSettle();
+    expect(find.text('Results sent to Hermes'), findsOneWidget);
+    expect(find.textContaining('Vu.'), findsOneWidget);
+  }, skip: !macCapable);
 
   testWidgets('a reply being written lets the user scroll up through it', (t) async {
     late void Function(String, Map) push;

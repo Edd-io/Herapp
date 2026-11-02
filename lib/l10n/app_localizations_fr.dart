@@ -185,6 +185,42 @@ class AppLocalizationsFr extends AppLocalizations {
   String get haptics => 'Retours haptiques';
 
   @override
+  String get macShell => 'Commandes sur cet ordinateur';
+
+  @override
+  String get macShellHint =>
+      'Hermes peut demander depuis le chat à lancer des commandes ici ; tu les valides dans l’app.';
+
+  @override
+  String get macTitle => 'Sur cet ordinateur';
+
+  @override
+  String macWrite(String path) {
+    return 'Écrire $path';
+  }
+
+  @override
+  String get macRun => 'Lancer';
+
+  @override
+  String get macAlways => 'Toujours dans cette conversation';
+
+  @override
+  String get macRefuse => 'Refuser';
+
+  @override
+  String get macStop => 'Arrêter';
+
+  @override
+  String get macRefused => 'Refusé';
+
+  @override
+  String get macSkipped => 'Non lancé';
+
+  @override
+  String get macResults => 'Résultats envoyés à Hermes';
+
+  @override
   String get hermesServer => 'Serveur Hermes';
 
   @override
