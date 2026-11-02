@@ -165,7 +165,7 @@ extension _Sidebar on _ChatPageState {
                             (l.settings, CupertinoIcons.gear, openSettings),
                           ])
                             SizedBox(
-                              width: box.maxWidth / 5,
+                              width: box.maxWidth / 4,
                               child: Hover(
                                 label: label,
                                 child: GestureDetector(
