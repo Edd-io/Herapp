@@ -369,5 +369,8 @@
   "chatActionFailed": "Impossible.\n{message}",
   "subagentSteerHint": "Une consigne pour ce sous-agent",
   "subagentSteered": "Consigne transmise : il la lira après son outil en cours.",
-  "subagentSteerRefused": "Il n’accepte plus de consigne."
+  "subagentSteerRefused": "Il n’accepte plus de consigne.",
+  "spawnTrees": "Délégations passées",
+  "spawnTreesNone": "Aucune délégation enregistrée pour l’instant.",
+  "spawnTreeCount": "{n, plural, =1{1 agent} other{{n} agents}}"
 }

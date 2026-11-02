@@ -1316,4 +1316,21 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get subagentSteerRefused => 'Il n’accepte plus de consigne.';
+
+  @override
+  String get spawnTrees => 'Délégations passées';
+
+  @override
+  String get spawnTreesNone => 'Aucune délégation enregistrée pour l’instant.';
+
+  @override
+  String spawnTreeCount(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n agents',
+      one: '1 agent',
+    );
+    return '$_temp0';
+  }
 }

@@ -323,6 +323,96 @@ final subagents = ValueNotifier<Map<String, Subagent>>(const {});
 
 bool subagentRunning(Subagent s) => s.ended == null;
 
+/// [all] (by key) as a tree: each top-level one, running first, followed by those it started, with their depth.
+List<(String, Subagent, int)> subagentTree(Map<String, Subagent> all) {
+  final ids = {for (final a in all.values) a.id};
+  final out = <(String, Subagent, int)>[];
+  final seen = <String>{};
+  void under(String parent, int depth) {
+    final kids =
+        [
+          for (final MapEntry(:key, :value) in all.entries)
+            if (parent.isEmpty ? value.parent.isEmpty || !ids.contains(value.parent) : value.parent == parent) (key, value),
+        ]..sort(
+          (a, b) => a.$2.ended == null && b.$2.ended != null
+              ? -1
+              : (b.$2.ended == null) != (a.$2.ended == null)
+              ? 1
+              : a.$2.since.compareTo(b.$2.since),
+        );
+    for (final (key, a) in kids) {
+      if (!seen.add(key)) continue;
+      out.add((key, a, depth));
+      if (a.id.isNotEmpty) under(a.id, depth + 1);
+    }
+  }
+
+  under('', 0);
+  return out;
+}
+
+final _filed = <String>{}; // subagents already saved in a spawn tree
+
+/// Once every subagent of [session] has ended, saves the run as a spawn tree (in the shape Hermes' terminal
+/// UI writes), which the history lists later.
+void _fileTree(String session) {
+  final run = [
+    for (final MapEntry(:key, :value) in subagents.value.entries)
+      if (value.session == session && !_filed.contains(key)) (key, value),
+  ];
+  if (run.isEmpty || run.any((r) => subagentRunning(r.$2))) return;
+  _filed.addAll(run.map((r) => r.$1));
+  final start = run.map((r) => r.$2.since).reduce((a, b) => a.isBefore(b) ? a : b);
+  () async {
+    try {
+      await (await gateway())?.call('spawn_tree.save', {
+        'session_id': session,
+        'label': [
+          for (final (_, a) in run)
+            if (a.parent.isEmpty) a.goal,
+        ].join(' · '),
+        'started_at': start.millisecondsSinceEpoch / 1000,
+        'finished_at': DateTime.now().millisecondsSinceEpoch / 1000,
+        'subagents': [
+          for (final (i, (key, a)) in run.indexed)
+            {
+              'id': a.id.isEmpty ? key : a.id,
+              'parentId': a.parent.isEmpty ? null : a.parent,
+              'depth': a.depth,
+              'index': i,
+              'goal': a.goal,
+              'status': a.status,
+              'tools': [if (a.tool.isNotEmpty) a.tool],
+              'summary': a.summary,
+              'startedAt': a.since.millisecondsSinceEpoch,
+              'durationSeconds': a.ended!.difference(a.since).inMilliseconds / 1000,
+            },
+        ],
+      });
+    } catch (e) {
+      debugPrint('Spawn tree: $e');
+    }
+  }();
+}
+
+/// A node of a saved spawn tree, as a [Subagent].
+Subagent subagentOfNode(Map n) {
+  final since = DateTime.fromMillisecondsSinceEpoch(n['startedAt'] is num ? (n['startedAt'] as num).round() : 0);
+  final tools = n['tools'] is List ? (n['tools'] as List) : const [];
+  return (
+    id: '${n['id'] ?? ''}',
+    parent: '${n['parentId'] ?? ''}',
+    depth: n['depth'] is int ? n['depth'] as int : 0,
+    goal: '${n['goal'] ?? ''}'.trim(),
+    session: '',
+    status: '${n['status'] ?? 'completed'}',
+    tool: tools.isEmpty ? '' : '${tools.last}',
+    summary: '${n['summary'] ?? ''}'.trim(),
+    since: since,
+    ended: since.add(Duration(milliseconds: ((n['durationSeconds'] is num ? n['durationSeconds'] as num : 0) * 1000).round())),
+  );
+}
+
 /// Folds a `subagent.*` event, or a `subagent.list` row (with no [type]), into [subagents].
 void trackSubagent(String type, String session, Map p) {
   final id = '${p['subagent_id'] ?? '$session/${p['task_index']}/${p['goal']}'}';
@@ -348,6 +438,7 @@ void trackSubagent(String type, String session, Map p) {
       ended: over ? DateTime.now() : null,
     ),
   };
+  if (over) _fileTree(session);
 }
 
 /// Closes the chat connection and forgets the sign-in, e.g. after the server, sign-in or tunnel changed.

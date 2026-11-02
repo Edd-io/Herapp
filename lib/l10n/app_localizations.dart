@@ -2317,6 +2317,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'It no longer takes directions.'**
   String get subagentSteerRefused;
+
+  /// No description provided for @spawnTrees.
+  ///
+  /// In en, this message translates to:
+  /// **'Past delegations'**
+  String get spawnTrees;
+
+  /// No description provided for @spawnTreesNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No delegation saved yet.'**
+  String get spawnTreesNone;
+
+  /// No description provided for @spawnTreeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, =1{1 agent} other{{n} agents}}'**
+  String spawnTreeCount(int n);
 }
 
 class _AppLocalizationsDelegate

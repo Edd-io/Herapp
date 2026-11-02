@@ -1296,4 +1296,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subagentSteerRefused => 'It no longer takes directions.';
+
+  @override
+  String get spawnTrees => 'Past delegations';
+
+  @override
+  String get spawnTreesNone => 'No delegation saved yet.';
+
+  @override
+  String spawnTreeCount(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n agents',
+      one: '1 agent',
+    );
+    return '$_temp0';
+  }
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'cron_page.dart';
 import 'l10n/app_localizations.dart';
@@ -251,6 +252,135 @@ class _SubagentPageState extends State<SubagentPage> {
           ),
         );
       },
+    );
+  }
+}
+
+/// The delegation runs saved on the server, newest first; one opens as its tree.
+class SpawnTreesPage extends StatefulWidget {
+  const SpawnTreesPage({super.key});
+
+  @override
+  State<SpawnTreesPage> createState() => _SpawnTreesPageState();
+}
+
+class _SpawnTreesPageState extends State<SpawnTreesPage> {
+  List<Map>? entries;
+  Object? error;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final g = await gateway();
+      if (g == null) throw StateError('no server');
+      final r = await g.call('spawn_tree.list', {'cross_session': true, 'limit': 50});
+      if (mounted) setState(() => entries = [...(r['entries'] as List? ?? const []).whereType<Map>()]);
+    } catch (e) {
+      if (mounted) setState(() => error = e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context);
+    final locale = '${Localizations.localeOf(context)}';
+    Widget note(String text) => Padding(
+      padding: const EdgeInsets.all(32),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(color: c.outline),
+      ),
+    );
+    return PageFrame(
+      title: l.spawnTrees,
+      child: switch (entries) {
+        null when error != null => note(serverErrorText(l, error is StateError ? null : error)),
+        null => const Center(child: CupertinoActivityIndicator()),
+        [] => note(l.spawnTreesNone),
+        final entries => ListView(
+          children: [
+            for (final e in entries)
+              CupertinoListTile(
+                title: Text('${e['label'] ?? ''}', maxLines: 1, style: TextStyle(fontSize: 16, color: c.onSurface)),
+                subtitle: Text(
+                  [
+                    if (e['finished_at'] case final num at)
+                      DateFormat.MMMd(locale).add_Hm().format(DateTime.fromMillisecondsSinceEpoch((at * 1000).round())),
+                    l.spawnTreeCount(e['count'] is int ? e['count'] as int : 0),
+                  ].join(' · '),
+                  style: TextStyle(fontSize: 13, color: c.outline),
+                ),
+                trailing: const CupertinoListTileChevron(),
+                onTap: () =>
+                    Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => _SpawnTree('${e['path']}', '${e['label'] ?? ''}'))),
+              ),
+          ],
+        ),
+      },
+    );
+  }
+}
+
+/// A saved delegation run: who started whom, and how each ended.
+class _SpawnTree extends StatefulWidget {
+  const _SpawnTree(this.path, this.label);
+  final String path, label;
+
+  @override
+  State<_SpawnTree> createState() => _SpawnTreeState();
+}
+
+class _SpawnTreeState extends State<_SpawnTree> {
+  Map<String, Subagent>? nodes;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final r = await (await gateway())!.call('spawn_tree.load', {'path': widget.path});
+      final all = (r['subagents'] as List? ?? const []).whereType<Map>().map(subagentOfNode);
+      if (mounted) setState(() => nodes = {for (final (i, a) in all.indexed) a.id.isEmpty ? '$i' : a.id: a});
+    } catch (e) {
+      debugPrint('Spawn tree: $e');
+      if (mounted) setState(() => nodes = const {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    return PageFrame(
+      title: widget.label,
+      child: nodes == null
+          ? const Center(child: CupertinoActivityIndicator())
+          : ListView(
+              children: [
+                for (final (_, a, depth) in subagentTree(nodes!)) ...[
+                  SubagentRow(a, depth: depth),
+                  if (a.summary.isNotEmpty)
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(16 + depth * 18.0 + (depth > 0 ? 19 : 0), 0, 16, 12),
+                      child: Text(
+                        a.summary,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: c.onSurfaceVariant),
+                      ),
+                    ),
+                ],
+              ],
+            ),
     );
   }
 }

@@ -308,19 +308,28 @@ class _Subagents extends StatelessWidget {
     final c = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context);
     final now = DateTime.now();
-    final shown = [
-      for (final MapEntry(key: id, value: a) in all.entries)
-        if (a.ended == null || now.difference(a.ended!) < const Duration(minutes: 10)) (id, a),
-    ]..sort((a, b) => (a.$2.ended == null ? 0 : 1).compareTo(b.$2.ended == null ? 0 : 1));
-    if (shown.isEmpty) return const SizedBox.shrink();
+    final shown = subagentTree({
+      for (final MapEntry(:key, :value) in all.entries)
+        if (value.ended == null || now.difference(value.ended!) < const Duration(minutes: 10)) key: value,
+    });
     return CupertinoListSection.insetGrouped(
       backgroundColor: c.surface,
       decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
       separatorColor: c.outline.withValues(alpha: .2),
       header: Text(l.subagents.toUpperCase(), style: TextStyle(fontSize: 13, color: c.outline)),
       children: [
-        for (final (id, a) in shown)
-          SubagentRow(a, onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => SubagentPage(id)))),
+        for (final (id, a, depth) in shown)
+          SubagentRow(
+            a,
+            depth: depth,
+            onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => SubagentPage(id))),
+          ),
+        CupertinoListTile(
+          title: Text(l.spawnTrees, style: TextStyle(fontSize: 16, color: c.onSurface)),
+          leading: Icon(CupertinoIcons.tree, size: 20, color: c.onSurfaceVariant),
+          trailing: const CupertinoListTileChevron(),
+          onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const SpawnTreesPage())),
+        ),
       ],
     );
   }

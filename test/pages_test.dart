@@ -308,6 +308,68 @@ void main() {
     expect(find.text('Finished'), findsOneWidget);
   });
 
+  testWidgets('subagents show as a tree, each run is saved once over, and past runs open as trees', (t) async {
+    t.platformDispatcher.accessibilityFeaturesTestValue = FakeAccessibilityFeatures(disableAnimations: true); // still characters
+    addTearDown(t.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    late void Function(String, Map) push;
+    Map? saved;
+    final calls = fakeServer((method, params, emit) {
+      if (method == 'session.list') push = emit;
+      if (method == 'spawn_tree.save') saved = params;
+      return switch (method) {
+        'spawn_tree.list' => {
+          'entries': [
+            {'path': '/h/spawn-trees/rt/1.json', 'label': 'Plan the trip', 'count': 2, 'finished_at': 1793640000},
+          ],
+        },
+        'spawn_tree.load' => {'subagents': saved?['subagents'] ?? []},
+        _ => null,
+      };
+    });
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async => '[]';
+    await t.pumpWidget(const App());
+    await t.pump(const Duration(milliseconds: 100));
+    Map ev(String id, String goal, {String? parent, String? status}) => {
+      'subagent_id': id,
+      'goal': goal,
+      'task_count': 1,
+      'task_index': 0,
+      'parent_id': ?parent,
+      'depth': parent == null ? 0 : 1,
+      'status': ?status,
+      if (status != null) 'summary': '$goal: done',
+    };
+    push('subagent.start', ev('a1', 'Plan the trip'));
+    push('subagent.start', ev('b1', 'Other chat work'));
+    push('subagent.start', ev('a2', 'Find trains', parent: 'a1'));
+    await t.pump(const Duration(milliseconds: 100));
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Agents'));
+    await t.pumpAndSettle();
+    double y(String text) => t.getTopLeft(find.text(text)).dy;
+    expect(y('Plan the trip'), lessThan(y('Find trains')));
+    expect(y('Find trains'), lessThan(y('Other chat work'))); // under the one that started it
+    expect(t.getTopLeft(find.text('Find trains')).dx, greaterThan(t.getTopLeft(find.text('Plan the trip')).dx));
+
+    push('subagent.complete', ev('a2', 'Find trains', parent: 'a1', status: 'completed'));
+    push('subagent.complete', ev('a1', 'Plan the trip', status: 'completed'));
+    await t.pump(const Duration(milliseconds: 100));
+    expect(saved, isNull); // the session still runs one
+    push('subagent.complete', ev('b1', 'Other chat work', status: 'failed'));
+    await t.pump(const Duration(milliseconds: 100));
+    expect(calls.where((c) => c.$1 == 'spawn_tree.save'), hasLength(1));
+    expect([for (final n in saved!['subagents'] as List) (n['id'], n['parentId'])], [('a1', null), ('b1', null), ('a2', 'a1')]);
+
+    await t.tap(find.text('Past delegations'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Plan the trip'));
+    await t.pumpAndSettle();
+    expect(find.text('Find trains: done'), findsOneWidget);
+    expect(t.getTopLeft(find.text('Find trains')).dx, greaterThan(t.getTopLeft(find.text('Plan the trip').last).dx));
+  });
+
   testWidgets('a running subagent shows what it does, takes a direction and stops', (t) async {
     t.platformDispatcher.accessibilityFeaturesTestValue = FakeAccessibilityFeatures(disableAnimations: true); // still characters
     addTearDown(t.platformDispatcher.clearAccessibilityFeaturesTestValue);

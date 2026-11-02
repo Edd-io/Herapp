@@ -658,5 +658,9 @@
   "@chatActionFailed": {"placeholders": {"message": {"type": "String"}}},
   "subagentSteerHint": "A word to steer this subagent",
   "subagentSteered": "Sent: it reads it after the tool it is running.",
-  "subagentSteerRefused": "It no longer takes directions."
+  "subagentSteerRefused": "It no longer takes directions.",
+  "spawnTrees": "Past delegations",
+  "spawnTreesNone": "No delegation saved yet.",
+  "spawnTreeCount": "{n, plural, =1{1 agent} other{{n} agents}}",
+  "@spawnTreeCount": {"placeholders": {"n": {"type": "int"}}}
 }
