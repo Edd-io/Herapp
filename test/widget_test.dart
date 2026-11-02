@@ -118,6 +118,43 @@ void main() {
     expect(calls.where((c) => c.$1 == 'session.create'), hasLength(1));
   });
 
+  testWidgets('a reply being written lets the user scroll up through it', (t) async {
+    late void Function(String, Map) push;
+    fakeServer((method, params, emit) {
+      if (method == 'prompt.submit') push = emit;
+      return method == 'session.create' ? {'session_id': 'rt', 'stored_session_id': 's1'} : null;
+    });
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, 'Tell a long story');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(milliseconds: 100));
+    for (var i = 0; i < 40; i++) {
+      push('message.delta', {'text': 'Line $i of the story.\n\n'});
+    }
+    await t.pump(const Duration(milliseconds: 100));
+    await t.pump();
+    final list = find.ancestor(of: find.textContaining('Line 0 of'), matching: find.byType(Scrollable)).last;
+    final position = t.state<ScrollableState>(list).position;
+    expect(position.pixels, position.maxScrollExtent); // follows the reply
+
+    final finger = await t.startGesture(t.getCenter(list));
+    await finger.moveBy(const Offset(0, 30)); // a slow drag up, still near the bottom
+    await t.pump();
+    push('message.delta', {'text': 'More.\n\n'});
+    await t.pump(const Duration(milliseconds: 100));
+    await finger.moveBy(const Offset(0, 300));
+    await t.pump();
+    await finger.up();
+    await t.pumpAndSettle();
+    expect(position.maxScrollExtent - position.pixels, greaterThan(200)); // the drag wasn't taken back
+    push('message.delta', {'text': 'Even more.\n\n'});
+    await t.pump(const Duration(milliseconds: 100));
+    expect(position.maxScrollExtent - position.pixels, greaterThan(200)); // and stays where the user left it
+    push('message.complete', {'text': '', 'status': 'complete'});
+    await t.pump(const Duration(seconds: 1));
+  });
+
   testWidgets('a sent message is rewritten or sent again in its place', (t) async {
     final calls = fakeServer(replies);
     await t.pumpWidget(const App());

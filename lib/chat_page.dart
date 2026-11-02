@@ -797,6 +797,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   void toBottom({bool jump = false}) => WidgetsBinding.instance.addPostFrameCallback((_) {
     if (!scroll.hasClients) return;
+    // a jump would cancel the user's drag or fling, before it gets far enough to stop following the reply
+    if (jump && scroll.position.isScrollingNotifier.value) return;
     final max = scroll.position.maxScrollExtent;
     jump ? scroll.jumpTo(max) : scroll.animateTo(max, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
   });
