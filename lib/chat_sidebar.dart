@@ -153,7 +153,31 @@ extension _Sidebar on _ChatPageState {
                 padding: EdgeInsets.zero,
                 children: [
                   // the menu scrolls away with the chats
-                  tile(AppLocalizations.of(context).newChat, icon: CupertinoIcons.square_pencil, onTap: newChat),
+                  // a full-width button, centered over the grid below
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+                    child: Hover(
+                      radius: 12,
+                      child: GestureDetector(
+                        onTap: newChat,
+                        child: Container(
+                          height: 44,
+                          decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(CupertinoIcons.square_pencil, size: 19, color: c.onSurface),
+                              const SizedBox(width: 10),
+                              Text(
+                                l.newChat,
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.onSurface),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                   // the pages, settings last, in a compact grid that leaves the room to the chats
                   Padding(
                     padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
@@ -193,6 +217,10 @@ extension _Sidebar on _ChatPageState {
                         ],
                       ),
                     ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: Divider(height: 1, thickness: .5, color: c.outline.withValues(alpha: .3)),
                   ),
                   if (listed.any((ch) => ch.pinned)) ...[
                     heading(l.chatsPinned),
