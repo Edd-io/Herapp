@@ -1520,7 +1520,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                   color: c.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
-                    color: focus.hasFocus ? c.primary.withValues(alpha: .45) : Colors.transparent,
+                    color: focus.hasFocus ? c.onSurface.withValues(alpha: .12) : Colors.transparent,
                     strokeAlign: BorderSide.strokeAlignOutside, // no layout shift
                   ),
                 ),
