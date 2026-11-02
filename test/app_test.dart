@@ -258,4 +258,30 @@ void main() {
     await t.pump();
     expect(find.text('The server isn’t answering'), findsNothing);
   });
+
+  testWidgets('the open conversation is handed to other devices, and one handed over opens', (t) async {
+    fakeServer(
+      (method, params, emit) => switch (method) {
+        'session.list' => {
+          'sessions': [
+            {'id': 's9', 'title': 'Trip plans', 'message_count': 2},
+          ],
+        },
+        _ => replies(method, params, emit),
+      },
+    );
+    final offers = <Object?>[];
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('herapp/quick'), (call) async {
+      if (call.method == 'handoff') offers.add(call.arguments);
+      return call.method == 'continued' ? {'session': 's9', 'title': 'Trip plans', 'server': 'https://hermes.test/'} : null;
+    });
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('herapp/quick'), null));
+    await t.pumpWidget(const App());
+    await t.pump(const Duration(seconds: 1));
+    expect(offers.last, {'session': 's9', 'title': 'Trip plans', 'server': 'https://hermes.test'});
+
+    await t.tap(find.byTooltip('New chat'));
+    await t.pump();
+    expect(offers.last, isNull); // nothing stored to hand over yet
+  });
 }

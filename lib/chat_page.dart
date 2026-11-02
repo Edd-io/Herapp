@@ -134,8 +134,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     const quick = MethodChannel('herapp/quick');
     quick.setMethodCallHandler((call) async {
       if (call.method == 'ask') ask(call.arguments is String ? call.arguments as String : '');
+      if (call.method == 'continue') continueChat(call.arguments);
     });
     quick.invokeListMethod<String>('ready').then((asked) => asked?.forEach(ask)).catchError((Object _) {}); // only iPhone queues them
+    quick.invokeMethod<Object?>('continued').then(continueChat).catchError((Object _) {}); // handed over before the app was up
     WidgetsBinding.instance.addObserver(this);
     takeShared();
   }
@@ -386,6 +388,26 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       // only the iPhone app has a share extension
     } catch (e) {
       debugPrint('Shared: $e');
+    }
+  }
+
+  String offered = ''; // the conversation Handoff offers the user's other Apple devices
+
+  /// Offers the open conversation to the user's other Apple devices, once the server stores it.
+  void handOff() {
+    if (chat.stored == offered) return;
+    offered = chat.stored;
+    final it = offered.isEmpty ? null : {'session': offered, 'title': chat.title, 'server': settings.url};
+    const MethodChannel('herapp/quick').invokeMethod<void>('handoff', it).catchError((Object _) {}); // Apple only
+  }
+
+  /// Opens the conversation another device handed over, if it is on this app's server.
+  void continueChat(Object? handed) {
+    String bare(Object? url) => '$url'.replaceFirst(RegExp(r'/+$'), '');
+    if (!mounted) return;
+    if (handed case {'session': final String id} when id.isNotEmpty && bare(handed['server']) == bare(settings.url)) {
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      openFound((id: id, title: '${handed['title'] ?? ''}', snippet: ''));
     }
   }
 
@@ -967,6 +989,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   void setState(VoidCallback fn) {
     super.setState(fn);
     paneRefresh.value++;
+    handOff();
   }
 
   void toBottom({bool jump = false}) => WidgetsBinding.instance.addPostFrameCallback((_) {

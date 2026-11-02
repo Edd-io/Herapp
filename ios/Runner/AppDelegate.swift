@@ -14,6 +14,7 @@ import UIKit
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     QuickAsk.shared.connect(engineBridge.applicationRegistrar.messenger())
+    engineBridge.pluginRegistry.registrar(forPlugin: "Handoff")?.addSceneDelegate(Handoff.shared)
   }
 }
 
@@ -35,6 +36,11 @@ final class QuickAsk {
         result(self.waiting)
         self.waiting = []
       case "shared": result(Self.takeShared())
+      case "handoff":
+        Handoff.shared.offer(call.arguments as? [String: Any])
+        result(nil)
+      case "continued":
+        result(Handoff.shared.take { [weak self] in self?.channel?.invokeMethod("continue", arguments: $0) })
       default: result(FlutterMethodNotImplemented)
       }
     }
@@ -64,6 +70,47 @@ final class QuickAsk {
   func ask(_ question: String) {
     if ready, let channel { channel.invokeMethod("ask", arguments: question) } else { waiting.append(question) }
   }
+}
+
+/// The open conversation, offered to the user's other Apple devices; one they hand over opens here.
+final class Handoff: NSObject, FlutterSceneLifeCycleDelegate {
+  static let shared = Handoff()
+  static let type = "com.edd-io.herapp.chat"
+  private var activity: NSUserActivity?
+  private var waiting: [String: Any]?
+  private var open: (([String: Any]) -> Void)?
+
+  /// Offers `{session, title, server}`, or nothing with nil.
+  func offer(_ chat: [String: Any]?) {
+    activity?.invalidate()
+    activity = nil
+    guard let chat else { return }
+    let a = NSUserActivity(activityType: Self.type)
+    a.title = chat["title"] as? String
+    a.userInfo = chat
+    a.isEligibleForHandoff = true
+    a.becomeCurrent()
+    activity = a
+  }
+
+  /// What was handed over before the chat listened; later ones go to [open].
+  func take(_ open: @escaping ([String: Any]) -> Void) -> [String: Any]? {
+    self.open = open
+    defer { waiting = nil }
+    return waiting
+  }
+
+  private func received(_ a: NSUserActivity?) -> Bool {
+    guard let a, a.activityType == Self.type, let chat = a.userInfo as? [String: Any] else { return false }
+    if let open { open(chat) } else { waiting = chat }
+    return true
+  }
+
+  func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions?) -> Bool {
+    received(options?.userActivities.first)
+  }
+
+  func scene(_ scene: UIScene, continue userActivity: NSUserActivity) -> Bool { received(userActivity) }
 }
 
 @available(iOS 16, *)
