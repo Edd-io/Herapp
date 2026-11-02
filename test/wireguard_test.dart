@@ -7,6 +7,7 @@ import 'package:herapp/wireguard.dart';
 
 // Separate file: the testWidgets environment interferes with the real networking used here.
 void main() {
+  final skip = Platform.isMacOS ? false : 'the tunnel library is built for Apple only (hook/build.dart)';
   test('native tunnel: invalid config rejected, traffic blocked until connected', () async {
     vpn
       ..config = '[Interface]\n[Peer]\n'
@@ -23,7 +24,7 @@ void main() {
     vpn.enabled = false;
     await vpn.apply();
     expect(HttpOverrides.current, isNull);
-  });
+  }, skip: skip);
   test('back from the background, the tunnel starts afresh', () async {
     final binding = TestWidgetsFlutterBinding.ensureInitialized();
     FlutterSecureStorage.setMockInitialValues({'wg_config': '[Interface]\n[Peer]\n', 'wg_enabled': '1'});
@@ -47,5 +48,5 @@ void main() {
     await vpn.ready;
     expect(vpn.error, contains('missing Address'));
     await vpn.setEnabled(false);
-  });
+  }, skip: skip);
 }
