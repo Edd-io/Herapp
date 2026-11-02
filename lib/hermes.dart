@@ -518,12 +518,12 @@ class Gateway {
   }
 
   /// Calls [method]; a JSON-RPC error becomes an [HttpException] with the server's message.
-  Future<Map> call(String method, [Map<String, Object?> params = const {}]) async {
+  Future<Map> call(String method, [Map<String, Object?> params = const {}, Duration timeout = const Duration(seconds: 60)]) async {
     if (closed) throw const HttpException('connection to Hermes lost');
     final id = ++_id;
     final c = _pending[id] = Completer<Map>();
     _send(jsonEncode({'jsonrpc': '2.0', 'id': id, 'method': method, 'params': params}));
-    final r = await c.future.timeout(const Duration(seconds: 60), onTimeout: () => throw HttpException('$method timed out'));
+    final r = await c.future.timeout(timeout, onTimeout: () => throw HttpException('$method timed out'));
     if (r['error'] case final Map e) throw HttpException('${e['message'] ?? 'Hermes error'}');
     return r['result'] is Map ? r['result'] as Map : const {};
   }

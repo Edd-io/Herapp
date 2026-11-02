@@ -21,6 +21,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'agents_page.dart';
 import 'cron_page.dart';
 import 'git_page.dart';
+import 'image_sheet.dart';
 import 'hermes.dart';
 import 'kanban_page.dart';
 import 'mac.dart';
@@ -511,10 +512,17 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'photos'), child: Text(l.attachPhotos)),
           CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'camera'), child: Text(l.attachCamera)),
           CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'files'), child: Text(l.attachFiles)),
+          CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'image'), child: Text(l.imageCreate)),
         ],
         cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(context), child: Text(l.cancel)),
       ),
     );
+    if (from == 'image') {
+      if (!mounted) return;
+      final made = await showPanel<Attachment>(context, (_) => const ImageSheet(), scrollControlled: true);
+      if (made != null) setState(() => pending.add(made));
+      return;
+    }
     try {
       final picked = switch (from) {
         'photos' => [for (final x in await ImagePicker().pickMultiImage(imageQuality: 85, maxWidth: 2048)) (x, true)],
@@ -572,6 +580,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 'name': f.name,
                 'data_url': 'data:application/octet-stream;base64,${base64Encode(f.bytes!)}',
               });
+        // a PDF's pages also go as pictures, for the model to see them (the server needs poppler's pdftoppm)
+        if (f.name.toLowerCase().endsWith('.pdf')) {
+          try {
+            await g.call('pdf.attach', {'session_id': sid, 'content_base64': base64Encode(f.bytes!), 'filename': f.name});
+          } catch (e) {
+            debugPrint('PDF pages: $e'); // read through its file only
+          }
+        }
         if (!f.image || prompt.isEmpty) notes.add('${r[f.image ? 'text' : 'ref_text'] ?? ''}');
       }
       prompt = [prompt, ...notes].where((t) => t.trim().isNotEmpty).join('\n\n');

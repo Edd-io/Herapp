@@ -907,4 +907,60 @@ void main() {
     expect(find.byTooltip('Read aloud'), findsOneWidget);
     handle.dispose();
   });
+
+  testWidgets('an image the server draws joins the next message, and a PDF goes with its pages', (t) async {
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    final calls = fakeServer(
+      (method, params, emit) => switch (method) {
+        'image.generate' => {'available': true, 'success': true, 'image_data': 'data:image/png;base64,$png'},
+        'file.attach' => {'attached': true, 'ref_text': '@file:attachments/${params['name']}'},
+        _ => replies(method, params, emit),
+      },
+    );
+    var shares = [
+      {
+        'text': '',
+        'files': [
+          {'name': 'Report.PDF', 'bytes': Uint8List.fromList('%PDF-1.4'.codeUnits)},
+        ],
+      },
+    ];
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('herapp/quick'), (call) async {
+      if (call.method != 'shared') return null;
+      final taken = shares;
+      shares = [];
+      return taken;
+    });
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('herapp/quick'), null));
+    await t.pumpWidget(const App());
+    await t.pumpAndSettle();
+    expect(find.text('Report.PDF'), findsOneWidget); // in the draft
+
+    await t.tap(find.byTooltip('Attach files'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Create an image'));
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(CupertinoTextField), 'A lighthouse at dawn');
+    await t.tap(find.text('Landscape'));
+    await t.pump();
+    await t.tap(find.text('Create'));
+    await t.pumpAndSettle();
+    expect(calls.where((c) => c.$1 == 'image.generate').single.$2, {'prompt': 'A lighthouse at dawn', 'aspect_ratio': 'landscape'});
+    await t.tap(find.text('Attach to the message'));
+    await t.pumpAndSettle();
+    expect(find.byType(Image), findsOneWidget); // its thumbnail in the draft
+
+    await t.enterText(find.byType(EditableText).last, 'Here');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 10));
+    expect(calls.where((c) => c.$1 == 'image.attach_bytes').single.$2, containsPair('filename', 'hermes-image.png'));
+    expect(calls.where((c) => c.$1 == 'file.attach').single.$2, containsPair('name', 'Report.PDF'));
+    expect(calls.where((c) => c.$1 == 'pdf.attach').single.$2, {
+      'session_id': 'rt',
+      'content_base64': base64Encode('%PDF-1.4'.codeUnits),
+      'filename': 'Report.PDF',
+    });
+    expect(calls.where((c) => c.$1 == 'prompt.submit').single.$2['text'], 'Here\n\n@file:attachments/Report.PDF');
+  });
 }

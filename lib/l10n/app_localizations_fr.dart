@@ -1333,4 +1333,37 @@ class AppLocalizationsFr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get imageCreate => 'Créer une image';
+
+  @override
+  String get imagePrompt => 'Décris l’image';
+
+  @override
+  String get imageSquare => 'Carrée';
+
+  @override
+  String get imageLandscape => 'Paysage';
+
+  @override
+  String get imagePortrait => 'Portrait';
+
+  @override
+  String get imageMake => 'Créer';
+
+  @override
+  String get imageMaking => 'Création de l’image… (jusqu’à une minute ou deux)';
+
+  @override
+  String get imageAttach => 'Joindre au message';
+
+  @override
+  String get imageAgain => 'Recommencer';
+
+  @override
+  String get imageSave => 'Enregistrer…';
+
+  @override
+  String get imageFailed => 'Le serveur n’a pas pu créer l’image.';
 }

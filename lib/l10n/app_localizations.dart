@@ -2335,6 +2335,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{n, plural, =1{1 agent} other{{n} agents}}'**
   String spawnTreeCount(int n);
+
+  /// No description provided for @imageCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create an image'**
+  String get imageCreate;
+
+  /// No description provided for @imagePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe the image'**
+  String get imagePrompt;
+
+  /// No description provided for @imageSquare.
+  ///
+  /// In en, this message translates to:
+  /// **'Square'**
+  String get imageSquare;
+
+  /// No description provided for @imageLandscape.
+  ///
+  /// In en, this message translates to:
+  /// **'Landscape'**
+  String get imageLandscape;
+
+  /// No description provided for @imagePortrait.
+  ///
+  /// In en, this message translates to:
+  /// **'Portrait'**
+  String get imagePortrait;
+
+  /// No description provided for @imageMake.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get imageMake;
+
+  /// No description provided for @imageMaking.
+  ///
+  /// In en, this message translates to:
+  /// **'Drawing it… (up to a minute or two)'**
+  String get imageMaking;
+
+  /// No description provided for @imageAttach.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach to the message'**
+  String get imageAttach;
+
+  /// No description provided for @imageAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get imageAgain;
+
+  /// No description provided for @imageSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save…'**
+  String get imageSave;
+
+  /// No description provided for @imageFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The server couldn’t create the image.'**
+  String get imageFailed;
 }
 
 class _AppLocalizationsDelegate

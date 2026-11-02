@@ -662,5 +662,16 @@
   "spawnTrees": "Past delegations",
   "spawnTreesNone": "No delegation saved yet.",
   "spawnTreeCount": "{n, plural, =1{1 agent} other{{n} agents}}",
-  "@spawnTreeCount": {"placeholders": {"n": {"type": "int"}}}
+  "@spawnTreeCount": {"placeholders": {"n": {"type": "int"}}},
+  "imageCreate": "Create an image",
+  "imagePrompt": "Describe the image",
+  "imageSquare": "Square",
+  "imageLandscape": "Landscape",
+  "imagePortrait": "Portrait",
+  "imageMake": "Create",
+  "imageMaking": "Drawing it… (up to a minute or two)",
+  "imageAttach": "Attach to the message",
+  "imageAgain": "Try again",
+  "imageSave": "Save…",
+  "imageFailed": "The server couldn’t create the image."
 }
