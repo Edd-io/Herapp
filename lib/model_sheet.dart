@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -140,7 +142,11 @@ class _ModelSheetState extends State<ModelSheet> {
                           ),
                           Text(
                             effortText(l, effort),
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.onSurface),
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: effort.isEmpty ? c.onSurface : effortColor(efforts.indexOf(effort) / (efforts.length - 1)),
+                            ),
                           ),
                         ],
                       ),
@@ -252,8 +258,18 @@ class _ModelSheetState extends State<ModelSheet> {
   }
 }
 
-/// The reasoning effort as a thick bar filled to the level picked, tapped or dragged; its stripes run faster,
-/// and show more, the harder Hermes thinks (still when the system asks for less motion).
+/// The bar's colors, from the least effort to the most.
+const _effortColors = [Color(0xFF34C7F0), Color(0xFF7C5CFF), Color(0xFFF2509A), Color(0xFFFF9F0A)];
+
+/// The bar's color at [t] (0 to 1) along it.
+Color effortColor(double t) {
+  final x = t.clamp(0.0, 1.0) * (_effortColors.length - 1);
+  final i = x.floor().clamp(0, _effortColors.length - 2);
+  return Color.lerp(_effortColors[i], _effortColors[i + 1], x - i)!;
+}
+
+/// The reasoning effort as a thick bar filled to the level picked, tapped or dragged; sparks drift through it,
+/// more and faster the harder Hermes thinks (still when the system asks for less motion).
 class _EffortBar extends StatefulWidget {
   const _EffortBar({required this.effort, required this.onChanged});
   final String effort;
@@ -264,14 +280,14 @@ class _EffortBar extends StatefulWidget {
 }
 
 class _EffortBarState extends State<_EffortBar> with SingleTickerProviderStateMixin {
-  final phase = ValueNotifier(0.0); // how far the stripes have run, in pixels
+  final phase = ValueNotifier(0.0); // how far the sparks have drifted, in pixels
   late final ticker = createTicker(tick);
   var last = Duration.zero;
 
   int get level => efforts.indexOf(widget.effort).clamp(0, efforts.length - 1);
 
   void tick(Duration now) {
-    phase.value += (now - last).inMicroseconds / 1e6 * (8 + level * 14);
+    phase.value += (now - last).inMicroseconds / 1e6 * (10 + level * 16);
     last = now;
   }
 
@@ -339,6 +355,18 @@ class _EffortBarState extends State<_EffortBar> with SingleTickerProviderStateMi
   }
 }
 
+/// A spark's place along and across the bar (0 to 1), size, and speed and twinkle against the others'.
+final _sparks = [
+  for (var i = 0, seed = 7; i < 48; i++)
+    (
+      x: (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff,
+      y: (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff,
+      size: 1 + 2.2 * (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff,
+      speed: .5 + (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff,
+      twinkle: 6.28 * (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff,
+    ),
+];
+
 class _EffortPainter extends CustomPainter {
   _EffortPainter({required this.fill, required this.level, required this.phase, required this.colors}) : super(repaint: phase);
   final double fill; // 0 (auto) to 1 (max), animated between levels
@@ -355,22 +383,28 @@ class _EffortPainter extends CustomPainter {
     for (var i = 0; i <= steps; i++) {
       canvas.drawCircle(Offset(h / 2 + (size.width - h) * i / steps, h / 2), 2.5, Paint()..color = colors.outline.withValues(alpha: .45));
     }
-    final bar = RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, h + (size.width - h) * fill, h), r);
+    final width = h + (size.width - h) * fill;
+    final bar = RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, width, h), r);
+    // the colors span the whole track, the fill showing as far as it goes: warmer the higher
+    final glow = Paint()..shader = const LinearGradient(colors: _effortColors).createShader(Offset.zero & size);
     canvas
       ..save()
       ..clipRRect(bar)
-      ..drawRRect(bar, Paint()..color = colors.primary);
-    // diagonal stripes running right
-    const gap = 16.0;
-    final stripe = Paint()
-      ..color = colors.onPrimary.withValues(alpha: .07 + level * .035)
-      ..strokeWidth = 7;
-    for (var x = phase.value % gap - h - gap; x < bar.width + gap; x += gap) {
-      canvas.drawLine(Offset(x, h), Offset(x + h, 0), stripe);
+      ..drawRRect(bar, glow);
+    // sparks drifting right, wrapping within the fill, twinkling
+    final spark = Paint()..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2);
+    final t = phase.value;
+    for (final p in _sparks.take(8 + level * 6)) {
+      final x = (p.x * width + t * p.speed) % (width + 8) - 4;
+      final y = 5 + p.y * (h - 10);
+      final a = (.35 + .1 * level) * (.6 + .4 * math.sin(t / 9 + p.twinkle));
+      canvas.drawCircle(Offset(x, y), p.size, spark..color = Colors.white.withValues(alpha: a.clamp(0, 1)));
     }
     canvas.restore();
     // the knob, at the fill's end
-    canvas.drawCircle(Offset(bar.width - h / 2, h / 2), h / 2 - 5, Paint()..color = colors.onPrimary);
+    canvas
+      ..drawCircle(Offset(width - h / 2, h / 2 + 1), h / 2 - 4, Paint()..color = Colors.black.withValues(alpha: .18))
+      ..drawCircle(Offset(width - h / 2, h / 2), h / 2 - 5, Paint()..color = Colors.white);
   }
 
   @override
