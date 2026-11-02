@@ -90,8 +90,7 @@ class _ModelSheetState extends State<ModelSheet> {
           final providers = {for (final x in m.list) x.provider};
           // the models last used first, the current one with them; the others behind "More models"
           final recent = [
-            for (final id in {widget.current, ...settings.recentModels})
-              ?m.list.where((x) => x.id == id).firstOrNull,
+            for (final id in {widget.current, ...settings.recentModels}) ?m.list.where((x) => x.id == id).firstOrNull,
           ].take(5).toList();
           final grouped = all || recent.isEmpty;
           // a model known not to think has no effort to pick
@@ -134,47 +133,52 @@ class _ModelSheetState extends State<ModelSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(l.effort.toUpperCase(), style: TextStyle(fontSize: 13, color: c.outline)),
-                      const SizedBox(height: 8),
-                      Builder(
-                        builder: (context) {
-                          final chips = [
-                            for (final e in efforts)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    settings.haptic();
-                                    setState(() => effort = e);
-                                    widget.onEffort(e);
-                                  },
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 150),
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: e == effort ? c.primary : c.surfaceContainerHighest,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      effortText(l, e),
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w500,
-                                        color: e == effort ? c.onPrimary : c.onSurface,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ];
-                          // a window shows them all; a phone scrolls them
-                          return isWide(context)
-                              ? Wrap(runSpacing: 8, children: chips)
-                              : SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(children: chips),
-                                );
-                        },
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(l.effort.toUpperCase(), style: TextStyle(fontSize: 13, color: c.outline)),
+                          ),
+                          Text(
+                            effortText(l, effort),
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.onSurface),
+                          ),
+                        ],
+                      ),
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: c.primary,
+                          inactiveTrackColor: c.surfaceContainerHighest,
+                          thumbColor: c.primary,
+                          activeTickMarkColor: c.onPrimary.withValues(alpha: .5),
+                          inactiveTickMarkColor: c.outline.withValues(alpha: .5),
+                          overlayColor: c.primary.withValues(alpha: .1),
+                          trackHeight: 6,
+                          // ignore: deprecated_member_use, the rounded bar rather than the gapped one
+                          year2023: true,
+                        ),
+                        child: Slider(
+                          value: efforts.indexOf(effort).clamp(0, efforts.length - 1).toDouble(),
+                          max: efforts.length - 1.0,
+                          divisions: efforts.length - 1,
+                          onChanged: (v) {
+                            final e = efforts[v.round()];
+                            if (e == effort) return;
+                            settings.haptic();
+                            setState(() => effort = e);
+                            widget.onEffort(e);
+                          },
+                        ),
+                      ),
+                      // the ends of the bar
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            for (final e in [efforts.first, efforts.last])
+                              Text(effortText(l, e), style: TextStyle(fontSize: 12, color: c.outline)),
+                          ],
+                        ),
                       ),
                     ],
                   ),

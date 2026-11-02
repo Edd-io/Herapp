@@ -13,6 +13,7 @@ import 'package:herapp/hermes.dart';
 import 'package:herapp/lock.dart';
 import 'package:herapp/mac.dart';
 import 'package:herapp/main.dart';
+import 'package:herapp/model_sheet.dart';
 import 'package:herapp/settings.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -615,7 +616,7 @@ void main() {
     expect(find.text('openai/gpt-5'), findsNWidgets(2)); // the pill, and the sheet's recent ones
     expect(find.text('claude-sonnet-5-5'), findsNothing);
     expect(find.text('plain'), findsNothing);
-    await t.tap(find.text('High'));
+    t.widget<Slider>(find.byType(Slider)).onChanged!(efforts.indexOf('high').toDouble()); // the effort bar
     await t.pumpAndSettle();
     expect(settings.effort, 'high');
     await t.tap(find.text('openai/gpt-5').last);
@@ -1216,7 +1217,7 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Model'));
     await t.pumpAndSettle();
-    await t.tap(find.text('High'));
+    t.widget<Slider>(find.byType(Slider)).onChanged!(efforts.indexOf('high').toDouble()); // the effort bar
     await t.pumpAndSettle();
     expect(sent.last.$3, {
       'updates': {'reasoning_effort': 'high'},
