@@ -102,7 +102,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   final searchFocus = FocusNode();
   final scroll = ScrollController();
   final models = ValueNotifier<Models>((list: const [], loading: false, error: null));
-  late final drawer = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+  late final AnimationController drawer;
   Msg? fresh; // latest user message, animated on arrival
   Msg? editing; // a sent message the composer rewrites, to send in its place
   bool atBottom = true;
@@ -123,6 +123,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   @override
   void initState() {
     super.initState();
+    // made now: first touched in dispose (a wide window never opens it), it would look up a gone ticker
+    drawer = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
     input.addListener(() {
       setState(() {});
       complete();
