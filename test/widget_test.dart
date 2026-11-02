@@ -726,7 +726,10 @@ void main() {
       {
         'text': 'https://example.test/article',
         'files': [
-          {'name': 'photo.jpg', 'bytes': Uint8List.fromList([1, 2, 3])},
+          {
+            'name': 'photo.jpg',
+            'bytes': Uint8List.fromList([1, 2, 3]),
+          },
         ],
       },
     ];
@@ -1010,6 +1013,57 @@ void main() {
     expect(calls.where((c) => c.$1 == 'session.interrupt'), isEmpty); // a finished turn isn't interrupted
     expect(find.text('Queued · tap to edit'), findsNothing);
     expect(find.textContaining('Hello there'), findsOneWidget);
+    await t.pump(const Duration(seconds: 10));
+  });
+
+  testWidgets('a reply keeps streaming while another chat is open', (t) async {
+    late void Function(String, Map) push;
+    var listed = false; // the server lists the chat once its first reply is done
+    final calls = fakeServer((method, params, emit) {
+      if (method == 'session.list' && listed && params['title'] == null) {
+        return {
+          'sessions': [
+            {'id': 's1', 'title': 'First', 'preview': ''},
+          ],
+        };
+      }
+      if (method != 'prompt.submit') return replies(method, params, emit);
+      push = emit;
+      emit('message.delta', {'text': 'Working'});
+      return {'status': 'streaming'};
+    });
+    Future<void> menu() async {
+      await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+      for (final d in const [Duration.zero, Duration(milliseconds: 400)]) {
+        await t.pump(d);
+      }
+    }
+
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, 'First');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 1));
+
+    await menu();
+    await t.tap(find.text('New chat'));
+    await t.pump(const Duration(milliseconds: 400));
+    expect(find.text('How can I help?'), findsOneWidget);
+    await menu(); // still listed while it answers, though the server doesn't list it yet
+    expect(find.text('First'), findsOneWidget);
+    await t.tap(find.text('New chat'));
+    await t.pump(const Duration(milliseconds: 400));
+    listed = true;
+    push('message.delta', {'text': ' done'});
+    push('message.complete', {'text': 'Working done', 'status': 'complete'});
+    await t.pump(const Duration(seconds: 1));
+    expect(calls.where((c) => c.$1 == 'session.interrupt'), isEmpty);
+
+    // back in the first chat, the whole reply is there
+    await menu();
+    await t.tap(find.text('First'));
+    await t.pump(const Duration(seconds: 1));
+    expect(find.textContaining('Working done'), findsOneWidget);
     await t.pump(const Duration(seconds: 10));
   });
 

@@ -45,6 +45,12 @@ class Chat {
   String live = '';
   String applied = '';
   Future<void>? warming; // the resume [open] started
+  // its running turn, which goes on while another chat is open
+  StreamSubscription<GatewayEvent>? sub;
+  bool streaming = false;
+  final queue = <Msg>[]; // sent while Hermes answers, each sent once the reply before it is done
+  String phase = ''; // what the running turn does: '' thinks, 'writing', else the tool it runs
+  DateTime since = DateTime.now(); // when the running turn started
   String get title => name.isNotEmpty ? name : msgs.firstOrNull?.text ?? ''; // only titled chats are listed
 }
 
@@ -64,8 +70,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   final scroll = ScrollController();
   final models = ValueNotifier<Models>((list: const [], loading: false, error: null));
   late final drawer = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
-  StreamSubscription<GatewayEvent>? sub; // events of the running turn
-  bool streaming = false;
   Msg? fresh; // latest user message, animated on arrival
   bool atBottom = true;
   String query = '';
@@ -76,10 +80,11 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   final paneRefresh = ValueNotifier(0);
   List<Slash> slashes = []; // skills matching the `/` being typed
   String slashFor = '';
-  final queue = <Msg>[]; // sent while Hermes answers, each sent once the reply before it is done
-  String phase = ''; // what the running turn does: '' thinks, 'writing', else the tool it runs
-  DateTime since = DateTime.now(); // when the running turn started
   Chat? bot; // the server's Bot Chat, where scheduled jobs deliver their results
+  bool get streaming => chat.streaming;
+  List<Msg> get queue => chat.queue;
+  String get phase => chat.phase;
+  DateTime get since => chat.since;
 
   @override
   void initState() {
@@ -124,8 +129,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         chats = [
           ...chats.where((c) => c.stored.isEmpty),
           for (final r in rows) (known[r.id]?..name = r.title) ?? Chat(stored: r.id, name: r.title),
-          // the server's list is the truth; only the open chat stays if it's missing from it
-          if (chat.stored.isNotEmpty && !identical(chat, bot) && !rows.any((r) => r.id == chat.stored)) chat,
+          // the server's list is the truth; only the open chat, or one still answering, stays if it's missing from it
+          for (final c in {...chats, chat})
+            if (c.stored.isNotEmpty && !identical(c, bot) && (identical(c, chat) || c.streaming) && !rows.any((r) => r.id == c.stored)) c,
         ];
       });
     } catch (e) {
@@ -249,7 +255,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    sub?.cancel();
+    for (final c in [...chats, ?bot]) {
+      c.sub?.cancel();
+    }
     drawer.dispose();
     paneRefresh.dispose();
     input.dispose();
@@ -406,31 +414,31 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   /// Sends the last user message to Hermes and streams the reply in; [again] replaces the previous reply,
   /// [queued] waits for a turn the server may still be closing.
-  Future<void> respond({bool again = false, bool queued = false}) async {
-    final c = chat;
+  Future<void> respond({Chat? of, bool again = false, bool queued = false}) async {
+    final c = of ?? chat;
     final asked = c.msgs.last;
     var prompt = asked.text;
     final turn = c.msgs.where((m) => m.user).length - 1; // the server's user-turn ordinal
     final reply = Msg(false, '');
     setState(() {
       c.msgs.add(reply);
-      streaming = true;
-      phase = '';
-      since = DateTime.now();
+      c.streaming = true;
+      c.phase = '';
+      c.since = DateTime.now();
     });
-    toBottom();
+    if (identical(c, chat)) toBottom();
     void fail(Object? e) {
-      if (!identical(c, chat) || !streaming) return;
+      if (!c.streaming) return;
       reply.text += '${reply.text.isEmpty ? '' : '\n\n'}⚠️ ${e is String ? e : serverErrorText(AppLocalizations.of(context), e)}';
-      stop();
+      stop(of: c);
     }
 
     try {
       final g = await gateway();
       if (g == null) return fail(null); // no server set
       final sid = await attach(g, c);
-      if (!identical(c, chat) || !streaming) return;
-      sub = g.events.listen((e) {
+      if (!c.streaming) return;
+      c.sub = g.events.listen((e) {
         if (e.id case final id?) {
           // only command approvals are shown; other questions (clarify, sudo, secrets) are refused at once
           if (e.type == 'approval' && (e.session == sid || e.session.isEmpty)) {
@@ -449,9 +457,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           case 'message.delta' when e.payload['text'] is String:
             setState(() {
               reply.text += e.payload['text'] as String;
-              phase = 'writing';
+              c.phase = 'writing';
             });
-            if (atBottom) toBottom(jump: true);
+            if (atBottom && identical(c, chat)) toBottom(jump: true);
           case 'tool.start':
             final p = e.payload;
             setState(() {
@@ -463,7 +471,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                   args: p['args'] is Map ? p['args'] as Map : const {},
                 ),
               );
-              phase = '${p['name']}';
+              c.phase = '${p['name']}';
             });
           case 'tool.complete':
             setState(() {
@@ -471,7 +479,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 t.done = true;
                 if (t.name == 'memory' && !memorySaved(e.payload['result'])) t.args = const {}; // no card for a refused write
               }
-              phase = '';
+              c.phase = '';
             });
           case 'request.cancel' when reply.ask?.id == e.payload['id']:
             setState(() => reply.ask = null);
@@ -482,8 +490,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             c.context = contextOf(p['usage']) ?? c.context;
             if (reply.text.trim().isEmpty && p['text'] is String) reply.text = p['text'] as String;
             if (p['status'] == 'error') return fail('${p['error'] ?? p['failure_reason'] ?? 'error'}');
-            streaming = false; // over: nothing left to interrupt
-            stop(next: true);
+            c.streaming = false; // over: nothing left to interrupt
+            stop(of: c, next: true);
           case 'error':
             fail('${e.payload['message']}');
         }
@@ -511,12 +519,12 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             prompt = [body, ...notes].join('\n\n');
           } else if (d['output'] case final String out) {
             setState(() => reply.text = out);
-            return stop();
+            return stop(of: c);
           }
         } on HttpException catch (e) {
           debugPrint('Dispatch: ${e.message}'); // not a skill: sent as typed
         }
-        if (!identical(c, chat) || !streaming) return;
+        if (!c.streaming) return;
       }
       await g.call('prompt.submit', {
         'session_id': sid,
@@ -531,23 +539,26 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     }
   }
 
-  /// Ends the turn; [next] sends the first queued message, else the queue goes back to the composer.
-  void stop({bool next = false}) {
-    final g = chat.on;
-    if (streaming && g != null && !g.closed && chat.live.isNotEmpty) g.call('session.interrupt', {'session_id': chat.live}).ignore();
-    sub?.cancel();
-    sub = null;
-    if (chat.msgs.lastOrNull case final m? when !m.user) {
+  /// Ends the turn of [of] (the open chat by default); [next] sends the first queued message, else the
+  /// queue goes back to the composer (once the chat is open again, when it isn't).
+  void stop({Chat? of, bool next = false}) {
+    final c = of ?? chat;
+    final g = c.on;
+    if (c.streaming && g != null && !g.closed && c.live.isNotEmpty) g.call('session.interrupt', {'session_id': c.live}).ignore();
+    c.sub?.cancel();
+    c.sub = null;
+    if (c.msgs.lastOrNull case final m? when !m.user) {
       m.ask = null; // an interrupted turn drops its question
-      if (m.text.isEmpty && m.tools.isEmpty) chat.msgs.removeLast();
+      if (m.text.isEmpty && m.tools.isEmpty) c.msgs.removeLast();
     }
-    setState(() => streaming = false);
+    setState(() => c.streaming = false);
     loadSessions(); // a first message adds the chat to the server's list
-    if (chat.stored.isNotEmpty) loadCost(chat);
-    if (queue.isEmpty) return;
-    if (!next) return unqueue([...queue]); // the turn it waited for failed or was left: nothing is lost
-    setState(() => chat.msgs.add(queue.removeAt(0)));
-    respond(queued: true);
+    if (c.stored.isNotEmpty) loadCost(c);
+    if (c.queue.isEmpty) return;
+    // the turn it waited for failed or was left: nothing is lost (tapped back into the composer when away)
+    if (!next) return identical(c, chat) ? unqueue([...c.queue]) : null;
+    setState(() => c.msgs.add(c.queue.removeAt(0)));
+    respond(of: c, queued: true);
   }
 
   /// Sends the user's [choice] for the command [m] is waiting on.
@@ -566,7 +577,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   }
 
   void newChat() {
-    stop();
     if (chat.msgs.isNotEmpty) chats.insert(0, chat = Chat());
     setState(() {});
     closeDrawer();
@@ -590,7 +600,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     try {
       final g = await gateway();
       if (g == null) throw const HttpException('no server');
-      if (identical(c, chat)) stop();
+      if (c.streaming) stop(of: c);
       if (identical(c.on, g) && c.live.isNotEmpty) {
         // the server refuses to delete a session that is still open
         await g.call('session.close', {'session_id': c.live}).catchError((Object _) => const {});
@@ -618,11 +628,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   }
 
   void select(Chat c) {
-    stop();
     setState(() => chat = c);
     closeDrawer();
     // the Bot Chat also fills up while away, from the scheduled jobs
-    if ((!c.loaded || identical(c, bot)) && !c.loading) open(c);
+    if ((!c.loaded || identical(c, bot)) && !c.loading && !c.streaming) open(c);
     toBottom(jump: true);
   }
 
