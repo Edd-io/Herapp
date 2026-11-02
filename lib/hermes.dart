@@ -579,23 +579,37 @@ Future<Gateway> hermesGateway(Uri base, {String? user, String? password}) async 
 }
 
 /// A stored conversation, as `session.list` lists it.
-typedef Session = ({String id, String title});
+/// [at]: its last activity when the server tells (REST rows), else when it started.
+typedef Session = ({String id, String title, DateTime? at, bool pinned});
 
-/// The conversations of a `session.list` result; scheduled (cron) runs are left out, as in Hermes' desktop recents.
+DateTime? _seconds(Object? t) => t is num && t > 0 ? DateTime.fromMillisecondsSinceEpoch((t * 1000).round()) : null;
+
+/// The conversations of a `session.list` result or a REST `/api/sessions` page; scheduled (cron) runs are left
+/// out, as in Hermes' desktop recents.
 List<Session> parseSessions(Map result) => [
   for (final s in (result['sessions'] is List ? result['sessions'] as List : const []).whereType<Map>())
     if (s['id'] is String && s['source'] != 'cron')
-      (id: s['id'] as String, title: '${(s['title'] ?? '') == '' ? s['preview'] ?? '' : s['title']}'.trim()),
+      (
+        id: s['id'] as String,
+        title: '${(s['title'] ?? '') == '' ? s['preview'] ?? '' : s['title']}'.trim(),
+        at: _seconds(s['last_active']) ?? _seconds(s['started_at']),
+        pinned: s['pinned'] == true,
+      ),
 ];
 
-/// The pinned conversations of a REST `/api/sessions` page, by id, with their titles.
-Map<String, String> pinnedSessions(String body) => {
-  for (final s in switch (_json(body)) {
-    {'sessions': final List rows} => rows.whereType<Map>(),
-    _ => const <Map>[],
-  })
-    if (s['pinned'] == true && s['id'] is String) s['id'] as String: '${(s['title'] ?? '') == '' ? s['preview'] ?? '' : s['title']}'.trim(),
-};
+/// The menu's group for a chat last active [at]: 0 today, 1 yesterday, 2 the past week, 3 the past month, 4 older.
+int dayGroup(DateTime at, DateTime now) {
+  final days = DateTime(now.year, now.month, now.day).difference(DateTime(at.year, at.month, at.day)).inDays;
+  return days <= 0
+      ? 0
+      : days == 1
+      ? 1
+      : days < 7
+      ? 2
+      : days < 30
+      ? 3
+      : 4;
+}
 
 /// The user and assistant turns of a transcript; tool rows go to the reply that follows them.
 List<Msg> transcript(Object? messages) {

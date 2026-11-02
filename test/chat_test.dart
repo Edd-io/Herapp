@@ -963,4 +963,33 @@ void main() {
     });
     expect(calls.where((c) => c.$1 == 'prompt.submit').single.$2['text'], 'Here\n\n@file:attachments/Report.PDF');
   });
+
+  testWidgets('the menu groups chats by their last activity and marks the one answering', (t) async {
+    double at(Duration ago) => DateTime.now().subtract(ago).millisecondsSinceEpoch / 1000;
+    fakeServer(
+      (method, params, emit) => switch (method) {
+        'session.list' => {
+          'sessions': [
+            {'id': 's1', 'title': 'Old plan', 'started_at': at(const Duration(days: 90))},
+            {'id': 's2', 'title': 'Fresh idea', 'started_at': at(const Duration(days: 90))},
+          ],
+        },
+        _ => null,
+      },
+    );
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async => jsonEncode({
+      // the REST page knows the last activity
+      'sessions': [
+        {'id': 's2', 'title': 'Fresh idea', 'last_active': at(const Duration(minutes: 5))},
+      ],
+    });
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    double y(String text) => t.getTopLeft(find.text(text)).dy;
+    expect(y('Today'), lessThan(y('Fresh idea')));
+    expect(y('Fresh idea'), lessThan(y('Older')));
+    expect(y('Older'), lessThan(y('Old plan')));
+  });
 }

@@ -2401,6 +2401,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The server couldn’t create the image.'**
   String get imageFailed;
+
+  /// No description provided for @chatsToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get chatsToday;
+
+  /// No description provided for @chatsYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get chatsYesterday;
+
+  /// No description provided for @chatsWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous 7 days'**
+  String get chatsWeek;
+
+  /// No description provided for @chatsMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous 30 days'**
+  String get chatsMonth;
+
+  /// No description provided for @chatsOlder.
+  ///
+  /// In en, this message translates to:
+  /// **'Older'**
+  String get chatsOlder;
 }
 
 class _AppLocalizationsDelegate

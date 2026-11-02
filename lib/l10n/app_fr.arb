@@ -383,5 +383,10 @@
   "imageAttach": "Joindre au message",
   "imageAgain": "Recommencer",
   "imageSave": "Enregistrer…",
-  "imageFailed": "Le serveur n’a pas pu créer l’image."
+  "imageFailed": "Le serveur n’a pas pu créer l’image.",
+  "chatsToday": "Aujourd’hui",
+  "chatsYesterday": "Hier",
+  "chatsWeek": "7 derniers jours",
+  "chatsMonth": "30 derniers jours",
+  "chatsOlder": "Plus ancien"
 }

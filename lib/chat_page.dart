@@ -48,6 +48,7 @@ class Chat {
   String stored; // server session id, '' until the first message creates it
   String name; // server title
   bool pinned = false; // kept at the top of the menu, on every device
+  DateTime? active; // last activity, for the menu's date groups; null = new here, now
   bool loaded; // transcript fetched (always for a chat started here)
   bool loading = false;
   double? context; // share of the context window the server reports, null until known
@@ -153,12 +154,15 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       final g = await gateway();
       if (g == null) return;
       final rows = parseSessions(await g.call('session.list', {'limit': 50}));
-      // only the REST list tells which are pinned, those older than the 50 too
-      final pins = await serverApi(
-        'GET',
-        '/api/sessions',
-        query: {'limit': '100', 'archived': 'exclude', 'order': 'recent'},
-      ).then((b) => pinnedSessions(b ?? ''), onError: (Object _) => const <String, String>{});
+      // only the REST list tells which are pinned (those older than the 50 too) and when each was last active
+      final rest = {
+        for (final r in await serverApi(
+          'GET',
+          '/api/sessions',
+          query: {'limit': '100', 'archived': 'exclude', 'order': 'recent'},
+        ).then((b) => parseSessions(jsonDecode(b ?? '{}') as Map), onError: (Object _) => const <Session>[]))
+          r.id: r,
+      };
       // hidden from the list, the Bot Chat is found by its name (an older server ignores the title and lists all)
       final canonical = switch (await g.call('session.list', {'title': 'Bot Chat'}).catchError((Object _) => const {})) {
         {'sessions': [{'title': 'Bot Chat'} && final Map s, ...]} => '${s['resolved_id'] ?? s['id']}',
@@ -174,10 +178,12 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           ...chats.where((c) => c.stored.isEmpty),
           for (final r in [
             ...rows,
-            for (final MapEntry(:key, :value) in pins.entries)
-              if (!rows.any((r) => r.id == key)) (id: key, title: value),
+            for (final r in rest.values)
+              if (r.pinned && !rows.any((row) => row.id == r.id)) r,
           ])
-            ((known[r.id]?..name = r.title) ?? Chat(stored: r.id, name: r.title))..pinned = pins.containsKey(r.id),
+            ((known[r.id]?..name = r.title) ?? Chat(stored: r.id, name: r.title))
+              ..pinned = rest[r.id]?.pinned ?? false
+              ..active = rest[r.id]?.at ?? r.at,
           // the server's list is the truth; only the open chat, or one still answering, stays if it's missing from it
           for (final c in {...chats, chat})
             if (c.stored.isNotEmpty && !identical(c, bot) && (identical(c, chat) || c.streaming) && !rows.any((r) => r.id == c.stored)) c,
@@ -561,7 +567,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       c.msgs.add(reply);
       c.streaming = true;
       c.phase = '';
-      c.since = DateTime.now();
+      c.since = c.active = DateTime.now();
     });
     if (identical(c, chat)) toBottom();
     void fail(Object? e) => failTurn(c, reply, e);
@@ -1195,7 +1201,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                     final x = drawer.value * width;
                     return Stack(
                       children: [
-                        Positioned(left: x - width, top: 0, bottom: 0, width: width, child: sidebar),
+                        Positioned(
+                          left: x - width,
+                          top: 0,
+                          bottom: 0,
+                          width: width,
+                          // out of sight, its animations (a chat's answering dot) stand still
+                          child: TickerMode(enabled: drawer.value > 0, child: sidebar),
+                        ),
                         Positioned(
                           left: x,
                           top: 0,

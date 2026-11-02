@@ -1366,4 +1366,19 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get imageFailed => 'Le serveur n’a pas pu créer l’image.';
+
+  @override
+  String get chatsToday => 'Aujourd’hui';
+
+  @override
+  String get chatsYesterday => 'Hier';
+
+  @override
+  String get chatsWeek => '7 derniers jours';
+
+  @override
+  String get chatsMonth => '30 derniers jours';
+
+  @override
+  String get chatsOlder => 'Plus ancien';
 }

@@ -24,7 +24,18 @@ extension _Sidebar on _ChatPageState {
   Widget _sidebar(ColorScheme c) {
     final q = query.toLowerCase();
     final listed = chats.where((ch) => ch.title.isNotEmpty && ch.title.toLowerCase().contains(q));
-    Widget tile(String label, {IconData? icon, bool selected = false, required VoidCallback onTap, VoidCallback? onMenu}) => Padding(
+    // the others by last activity, under Today, Yesterday… (a chat started here is active now)
+    final now = DateTime.now();
+    final recent = [...listed.where((ch) => !ch.pinned)]..sort((a, b) => (b.active ?? now).compareTo(a.active ?? now));
+    int group(Chat ch) => dayGroup(ch.active ?? now, now);
+    Widget tile(
+      String label, {
+      IconData? icon,
+      bool selected = false,
+      bool busy = false, // the bot answers there
+      required VoidCallback onTap,
+      VoidCallback? onMenu,
+    }) => Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Hover(
         child: GestureDetector(
@@ -48,10 +59,18 @@ extension _Sidebar on _ChatPageState {
                     style: TextStyle(fontSize: 16, color: c.onSurface),
                   ),
                 ),
+                if (busy) ...[const SizedBox(width: 8), _PulseDot(CupertinoColors.systemGreen.resolveFrom(context), size: 8)],
               ],
             ),
           ),
         ),
+      ),
+    );
+    Widget dayHeading(int group) => Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 2),
+      child: Text(
+        [l.chatsToday, l.chatsYesterday, l.chatsWeek, l.chatsMonth, l.chatsOlder][group],
+        style: TextStyle(fontSize: 12, color: c.outline),
       ),
     );
     Widget heading(String text) => Padding(
@@ -83,6 +102,7 @@ extension _Sidebar on _ChatPageState {
         ch.title,
         icon: ch.pinned ? CupertinoIcons.pin : null,
         selected: identical(ch, chat),
+        busy: ch.streaming,
         onTap: () => select(ch),
         onMenu: ch.stored.isEmpty ? null : () => chatMenu(ch),
       ),
@@ -177,7 +197,10 @@ extension _Sidebar on _ChatPageState {
                   heading(l.chats),
                   if (bot case final b? when b.name.toLowerCase().contains(q))
                     tile(b.name, icon: CupertinoIcons.bubble_left_bubble_right, selected: identical(b, chat), onTap: () => select(b)),
-                  for (final ch in listed.where((ch) => !ch.pinned)) listedTile(ch),
+                  for (final (i, ch) in recent.indexed) ...[
+                    if (i == 0 || group(ch) != group(recent[i - 1])) dayHeading(group(ch)),
+                    listedTile(ch),
+                  ],
                   if (q.isEmpty) tile(l.chatsArchived, icon: CupertinoIcons.archivebox, onTap: () => show(_Archived(this))),
                   if (found.where((f) => query.trim().length >= 2 && !listed.any((ch) => ch.stored == f.id)).toList() case final more
                       when more.isNotEmpty) ...[

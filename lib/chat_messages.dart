@@ -656,15 +656,23 @@ class _MacResultState extends State<_MacResult> {
 
 /// Pulsing dot shown while waiting for the first reply chunk.
 class _PulseDot extends StatefulWidget {
-  const _PulseDot(this.color);
+  const _PulseDot(this.color, {this.size = 13});
   final Color color;
+  final double size;
 
   @override
   State<_PulseDot> createState() => _PulseDotState();
 }
 
 class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixin {
-  late final a = AnimationController(vsync: this, duration: const Duration(milliseconds: 700))..repeat(reverse: true);
+  late final a = AnimationController(vsync: this, duration: const Duration(milliseconds: 700), value: 1);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // still when the system asks for less motion
+    MediaQuery.disableAnimationsOf(context) ? a.stop() : a.repeat(reverse: true);
+  }
 
   @override
   void dispose() {
@@ -678,8 +686,8 @@ class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixi
     child: ScaleTransition(
       scale: Tween(begin: .75, end: 1.1).animate(CurvedAnimation(parent: a, curve: Curves.easeInOut)),
       child: Container(
-        width: 13,
-        height: 13,
+        width: widget.size,
+        height: widget.size,
         decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
       ),
     ),

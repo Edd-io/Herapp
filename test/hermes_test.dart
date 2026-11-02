@@ -6,6 +6,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:herapp/hermes.dart';
 
 void main() {
+  test('a chat falls under today, yesterday, the week, the month or older', () {
+    final now = DateTime(2026, 11, 2, 9);
+    expect(dayGroup(DateTime(2026, 11, 2, 0, 5), now), 0);
+    expect(dayGroup(DateTime(2026, 11, 1, 23, 50), now), 1); // late last night is yesterday
+    expect(dayGroup(DateTime(2026, 10, 28), now), 2);
+    expect(dayGroup(DateTime(2026, 10, 10), now), 3);
+    expect(dayGroup(DateTime(2026, 6, 1), now), 4);
+  });
+
   test('only network failures read as an unreachable server', () {
     expect(unreachable(const SocketException('Connection refused')), isTrue);
     expect(unreachable(TimeoutException('slow')), isTrue);
@@ -194,7 +203,7 @@ void main() {
     addTearDown(g.close);
 
     final event = g.events.first;
-    expect(parseSessions(await g.call('session.list')), [(id: 's1', title: 'First question')]);
+    expect(parseSessions(await g.call('session.list')), [(id: 's1', title: 'First question', at: null, pinned: false)]);
     final e = await event;
     expect((e.type, e.session, e.payload['text']), ('message.delta', 'rt', 'hi'));
     expect(g.call('nope'), throwsA(isA<HttpException>().having((e) => e.message, 'message', 'unknown method')));

@@ -673,5 +673,10 @@
   "imageAttach": "Attach to the message",
   "imageAgain": "Try again",
   "imageSave": "Save…",
-  "imageFailed": "The server couldn’t create the image."
+  "imageFailed": "The server couldn’t create the image.",
+  "chatsToday": "Today",
+  "chatsYesterday": "Yesterday",
+  "chatsWeek": "Previous 7 days",
+  "chatsMonth": "Previous 30 days",
+  "chatsOlder": "Older"
 }
