@@ -851,7 +851,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   Widget _frame() {
     final c = Theme.of(context).colorScheme;
     final screen = MediaQuery.sizeOf(context).width;
-    final width = screen * .82;
+    final width = math.min(screen * .82, 360.0); // a phone's menu, at most a sidebar's width on a narrow window
     late final main = _main(c); // the wide layout builds it in its pane
     final sidebar = _sidebar(c);
     return AnnotatedRegion<SystemUiOverlayStyle>(
