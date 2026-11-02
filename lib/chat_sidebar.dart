@@ -161,12 +161,12 @@ extension _Sidebar on _ChatPageState {
                       child: GestureDetector(
                         onTap: newChat,
                         child: Container(
-                          height: 44,
+                          height: 36,
                           decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(CupertinoIcons.square_pencil, size: 19, color: c.onSurface),
+                              Icon(CupertinoIcons.square_pencil, size: 17, color: c.onSurface),
                               const SizedBox(width: 10),
                               Text(
                                 l.newChat,
