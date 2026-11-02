@@ -408,5 +408,14 @@
   "welcomeSubagents": "{n, plural, =1{1 sous-agent au travail} other{{n} sous-agents au travail}}",
   "welcomeRoutines": "Résultats des tâches planifiées",
   "toolsEarlier": "{n, plural, =1{1 étape avant} other{{n} étapes avant}}",
-  "toolsFold": "Replier"
+  "toolsFold": "Replier",
+  "askClarify": "Hermes a une question",
+  "askSudo": "Hermes a besoin du mot de passe sudo",
+  "askSecret": "Hermes a besoin d’un secret",
+  "askPassword": "Mot de passe",
+  "askValue": "Valeur",
+  "askAnswer": "Ta réponse",
+  "askOther": "Autre chose…",
+  "askSend": "Envoyer",
+  "askSkip": "Passer"
 }

@@ -640,9 +640,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   void follow(Gateway g, Chat c, String sid, Msg reply) {
     c.sub = g.events.listen((e) {
       if (e.id case final id?) {
-        // only command approvals are shown; other questions (clarify, sudo, secrets) are refused at once
-        if (e.type == 'approval' && (e.session == sid || e.session.isEmpty)) {
-          setState(() => reply.ask = (id: id, params: e.payload));
+        // what the user can answer is asked in the reply; other requests (desktop windows, tours) are refused at once
+        if (const {'approval', 'clarify', 'sudo', 'secret'}.contains(e.type) && (e.session == sid || e.session.isEmpty)) {
+          setState(() => reply.ask = (id: id, kind: e.type, params: e.payload));
           settings.haptic();
         } else {
           g.reply(id, null);
@@ -793,12 +793,13 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     respond(of: c, queued: true);
   }
 
-  /// Sends the user's [choice] for the command [m] is waiting on.
-  void answer(Msg m, String choice) {
+  /// Sends the user's answer to what [m] is waiting on: `{choice}` for a command, `{answers}` for questions,
+  /// `{value}` for a password or a secret.
+  void answer(Msg m, Map<String, Object?> result) {
     final ask = m.ask;
     if (ask == null) return;
     settings.haptic();
-    chat.on?.reply(ask.id, {'choice': choice});
+    chat.on?.reply(ask.id, result);
     setState(() => m.ask = null);
   }
 

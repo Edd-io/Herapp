@@ -2551,6 +2551,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fold'**
   String get toolsFold;
+
+  /// No description provided for @askClarify.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes has a question'**
+  String get askClarify;
+
+  /// No description provided for @askSudo.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes needs the sudo password'**
+  String get askSudo;
+
+  /// No description provided for @askSecret.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes needs a secret'**
+  String get askSecret;
+
+  /// No description provided for @askPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get askPassword;
+
+  /// No description provided for @askValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get askValue;
+
+  /// No description provided for @askAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Your answer'**
+  String get askAnswer;
+
+  /// No description provided for @askOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Something else…'**
+  String get askOther;
+
+  /// No description provided for @askSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get askSend;
+
+  /// No description provided for @askSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get askSkip;
 }
 
 class _AppLocalizationsDelegate

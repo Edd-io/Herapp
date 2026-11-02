@@ -18,8 +18,9 @@ class Msg {
   /// The tools Hermes ran for this reply, in order.
   final List<Tool> tools;
 
-  /// A command waiting for the user's approval: the server request [GatewayEvent.id] and its params.
-  ({Object id, Map params})? ask;
+  /// What the server waits on the user for: the request [GatewayEvent.id], its [kind] (`approval` of a command,
+  /// `clarify` questions, a `sudo` password or a `secret`) and its params.
+  ({Object id, String kind, Map params})? ask;
 
   /// What this reply asked of this computer, as it runs here (empty for a reply read back from history).
   List<MacRun> mac = [];

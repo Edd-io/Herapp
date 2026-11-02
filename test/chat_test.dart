@@ -369,7 +369,7 @@ void main() {
             'choices': ['once', 'session', 'always', 'deny'],
             'allow_permanent': false,
           });
-          emit('request:clarify', {'questions': []});
+          emit('request:tour', {'step': 1});
         case 'reply' when '${params['result']}' == '{choice: once}':
           emit('tool.complete', {'tool_id': 't1', 'name': 'terminal'});
           emit('message.complete', {'text': 'Cleaned', 'status': 'complete'});
@@ -385,7 +385,7 @@ void main() {
     expect(find.textContaining('terminal  rm -rf build', findRichText: true), findsOneWidget); // first line only
     expect(find.text('Hermes wants to run a command'), findsOneWidget);
     expect(find.text('Always'), findsNothing); // the server allows no permanent approval
-    expect(calls.where((c) => c.$1 == 'reply').single.$2, containsPair('error', isA<Map>())); // clarify refused
+    expect(calls.where((c) => c.$1 == 'reply').single.$2, containsPair('error', isA<Map>())); // a desktop tour refused
 
     await t.tap(find.text('Allow once'));
     await t.pump(const Duration(seconds: 1));
@@ -393,6 +393,51 @@ void main() {
     expect(find.text('Hermes wants to run a command'), findsNothing);
     expect(find.textContaining('Cleaned'), findsOneWidget);
     expect(find.text('1 action'), findsOneWidget); // folded once the reply is done
+    await t.pump(const Duration(seconds: 10));
+  });
+
+  testWidgets('Hermes\'s questions are answered in the reply, then its sudo password', (t) async {
+    final calls = fakeServer((method, params, emit) {
+      switch (method) {
+        case 'session.create':
+          return {'session_id': 'rt', 'stored_session_id': 's1'};
+        case 'prompt.submit':
+          emit('request:clarify', {
+            'questions': [
+              {'qid': 'q0', 'question': 'Which branch?', 'choices': ['main', 'dev'], 'multi_select': false},
+              {'qid': 'q1', 'question': 'Anything to add?', 'choices': null, 'multi_select': false},
+            ],
+          });
+        case 'reply' when params['result'] is Map && (params['result'] as Map).containsKey('answers'):
+          emit('request:sudo', {'command': 'pacman -S poppler'});
+        case 'reply' when params['result'] is Map && (params['result'] as Map).containsKey('value'):
+          emit('message.complete', {'text': 'Installed', 'status': 'complete'});
+      }
+      return null;
+    });
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, 'Install poppler');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 1));
+
+    expect(find.text('Hermes has a question'), findsOneWidget);
+    expect(find.text('Which branch?'), findsOneWidget);
+    await t.tap(find.text('dev'));
+    await t.pump();
+    await t.enterText(find.widgetWithText(TextField, 'Your answer'), 'be quick');
+    await t.tap(find.text('Send'));
+    await t.pump(const Duration(seconds: 1));
+    expect(calls.where((c) => c.$1 == 'reply').first.$2, containsPair('result', {'answers': {'q0': 'dev', 'q1': 'be quick'}}));
+
+    expect(find.text('Hermes needs the sudo password'), findsOneWidget);
+    expect(find.text('pacman -S poppler'), findsOneWidget);
+    await t.enterText(find.widgetWithText(TextField, 'Password'), 'hunter2');
+    await t.tap(find.text('Send'));
+    await t.pump(const Duration(seconds: 1));
+    expect(calls.where((c) => c.$1 == 'reply').last.$2, containsPair('result', {'value': 'hunter2'}));
+    expect(find.text('Hermes needs the sudo password'), findsNothing);
+    expect(find.textContaining('Installed'), findsOneWidget);
     await t.pump(const Duration(seconds: 10));
   });
 

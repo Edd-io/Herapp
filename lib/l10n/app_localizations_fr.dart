@@ -1457,4 +1457,31 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get toolsFold => 'Replier';
+
+  @override
+  String get askClarify => 'Hermes a une question';
+
+  @override
+  String get askSudo => 'Hermes a besoin du mot de passe sudo';
+
+  @override
+  String get askSecret => 'Hermes a besoin d’un secret';
+
+  @override
+  String get askPassword => 'Mot de passe';
+
+  @override
+  String get askValue => 'Valeur';
+
+  @override
+  String get askAnswer => 'Ta réponse';
+
+  @override
+  String get askOther => 'Autre chose…';
+
+  @override
+  String get askSend => 'Envoyer';
+
+  @override
+  String get askSkip => 'Passer';
 }

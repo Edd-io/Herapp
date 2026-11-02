@@ -1437,4 +1437,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get toolsFold => 'Fold';
+
+  @override
+  String get askClarify => 'Hermes has a question';
+
+  @override
+  String get askSudo => 'Hermes needs the sudo password';
+
+  @override
+  String get askSecret => 'Hermes needs a secret';
+
+  @override
+  String get askPassword => 'Password';
+
+  @override
+  String get askValue => 'Value';
+
+  @override
+  String get askAnswer => 'Your answer';
+
+  @override
+  String get askOther => 'Something else…';
+
+  @override
+  String get askSend => 'Send';
+
+  @override
+  String get askSkip => 'Skip';
 }

@@ -700,5 +700,14 @@
   "welcomeRoutines": "Scheduled jobs’ results",
   "toolsEarlier": "{n, plural, =1{1 earlier step} other{{n} earlier steps}}",
   "@toolsEarlier": {"placeholders": {"n": {"type": "int"}}},
-  "toolsFold": "Fold"
+  "toolsFold": "Fold",
+  "askClarify": "Hermes has a question",
+  "askSudo": "Hermes needs the sudo password",
+  "askSecret": "Hermes needs a secret",
+  "askPassword": "Password",
+  "askValue": "Value",
+  "askAnswer": "Your answer",
+  "askOther": "Something else…",
+  "askSend": "Send",
+  "askSkip": "Skip"
 }

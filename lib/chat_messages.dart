@@ -198,7 +198,15 @@ extension _Messages on _ChatPageState {
               _ScreenPreview(live: live, onOpen: () => show(const ScreenPage())),
             for (final t in m.tools.where((t) => t.done))
               if (memoryChanges(t) case final changes when changes.isNotEmpty) _memoryCard(c, changes),
-            if (m.ask case final ask?) _approval(c, m, ask.params),
+            if (m.ask case final ask?)
+              ask.kind == 'approval'
+                  ? _approval(c, m, ask.params)
+                  : _Ask(
+                      ask,
+                      key: ObjectKey(ask), // a new request, a fresh card
+                      onAnswer: (r) => answer(m, r),
+                      choice: (label, onTap, main, danger) => _choice(c, label, onTap, main: main, danger: danger),
+                    ),
             if (text.trim().isNotEmpty)
               _Markdown(text.trimLeft(), style: body.copyWith(color: c.onSurface)) // text after a tool call starts with blank lines
             else if (live && m.ask == null && m.tools.every((t) => t.done))
@@ -375,7 +383,7 @@ extension _Messages on _ChatPageState {
         'deny' => l.approveDeny,
         _ => k,
       },
-      () => answer(m, k),
+      () => answer(m, {'choice': k}),
       main: k == 'once',
       danger: k == 'deny',
     );
@@ -1062,4 +1070,162 @@ class _HoveredState extends State<_Hovered> {
   @override
   Widget build(BuildContext context) =>
       MouseRegion(onEnter: (_) => setState(() => on = true), onExit: (_) => setState(() => on = false), child: widget.builder(on));
+}
+
+/// What Hermes asks the user in a reply: its `clarify` questions (picked among its choices or typed),
+/// or a `sudo` password or a `secret` it needs. [onAnswer] gets the result the server request expects.
+class _Ask extends StatefulWidget {
+  const _Ask(this.ask, {super.key, required this.onAnswer, required this.choice});
+  final ({Object id, String kind, Map params}) ask;
+  final ValueChanged<Map<String, Object?>> onAnswer;
+  final Widget Function(String label, VoidCallback onTap, bool main, bool danger) choice;
+
+  @override
+  State<_Ask> createState() => _AskState();
+}
+
+class _AskState extends State<_Ask> {
+  late final questions = [
+    for (final q in (widget.ask.params['questions'] as List? ?? const []).whereType<Map>())
+      (
+        id: '${q['qid']}',
+        text: '${q['question'] ?? ''}',
+        choices: [for (final c in q['choices'] as List? ?? const []) '$c'],
+        multi: q['multi_select'] == true,
+      ),
+  ];
+  late final picked = {for (final q in questions) q.id: <String>{}};
+  late final typed = {for (final q in questions) q.id: TextEditingController()};
+  final value = TextEditingController();
+
+  @override
+  void dispose() {
+    for (final t in typed.values) {
+      t.dispose();
+    }
+    value.dispose();
+    super.dispose();
+  }
+
+  /// Each question's answer: what was typed, else the choice (a list when several may be picked); null = skipped.
+  Map<String, Object?> get answers => {
+    for (final q in questions)
+      q.id: switch ((typed[q.id]!.text.trim(), picked[q.id]!)) {
+        (final t, _) when t.isNotEmpty => q.multi ? [...picked[q.id]!, t] : t,
+        (_, final p) when p.isEmpty => null,
+        (_, final p) => q.multi ? [...p] : p.first,
+      },
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme, l = AppLocalizations.of(context);
+    final p = widget.ask.params, secret = widget.ask.kind != 'clarify';
+    final title = switch (widget.ask.kind) {
+      'sudo' => l.askSudo,
+      'secret' => '${p['prompt'] ?? ''}'.trim().isNotEmpty ? '${p['prompt']}'.trim() : l.askSecret,
+      _ => l.askClarify,
+    };
+    final detail = switch (widget.ask.kind) {
+      'sudo' => '${p['command'] ?? ''}'.trim(),
+      'secret' => '${p['env_var'] ?? ''}'.trim(),
+      _ => '',
+    };
+    Widget field(TextEditingController t, String hint, {bool hidden = false}) => Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(10)),
+      child: TextField(
+        controller: t,
+        obscureText: hidden,
+        autofocus: hidden,
+        autocorrect: !hidden,
+        enableSuggestions: !hidden,
+        onChanged: (_) => setState(() {}),
+        onSubmitted: hidden ? (v) => widget.onAnswer({'value': v}) : null,
+        style: TextStyle(fontSize: 15, color: c.onSurface),
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          hintText: hint,
+          hintStyle: TextStyle(color: c.outline),
+        ),
+      ),
+    );
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(18)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.onSurface),
+          ),
+          if (detail.isNotEmpty)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(10)),
+              child: SelectableText(
+                detail,
+                style: TextStyle(fontFamily: 'Menlo', fontSize: 13, color: c.onSurface),
+              ),
+            ),
+          if (secret) field(value, widget.ask.kind == 'sudo' ? l.askPassword : l.askValue, hidden: true),
+          for (final q in questions) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(q.text, style: TextStyle(fontSize: 15, color: c.onSurface)),
+            ),
+            if (q.choices.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final k in q.choices)
+                      widget.choice(
+                        k,
+                        () {
+                          settings.haptic();
+                          setState(() {
+                            final p = picked[q.id]!;
+                            if (q.multi) {
+                              p.contains(k) ? p.remove(k) : p.add(k);
+                            } else {
+                              p.contains(k)
+                                  ? p.clear()
+                                  : (p
+                                      ..clear()
+                                      ..add(k));
+                              typed[q.id]!.clear();
+                            }
+                          });
+                        },
+                        picked[q.id]!.contains(k),
+                        false,
+                      ),
+                  ],
+                ),
+              ),
+            field(typed[q.id]!, q.choices.isEmpty ? l.askAnswer : l.askOther),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              widget.choice(l.askSend, () => widget.onAnswer(secret ? {'value': value.text} : {'answers': answers}), true, false),
+              // an empty value tells the server the user declined; `{}` skips every question
+              widget.choice(secret ? l.approveDeny : l.askSkip, () => widget.onAnswer(secret ? {'value': ''} : {}), false, true),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
