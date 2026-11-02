@@ -417,5 +417,11 @@
   "askAnswer": "Ta réponse",
   "askOther": "Autre chose…",
   "askSend": "Envoyer",
-  "askSkip": "Passer"
+  "askSkip": "Passer",
+  "backgroundTask": "Tâche en arrière-plan",
+  "backgroundNext": "Le prochain message part en tâche d’arrière-plan",
+  "backgroundRunning": "En arrière-plan : {task}",
+  "backgroundLabel": "arrière-plan",
+  "backgroundDone": "Tâche en arrière-plan terminée dans « {chat} »",
+  "backgroundOpen": "Ouvrir"
 }

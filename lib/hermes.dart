@@ -12,6 +12,9 @@ class Msg {
   DateTime at = DateTime.now();
   String model = '';
 
+  /// Asked of, or answered by, a side agent in the background (`prompt.background`): not a turn of the chat.
+  bool background = false;
+
   /// What the user attached to this message.
   final List<Attachment> files;
 

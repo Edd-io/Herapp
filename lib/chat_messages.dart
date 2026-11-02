@@ -83,7 +83,8 @@ extension _Messages on _ChatPageState {
     if (m.user) {
       if (cronDelivery(m.text) case final d?) return _routine(c, d);
       if (m.text.startsWith(macResultTag)) return _MacResult(m.text);
-      final actions = !streaming && !queue.contains(m); // a turn running, or the message waiting, can't be redone yet
+      // a turn running, or the message waiting, can't be redone yet; a background task isn't a turn to redo
+      final actions = !streaming && !queue.contains(m) && !m.background;
       final text = Align(
         alignment: Alignment.centerRight,
         child: Container(
@@ -183,6 +184,10 @@ extension _Messages on _ChatPageState {
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.onSurface),
                     ),
                   ),
+                  if (m.background) ...[
+                    const SizedBox(width: 6),
+                    Text('· ${l.backgroundLabel}', style: TextStyle(fontSize: 12, color: c.outline)),
+                  ],
                   const SizedBox(width: 8),
                   AnimatedOpacity(
                     opacity: shown || !hovers ? 1 : 0,

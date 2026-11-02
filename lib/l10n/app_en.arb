@@ -709,5 +709,13 @@
   "askAnswer": "Your answer",
   "askOther": "Something else…",
   "askSend": "Send",
-  "askSkip": "Skip"
+  "askSkip": "Skip",
+  "backgroundTask": "Background task",
+  "backgroundNext": "The next message goes to a background task",
+  "backgroundRunning": "In the background: {task}",
+  "@backgroundRunning": {"placeholders": {"task": {"type": "String"}}},
+  "backgroundLabel": "background",
+  "backgroundDone": "Background task done in “{chat}”",
+  "@backgroundDone": {"placeholders": {"chat": {"type": "String"}}},
+  "backgroundOpen": "Open"
 }

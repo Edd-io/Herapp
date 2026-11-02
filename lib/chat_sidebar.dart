@@ -106,7 +106,7 @@ extension _Sidebar on _ChatPageState {
         ch.title,
         icon: ch.pinned ? CupertinoIcons.pin : null,
         selected: identical(ch, chat),
-        busy: ch.streaming,
+        busy: ch.streaming || ch.tasks.isNotEmpty,
         onTap: () => select(ch),
         onMenu: ch.stored.isEmpty ? null : () => chatMenu(ch),
       ),

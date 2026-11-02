@@ -62,8 +62,7 @@ import 'app_localizations_fr.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -71,8 +70,7 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate =
-      _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -84,19 +82,15 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[
-    Locale('en'),
-    Locale('fr'),
-  ];
+  static const List<Locale> supportedLocales = <Locale>[Locale('en'), Locale('fr')];
 
   /// No description provided for @statusThinking.
   ///
@@ -2605,10 +2599,45 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Skip'**
   String get askSkip;
+
+  /// No description provided for @backgroundTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Background task'**
+  String get backgroundTask;
+
+  /// No description provided for @backgroundNext.
+  ///
+  /// In en, this message translates to:
+  /// **'The next message goes to a background task'**
+  String get backgroundNext;
+
+  /// No description provided for @backgroundRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'In the background: {task}'**
+  String backgroundRunning(String task);
+
+  /// No description provided for @backgroundLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'background'**
+  String get backgroundLabel;
+
+  /// No description provided for @backgroundDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Background task done in “{chat}”'**
+  String backgroundDone(String chat);
+
+  /// No description provided for @backgroundOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get backgroundOpen;
 }
 
-class _AppLocalizationsDelegate
-    extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -2617,8 +2646,7 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en', 'fr'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['en', 'fr'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;

@@ -404,7 +404,12 @@ void main() {
         case 'prompt.submit':
           emit('request:clarify', {
             'questions': [
-              {'qid': 'q0', 'question': 'Which branch?', 'choices': ['main', 'dev'], 'multi_select': false},
+              {
+                'qid': 'q0',
+                'question': 'Which branch?',
+                'choices': ['main', 'dev'],
+                'multi_select': false,
+              },
               {'qid': 'q1', 'question': 'Anything to add?', 'choices': null, 'multi_select': false},
             ],
           });
@@ -428,7 +433,12 @@ void main() {
     await t.enterText(find.widgetWithText(TextField, 'Your answer'), 'be quick');
     await t.tap(find.text('Send'));
     await t.pump(const Duration(seconds: 1));
-    expect(calls.where((c) => c.$1 == 'reply').first.$2, containsPair('result', {'answers': {'q0': 'dev', 'q1': 'be quick'}}));
+    expect(
+      calls.where((c) => c.$1 == 'reply').first.$2,
+      containsPair('result', {
+        'answers': {'q0': 'dev', 'q1': 'be quick'},
+      }),
+    );
 
     expect(find.text('Hermes needs the sudo password'), findsOneWidget);
     expect(find.text('pacman -S poppler'), findsOneWidget);
@@ -438,6 +448,36 @@ void main() {
     expect(calls.where((c) => c.$1 == 'reply').last.$2, containsPair('result', {'value': 'hunter2'}));
     expect(find.text('Hermes needs the sudo password'), findsNothing);
     expect(find.textContaining('Installed'), findsOneWidget);
+    await t.pump(const Duration(seconds: 10));
+  });
+
+  testWidgets('a background task works aside, then its answer joins the chat', (t) async {
+    void Function(String, Map)? later;
+    final calls = fakeServer((method, params, emit) {
+      switch (method) {
+        case 'session.create':
+          return {'session_id': 'rt', 'stored_session_id': 's1'};
+        case 'prompt.background':
+          later = emit;
+          return {'task_id': 'bg_1'};
+      }
+      return null;
+    });
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, '/bg check the logs');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 1));
+    expect(calls.where((c) => c.$1 == 'prompt.background').single.$2, containsPair('text', 'check the logs'));
+    expect(calls.where((c) => c.$1 == 'prompt.submit'), isEmpty);
+    expect(find.text('In the background: check the logs'), findsOneWidget);
+
+    later!('background.complete', {'task_id': 'bg_1', 'text': 'Logs are clean'});
+    await t.pump(const Duration(seconds: 1));
+    expect(find.text('In the background: check the logs'), findsNothing);
+    expect(find.text('check the logs'), findsWidgets); // the bubble (and title)
+    expect(find.textContaining('Logs are clean'), findsOneWidget);
+    expect(find.text('· background'), findsOneWidget);
     await t.pump(const Duration(seconds: 10));
   });
 

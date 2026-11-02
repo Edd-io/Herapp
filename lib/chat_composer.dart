@@ -34,6 +34,45 @@ extension _Composer on _ChatPageState {
                 ],
               ),
             ),
+          for (final task in chat.tasks)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 6, 16, 0),
+              child: Row(
+                children: [
+                  _PulseDot(c.outline, size: 8),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      l.backgroundRunning(task),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, color: c.outline),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (backgrounded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 6, 16, 0),
+              child: Row(
+                children: [
+                  Icon(CupertinoIcons.moon_zzz, size: 16, color: c.outline),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(l.backgroundNext, style: TextStyle(fontSize: 13, color: c.outline)),
+                  ),
+                  Hover(
+                    radius: 999,
+                    label: l.cancel,
+                    child: GestureDetector(
+                      onTap: () => setState(() => backgrounded = false),
+                      child: Icon(CupertinoIcons.xmark_circle_fill, size: 18, color: c.outline),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (pending.isNotEmpty)
             SizedBox(
               height: 76,

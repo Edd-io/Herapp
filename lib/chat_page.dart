@@ -62,6 +62,7 @@ class Chat {
   StreamSubscription<GatewayEvent>? sub;
   bool streaming = false;
   final queue = <Msg>[]; // sent while Hermes answers, each sent once the reply before it is done
+  final tasks = <String>[]; // what side agents work on in the background, until their answer joins the chat
   String phase = ''; // what the running turn does: '' thinks, 'writing', else the tool it runs
   DateTime since = DateTime.now(); // when the running turn started
   // this computer, for the commands its replies ask to run
@@ -106,6 +107,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   late final AnimationController drawer;
   Msg? fresh; // latest user message, animated on arrival
   Msg? editing; // a sent message the composer rewrites, to send in its place
+  bool backgrounded = false; // the next message goes to a side agent in the background
   bool atBottom = true;
   String query = '';
   List<Found> found = []; // conversations whose messages match [query]
@@ -447,6 +449,13 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     final text = input.text.trim();
     if (text.isEmpty && pending.isEmpty) return;
     settings.haptic();
+    if (RegExp(r'^/(?:background|bg)\s+(\S[\s\S]*)$').firstMatch(text)?[1] ?? (backgrounded ? text : null) case final task?
+        when task.isNotEmpty) {
+      input.clear();
+      setState(() => backgrounded = false);
+      inBackground(chat, task);
+      return;
+    }
     input.clear();
     final m = Msg(true, text, null, [...pending]);
     if (editing case final old? when !streaming && chat.msgs.contains(old)) {
@@ -464,6 +473,58 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       fresh = m;
     });
     if (!later) respond();
+  }
+
+  /// Hands [task] to a side agent on [c]'s session, which works on it while the chat goes on; its answer
+  /// then joins the chat after what was said meanwhile (before a question still being answered).
+  /// ponytail: kept here only, as the server keeps the side agent's work out of the chat's transcript
+  Future<void> inBackground(Chat c, String task) async {
+    setState(() => c.tasks.add(task));
+    String answer;
+    try {
+      final g = await gateway();
+      if (g == null) throw const HttpException('no server');
+      final sid = await attach(g, c);
+      // listening before asking: a side agent that fails at once answers before its id comes back
+      String? id;
+      final early = <String, String>{}, done = Completer<String>();
+      final sub = g.events.listen((e) {
+        if (e.type != 'background.complete' || e.session != sid) return;
+        final (of, text) = ('${e.payload['task_id']}', '${e.payload['text'] ?? ''}');
+        if (of == id && !done.isCompleted) done.complete(text);
+        if (id == null) early[of] = text;
+      }, onDone: () => done.isCompleted ? null : done.completeError(const HttpException('connection to Hermes lost')));
+      id = '${(await g.call('prompt.background', {'session_id': sid, 'text': task}))['task_id']}';
+      if (early[id] case final text? when !done.isCompleted) done.complete(text);
+      answer = await done.future.whenComplete(sub.cancel);
+      if (answer.startsWith('error: ')) answer = '⚠️ ${answer.substring(7)}';
+    } catch (e) {
+      debugPrint('Background: $e');
+      answer = mounted ? '⚠️ ${serverErrorText(AppLocalizations.of(context), e)}' : '';
+    }
+    if (!mounted) return;
+    settings.haptic();
+    setState(() {
+      c.tasks.remove(task);
+      final at = c.streaming ? c.msgs.lastIndexWhere((m) => m.user && !m.background) : -1;
+      c.msgs.insertAll(at < 0 ? c.msgs.length : at, [
+        Msg(true, task)..background = true,
+        Msg(false, answer)
+          ..background = true
+          ..model = c.model,
+      ]);
+    });
+    if (identical(c, chat)) {
+      if (atBottom) toBottom();
+    } else {
+      final l = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l.backgroundDone(c.title)),
+          action: SnackBarAction(label: l.backgroundOpen, onPressed: () => select(c)),
+        ),
+      );
+    }
   }
 
   /// Takes [msgs] off the queue and back into the composer, to edit or send again.
@@ -521,10 +582,16 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'camera'), child: Text(l.attachCamera)),
           CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'files'), child: Text(l.attachFiles)),
           CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'image'), child: Text(l.imageCreate)),
+          CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'background'), child: Text(l.backgroundTask)),
         ],
         cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(context), child: Text(l.cancel)),
       ),
     );
+    if (from == 'background') {
+      setState(() => backgrounded = true);
+      focus.requestFocus();
+      return;
+    }
     if (from == 'image') {
       if (!mounted) return;
       final made = await showPanel<Attachment>(context, (_) => const ImageSheet(), scrollControlled: true);
@@ -561,7 +628,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     final c = of ?? chat;
     final asked = c.msgs.last;
     var prompt = asked.text;
-    final turn = c.msgs.where((m) => m.user).length - 1; // the server's user-turn ordinal
+    final turn = c.msgs.where((m) => m.user && !m.background).length - 1; // the server's user-turn ordinal
     final reply = Msg(false, '')..model = c.model;
     setState(() {
       c.msgs.add(reply);
@@ -803,7 +870,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     setState(() => m.ask = null);
   }
 
-  void regenerate() => resend(chat.msgs.lastWhere((m) => m.user));
+  void regenerate() => resend(chat.msgs.lastWhere((m) => m.user && !m.background));
 
   /// Sends the chat again from the user message [asked], or from [edited] in its place; what followed is dropped.
   void resend(Msg asked, [Msg? edited]) {

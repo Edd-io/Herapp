@@ -85,12 +85,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String systemChanges(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count changes',
-      one: '1 change',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count changes', one: '1 change');
     return '$_temp0';
   }
 
@@ -98,8 +93,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get systemUpdateNow => 'Update now';
 
   @override
-  String get systemUpdateConfirm =>
-      'Hermes will update and restart. Replies in progress will stop.';
+  String get systemUpdateConfirm => 'Hermes will update and restart. Replies in progress will stop.';
 
   @override
   String get systemUpdating => 'Updating…';
@@ -188,8 +182,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get macShell => 'Commands on this computer';
 
   @override
-  String get macShellHint =>
-      'Hermes can ask from the chat to run commands here; you approve them in the app.';
+  String get macShellHint => 'Hermes can ask from the chat to run commands here; you approve them in the app.';
 
   @override
   String get macTitle => 'On this computer';
@@ -327,8 +320,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get serverTunnelFailed =>
-      'the WireGuard tunnel can\'t reach the server';
+  String get serverTunnelFailed => 'the WireGuard tunnel can\'t reach the server';
 
   @override
   String get modelsNone => 'No model is configured on the server.';
@@ -347,8 +339,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serverNotSet => 'Set your Hermes server address in Settings.';
 
   @override
-  String get serverRestart =>
-      'Hermes was updated but is still running the old version. Restart the Hermes server.';
+  String get serverRestart => 'Hermes was updated but is still running the old version. Restart the Hermes server.';
 
   @override
   String serverLoadFailed(String message) {
@@ -390,15 +381,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get quotaFooter =>
-      'Usage reported by Hermes for subscription providers. Pull down to refresh.';
+  String get quotaFooter => 'Usage reported by Hermes for subscription providers. Pull down to refresh.';
 
   @override
   String get deleteChat => 'Delete chat';
 
   @override
-  String get deleteChatMessage =>
-      'This chat will be deleted from Hermes for good.';
+  String get deleteChatMessage => 'This chat will be deleted from Hermes for good.';
 
   @override
   String get cancel => 'Cancel';
@@ -461,8 +450,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cronSchedule => 'Schedule';
 
   @override
-  String get cronScheduleHint =>
-      '0 9 * * *, every 30m, every monday 9am, or a date like 2026-11-02T08:00';
+  String get cronScheduleHint => '0 9 * * *, every 30m, every monday 9am, or a date like 2026-11-02T08:00';
 
   @override
   String get cronRepeat => 'Repeat';
@@ -536,15 +524,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cronContextFrom => 'Context from jobs';
 
   @override
-  String get cronContextHint =>
-      'Job ids whose latest output is given to this one';
+  String get cronContextHint => 'Job ids whose latest output is given to this one';
 
   @override
   String get cronDelete => 'Delete job';
 
   @override
-  String get cronDeleteMessage =>
-      'This job will be deleted from Hermes for good.';
+  String get cronDeleteMessage => 'This job will be deleted from Hermes for good.';
 
   @override
   String get approvalTitle => 'Hermes wants to run a command';
@@ -563,12 +549,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String toolsUsed(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count actions',
-      one: '1 action',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count actions', one: '1 action');
     return '$_temp0';
   }
 
@@ -601,8 +582,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentNew => 'New agent';
 
   @override
-  String get agentsEmpty =>
-      'No agents yet. An agent works on its own on a schedule, and tells you what matters.';
+  String get agentsEmpty => 'No agents yet. An agent works on its own on a schedule, and tells you what matters.';
 
   @override
   String get agentWorking => 'Working on it…';
@@ -673,8 +653,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vaultAdd => 'Add an account';
 
   @override
-  String get vaultEmpty =>
-      'No accounts yet. Add the ones Hermes may sign in with for you.';
+  String get vaultEmpty => 'No accounts yet. Add the ones Hermes may sign in with for you.';
 
   @override
   String get vaultFooter =>
@@ -684,8 +663,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vaultDelete => 'Remove the account';
 
   @override
-  String get vaultDeleteMessage =>
-      'Hermes will no longer be able to sign in with this account.';
+  String get vaultDeleteMessage => 'Hermes will no longer be able to sign in with this account.';
 
   @override
   String get vaultTwoFactor => '2FA';
@@ -718,8 +696,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vaultOtpHint => 'Base32 key or otpauth:// link';
 
   @override
-  String get vaultOtpFooter =>
-      'The key shown when you set up an authenticator app. With it, Hermes generates the 6-digit codes itself.';
+  String get vaultOtpFooter => 'The key shown when you set up an authenticator app. With it, Hermes generates the 6-digit codes itself.';
 
   @override
   String get agentScripts => 'Scripts';
@@ -853,8 +830,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memoryEmpty => 'Hermes hasn\'t remembered anything yet.';
 
   @override
-  String get memoryFooter =>
-      'Hermes writes these itself as you talk. Fix what\'s wrong, or swipe left to forget it.';
+  String get memoryFooter => 'Hermes writes these itself as you talk. Fix what\'s wrong, or swipe left to forget it.';
 
   @override
   String get memoryForget => 'Forget';
@@ -896,8 +872,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kanbanDetails => 'Details';
 
   @override
-  String get kanbanAddFooter =>
-      'It goes to Triage, where the planner picks it up.';
+  String get kanbanAddFooter => 'It goes to Triage, where the planner picks it up.';
 
   @override
   String get kanbanDescription => 'Description';
@@ -918,8 +893,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kanbanSendBack => 'Send back';
 
   @override
-  String get kanbanSendBackMessage =>
-      'The task goes back to Ready, with your comment if you wrote one.';
+  String get kanbanSendBackMessage => 'The task goes back to Ready, with your comment if you wrote one.';
 
   @override
   String get kanbanReviewRequested => 'Review requested';
@@ -943,12 +917,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get folderServer => 'Server';
 
   @override
-  String get folderHereHint =>
-      'Hermes runs its commands here from the chat; you approve them.';
+  String get folderHereHint => 'Hermes runs its commands here from the chat; you approve them.';
 
   @override
-  String get folderServerHint =>
-      'Hermes works there with its own tools, on the server.';
+  String get folderServerHint => 'Hermes works there with its own tools, on the server.';
 
   @override
   String get folderChoose => 'Choose';
@@ -983,19 +955,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get screenHandBack => 'Hand back';
 
   @override
-  String get screenBot =>
-      'The bot has control. Take over to click and type, e.g. to solve a CAPTCHA.';
+  String get screenBot => 'The bot has control. Take over to click and type, e.g. to solve a CAPTCHA.';
 
   @override
-  String get screenYours =>
-      'You have control: the bot waits until you hand it back.';
+  String get screenYours => 'You have control: the bot waits until you hand it back.';
 
   @override
   String get screenSomeone => 'Someone else has control.';
 
   @override
-  String get screenMissing =>
-      'The bot\'s screen isn\'t installed on the server (hermes computer-use screen install).';
+  String get screenMissing => 'The bot\'s screen isn\'t installed on the server (hermes computer-use screen install).';
 
   @override
   String get screenLost => 'Connection to the screen lost.';
@@ -1069,20 +1038,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get toolsNone => 'No skill matches.';
 
   @override
-  String get toolsNextChats =>
-      'A change applies to the chats started after it.';
+  String get toolsNextChats => 'A change applies to the chats started after it.';
 
   @override
   String get toolsMcpTest => 'Test the connection';
 
   @override
   String toolsMcpOk(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count tools',
-      one: '1 tool',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count tools', one: '1 tool');
     return 'Connected · $_temp0';
   }
 
@@ -1120,12 +1083,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String gitPushCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count commits',
-      one: '1 commit',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count commits', one: '1 commit');
     return 'Push $_temp0';
   }
 
@@ -1162,8 +1120,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get voiceUnavailable =>
-      'Dictation isn\'t available: allow the microphone and speech recognition in the system settings.';
+  String get voiceUnavailable => 'Dictation isn\'t available: allow the microphone and speech recognition in the system settings.';
 
   @override
   String get linkDown => 'The server isn’t answering';
@@ -1236,23 +1193,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String usageCalls(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n calls',
-      one: '1 call',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n calls', one: '1 call');
     return '$_temp0';
   }
 
   @override
   String usageInSessions(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n chats',
-      one: '1 chat',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n chats', one: '1 chat');
     return '$_temp0';
   }
 
@@ -1291,8 +1238,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get subagentSteerHint => 'A word to steer this subagent';
 
   @override
-  String get subagentSteered =>
-      'Sent: it reads it after the tool it is running.';
+  String get subagentSteered => 'Sent: it reads it after the tool it is running.';
 
   @override
   String get subagentSteerRefused => 'It no longer takes directions.';
@@ -1305,12 +1251,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String spawnTreeCount(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n agents',
-      one: '1 agent',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n agents', one: '1 agent');
     return '$_temp0';
   }
 
@@ -1412,12 +1353,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String welcomeSubagents(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n subagents at work',
-      one: '1 subagent at work',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n subagents at work', one: '1 subagent at work');
     return '$_temp0';
   }
 
@@ -1426,12 +1362,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String toolsEarlier(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n earlier steps',
-      one: '1 earlier step',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n earlier steps', one: '1 earlier step');
     return '$_temp0';
   }
 
@@ -1464,4 +1395,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get askSkip => 'Skip';
+
+  @override
+  String get backgroundTask => 'Background task';
+
+  @override
+  String get backgroundNext => 'The next message goes to a background task';
+
+  @override
+  String backgroundRunning(String task) {
+    return 'In the background: $task';
+  }
+
+  @override
+  String get backgroundLabel => 'background';
+
+  @override
+  String backgroundDone(String chat) {
+    return 'Background task done in “$chat”';
+  }
+
+  @override
+  String get backgroundOpen => 'Open';
 }
