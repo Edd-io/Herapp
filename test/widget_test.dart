@@ -437,6 +437,44 @@ void main() {
     await t.pump(const Duration(seconds: 10));
   });
 
+  testWidgets('a reply browsing the web shows the bot screen, which opens to take over', (t) async {
+    const png =
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    final calls = fakeServer((method, params, emit) {
+      switch (method) {
+        case 'session.create':
+          return {'session_id': 'rt', 'stored_session_id': 's1'};
+        case 'prompt.submit':
+          emit('tool.start', {'tool_id': 't1', 'name': 'browser_navigate', 'context': 'https://mail.test'});
+        case 'display.thumbnail':
+          return {'data_url': png};
+        case 'display.status':
+          return {'installed': false};
+      }
+      return null;
+    });
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, 'Read my mail');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 1));
+    expect(find.text('Bot screen · take over'), findsOneWidget);
+    await t.pump(); // the frame asked for as it showed
+    expect(find.byType(Image), findsOneWidget);
+    await t.pump(const Duration(seconds: 4));
+    expect(calls.where((c) => c.$1 == 'display.thumbnail').length, greaterThan(1)); // kept fresh while it browses
+
+    // the reply still runs (its spinners never settle)
+    await t.tap(find.text('Bot screen · take over'));
+    await t.pump(const Duration(seconds: 1));
+    await t.pump(const Duration(seconds: 1));
+    expect(find.text('Bot screen'), findsOneWidget);
+    expect(find.textContaining("isn't installed on the server"), findsOneWidget);
+    await t.tap(find.byIcon(CupertinoIcons.chevron_back));
+    await t.pump(const Duration(seconds: 1));
+    await t.pump(const Duration(seconds: 10));
+  });
+
   testWidgets('history lists and reopens server sessions', (t) async {
     final rows = [
       {'id': 's9', 'title': 'Trip to Lyon', 'preview': ''},

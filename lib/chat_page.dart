@@ -1358,6 +1358,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (m.tools.isNotEmpty) _Tools(m.tools, live: live),
+          // its browser runs on the bot's screen: watched as it goes, taken over for a CAPTCHA
+          if (last && m.tools.any((t) => t.name.startsWith('browser') || t.name == 'computer_use'))
+            _ScreenPreview(live: live, onOpen: () => show(const ScreenPage())),
           for (final t in m.tools.where((t) => t.done))
             if (memoryChanges(t) case final changes when changes.isNotEmpty) _memoryCard(c, changes),
           if (m.ask case final ask?) _approval(c, m, ask.params),
@@ -2213,6 +2216,93 @@ class _ToolsState extends State<_Tools> {
           ),
           if (open) ...rows,
         ],
+      ),
+    );
+  }
+}
+
+/// A glance at the bot's screen, refreshed while [live]; a tap opens it.
+class _ScreenPreview extends StatefulWidget {
+  const _ScreenPreview({required this.live, required this.onOpen});
+  final bool live;
+  final VoidCallback onOpen;
+
+  @override
+  State<_ScreenPreview> createState() => _ScreenPreviewState();
+}
+
+class _ScreenPreviewState extends State<_ScreenPreview> {
+  Uint8List? frame;
+  Timer? timer;
+
+  @override
+  void initState() {
+    super.initState();
+    grab();
+  }
+
+  @override
+  void didUpdateWidget(_ScreenPreview old) {
+    super.didUpdateWidget(old);
+    if (old.live && !widget.live) grab(); // as the reply left it
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> grab() async {
+    timer?.cancel();
+    try {
+      final g = await gateway();
+      final r = await g?.call('display.thumbnail');
+      if (r?['data_url'] case final String url when mounted) setState(() => frame = UriData.parse(url).contentAsBytes());
+    } catch (e) {
+      debugPrint('Screen preview: $e'); // no screen: the link still opens it
+    }
+    if (mounted && widget.live) timer = Timer(const Duration(seconds: 3), grab);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final frame = this.frame;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Hover(
+        child: GestureDetector(
+          onTap: widget.onOpen,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 320),
+            decoration: BoxDecoration(
+              color: c.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: c.outline.withValues(alpha: .2)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (frame != null) Image.memory(frame, gaplessPlayback: true, fit: BoxFit.cover),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(CupertinoIcons.macwindow, size: 16, color: c.onSurfaceVariant),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(AppLocalizations.of(context).screenOpen, style: TextStyle(fontSize: 14, color: c.onSurfaceVariant)),
+                      ),
+                      Icon(CupertinoIcons.chevron_forward, size: 14, color: c.onSurfaceVariant),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

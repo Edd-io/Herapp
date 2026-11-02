@@ -581,5 +581,6 @@
   "@systemUptimeValue": {"placeholders": {"days": {"type": "int"}, "hours": {"type": "int"}}},
   "cronRunAgain": "Run again",
   "cronFailed": "Failed",
-  "cronSolveCaptcha": "Solve it on the bot's screen"
+  "cronSolveCaptcha": "Solve it on the bot's screen",
+  "screenOpen": "Bot screen · take over"
 }

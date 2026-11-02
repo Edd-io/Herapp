@@ -1921,6 +1921,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Solve it on the bot\'s screen'**
   String get cronSolveCaptcha;
+
+  /// No description provided for @screenOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Bot screen · take over'**
+  String get screenOpen;
 }
 
 class _AppLocalizationsDelegate

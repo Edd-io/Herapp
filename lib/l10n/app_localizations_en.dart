@@ -1049,4 +1049,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cronSolveCaptcha => 'Solve it on the bot\'s screen';
+
+  @override
+  String get screenOpen => 'Bot screen · take over';
 }

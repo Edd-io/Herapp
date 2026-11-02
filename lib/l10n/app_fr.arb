@@ -303,5 +303,6 @@
   "systemUptimeValue": "{days} j {hours} h",
   "cronRunAgain": "Relancer",
   "cronFailed": "Échec",
-  "cronSolveCaptcha": "Le résoudre sur l'écran du bot"
+  "cronSolveCaptcha": "Le résoudre sur l'écran du bot",
+  "screenOpen": "Écran du bot · prendre la main"
 }
