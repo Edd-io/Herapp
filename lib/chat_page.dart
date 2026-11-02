@@ -172,13 +172,23 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     try {
       final g = await gateway();
       if (g == null) throw StateError('no server');
-      c.warming = warm(g, c);
-      final body = await serverApi('GET', '/api/sessions/${Uri.encodeComponent(c.stored)}/messages');
-      c
-        ..msgs.clear()
-        ..msgs.addAll(transcript((jsonDecode(body ?? '{}') as Map)['messages']))
-        ..loaded = true;
-      loadCost(c);
+      final warming = c.warming = warm(g, c);
+      try {
+        final body = await serverApi('GET', '/api/sessions/${Uri.encodeComponent(c.stored)}/messages');
+        c
+          ..msgs.clear()
+          ..msgs.addAll(transcript((jsonDecode(body ?? '{}') as Map)['messages']))
+          ..loaded = true;
+        loadCost(c);
+      } finally {
+        // the running turn goes after the transcript, which may already hold its question
+        if (await warming case (:final asked, :final reply) when c.streaming || reply.text.isNotEmpty) {
+          if (asked.isNotEmpty && c.msgs.lastWhere((m) => m.user, orElse: () => Msg(true, '')).text.trim() != asked) {
+            c.msgs.add(Msg(true, asked));
+          }
+          c.msgs.add(reply);
+        }
+      }
     } catch (e) {
       debugPrint('Session: $e');
       if (mounted) c.msgs.add(Msg(false, '⚠️ ${serverErrorText(AppLocalizations.of(context), e is StateError ? null : e)}'));
@@ -204,7 +214,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   /// Resumes [c] with its agent built (a lazy session knows no context use until its next reply), then
   /// reads its model and how full its context is. A failure is left to [attach] to retry.
-  Future<void> warm(Gateway g, Chat c) async {
+  /// A turn still running (sent from elsewhere, or before the app was closed) streams on into the reply it
+  /// returns, with the question it answers, for [open] to show after the transcript.
+  Future<({String asked, Msg reply})?> warm(Gateway g, Chat c) async {
     try {
       final r = await g.call('session.resume', {'session_id': c.stored, 'omit_messages': true});
       final info = r['info'] is Map ? r['info'] as Map : const {};
@@ -218,8 +230,22 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       g.call('session.context_breakdown', {'session_id': c.live}).then((b) {
         if (b['context_max'] case final num max when max > 0 && c.context == null && mounted) setState(() => c.context = contextOf(b));
       }).ignore();
+      if (r['running'] != true || c.streaming || !mounted) return null;
+      final inflight = r['inflight'] is Map ? r['inflight'] as Map : const {};
+      final reply = Msg(false, '${inflight['assistant'] ?? ''}');
+      setState(() {
+        c.streaming = true;
+        c.phase = reply.text.isEmpty ? '' : 'writing';
+        c.since = switch (r['turn_started_at']) {
+          final num t => DateTime.fromMillisecondsSinceEpoch((t * 1000).round()),
+          _ => DateTime.now(),
+        };
+      });
+      follow(g, c, c.live, reply);
+      return (asked: '${inflight['user'] ?? ''}'.trim(), reply: reply);
     } catch (e) {
       debugPrint('Warm: $e');
+      return null;
     }
   }
 
@@ -436,75 +462,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       c.since = DateTime.now();
     });
     if (identical(c, chat)) toBottom();
-    void fail(Object? e) {
-      if (!c.streaming) return;
-      reply.text += '${reply.text.isEmpty ? '' : '\n\n'}⚠️ ${e is String ? e : serverErrorText(AppLocalizations.of(context), e)}';
-      stop(of: c);
-    }
+    void fail(Object? e) => failTurn(c, reply, e);
 
     try {
       final g = await gateway();
       if (g == null) return fail(null); // no server set
       final sid = await attach(g, c);
       if (!c.streaming) return;
-      c.sub = g.events.listen((e) {
-        if (e.id case final id?) {
-          // only command approvals are shown; other questions (clarify, sudo, secrets) are refused at once
-          if (e.type == 'approval' && (e.session == sid || e.session.isEmpty)) {
-            setState(() => reply.ask = (id: id, params: e.payload));
-            settings.haptic();
-          } else {
-            g.reply(id, null);
-          }
-          return;
-        }
-        if (e.type == 'session.title' && e.payload['session_id'] == c.stored && e.payload['title'] is String) {
-          setState(() => c.name = e.payload['title'] as String);
-        }
-        if (e.session != sid) return;
-        switch (e.type) {
-          case 'message.delta' when e.payload['text'] is String:
-            setState(() {
-              reply.text += e.payload['text'] as String;
-              c.phase = 'writing';
-            });
-            if (atBottom && identical(c, chat)) toBottom(jump: true);
-          case 'tool.start':
-            final p = e.payload;
-            setState(() {
-              reply.tools.add(
-                Tool(
-                  '${p['tool_id']}',
-                  '${p['name']}',
-                  '${p['context'] ?? p['preview'] ?? ''}',
-                  args: p['args'] is Map ? p['args'] as Map : const {},
-                ),
-              );
-              c.phase = '${p['name']}';
-            });
-          case 'tool.complete':
-            setState(() {
-              for (final t in reply.tools.where((t) => t.id == '${e.payload['tool_id']}')) {
-                t.done = true;
-                if (t.name == 'memory' && !memorySaved(e.payload['result'])) t.args = const {}; // no card for a refused write
-              }
-              c.phase = '';
-            });
-          case 'request.cancel' when reply.ask?.id == e.payload['id']:
-            setState(() => reply.ask = null);
-          case 'session.usage':
-            setState(() => c.context = contextOf(e.payload['usage']) ?? c.context);
-          case 'message.complete':
-            final p = e.payload;
-            c.context = contextOf(p['usage']) ?? c.context;
-            if (reply.text.trim().isEmpty && p['text'] is String) reply.text = p['text'] as String;
-            if (p['status'] == 'error') return fail('${p['error'] ?? p['failure_reason'] ?? 'error'}');
-            c.streaming = false; // over: nothing left to interrupt
-            stop(of: c, next: true);
-          case 'error':
-            fail('${e.payload['message']}');
-        }
-      }, onDone: () => fail(const HttpException('connection to Hermes lost')));
+      follow(g, c, sid, reply);
       // photos are queued for this turn; a file is staged in the workspace and named in the prompt
       final notes = <String>[];
       for (final f in asked.files.where((f) => f.bytes != null)) {
@@ -546,6 +511,75 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       debugPrint('Chat: $e');
       fail(e);
     }
+  }
+
+  /// Streams the turn [c] runs as [sid] on [g] into [reply], until it completes.
+  void follow(Gateway g, Chat c, String sid, Msg reply) {
+    c.sub = g.events.listen((e) {
+      if (e.id case final id?) {
+        // only command approvals are shown; other questions (clarify, sudo, secrets) are refused at once
+        if (e.type == 'approval' && (e.session == sid || e.session.isEmpty)) {
+          setState(() => reply.ask = (id: id, params: e.payload));
+          settings.haptic();
+        } else {
+          g.reply(id, null);
+        }
+        return;
+      }
+      if (e.type == 'session.title' && e.payload['session_id'] == c.stored && e.payload['title'] is String) {
+        setState(() => c.name = e.payload['title'] as String);
+      }
+      if (e.session != sid) return;
+      switch (e.type) {
+        case 'message.delta' when e.payload['text'] is String:
+          setState(() {
+            reply.text += e.payload['text'] as String;
+            c.phase = 'writing';
+          });
+          if (atBottom && identical(c, chat)) toBottom(jump: true);
+        case 'tool.start':
+          final p = e.payload;
+          setState(() {
+            reply.tools.add(
+              Tool(
+                '${p['tool_id']}',
+                '${p['name']}',
+                '${p['context'] ?? p['preview'] ?? ''}',
+                args: p['args'] is Map ? p['args'] as Map : const {},
+              ),
+            );
+            c.phase = '${p['name']}';
+          });
+        case 'tool.complete':
+          setState(() {
+            for (final t in reply.tools.where((t) => t.id == '${e.payload['tool_id']}')) {
+              t.done = true;
+              if (t.name == 'memory' && !memorySaved(e.payload['result'])) t.args = const {}; // no card for a refused write
+            }
+            c.phase = '';
+          });
+        case 'request.cancel' when reply.ask?.id == e.payload['id']:
+          setState(() => reply.ask = null);
+        case 'session.usage':
+          setState(() => c.context = contextOf(e.payload['usage']) ?? c.context);
+        case 'message.complete':
+          final p = e.payload;
+          c.context = contextOf(p['usage']) ?? c.context;
+          if (reply.text.trim().isEmpty && p['text'] is String) reply.text = p['text'] as String;
+          if (p['status'] == 'error') return failTurn(c, reply, '${p['error'] ?? p['failure_reason'] ?? 'error'}');
+          c.streaming = false; // over: nothing left to interrupt
+          stop(of: c, next: true);
+        case 'error':
+          failTurn(c, reply, '${e.payload['message']}');
+      }
+    }, onDone: () => failTurn(c, reply, const HttpException('connection to Hermes lost')));
+  }
+
+  /// Ends [c]'s turn on the error [e] (a message, or what the server raised), under what [reply] already says.
+  void failTurn(Chat c, Msg reply, Object? e) {
+    if (!c.streaming) return;
+    reply.text += '${reply.text.isEmpty ? '' : '\n\n'}⚠️ ${e is String ? e : serverErrorText(AppLocalizations.of(context), e)}';
+    stop(of: c);
   }
 
   /// Ends the turn of [of] (the open chat by default); [next] sends the first queued message, else the

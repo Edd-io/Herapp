@@ -333,6 +333,56 @@ void main() {
     expect(find.text('Trip to Lyon'), findsNothing);
   });
 
+  testWidgets('a chat reopened while it answers shows the reply coming in', (t) async {
+    late void Function(String, Map) push;
+    final calls = fakeServer((method, params, emit) {
+      switch (method) {
+        case 'session.list':
+          return {
+            'sessions': [
+              {'id': 's9', 'title': 'Long task', 'preview': ''},
+            ],
+          };
+        case 'session.resume':
+          push = emit;
+          return {
+            'session_id': 'rt',
+            'running': true,
+            'turn_started_at': DateTime.now().millisecondsSinceEpoch / 1000 - 65,
+            'inflight': {'user': 'Do the long task', 'assistant': 'Step one', 'streaming': true},
+          };
+      }
+      return null;
+    });
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async => jsonEncode({
+      'messages': [
+        {'role': 'user', 'content': 'Hi'},
+        {'role': 'assistant', 'content': 'Hello'},
+        {'role': 'user', 'content': 'Do the long task'}, // already stored, not shown twice
+      ],
+    });
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Long task'));
+    for (final d in const [Duration.zero, Duration(milliseconds: 400), Duration(milliseconds: 400)]) {
+      await t.pump(d);
+    }
+    expect(find.text('Do the long task'), findsOneWidget);
+    expect(find.textContaining('Step one'), findsOneWidget);
+    expect(find.textContaining('Writing… 1:0'), findsOneWidget); // the turn's own start, not the reopening
+
+    push('message.delta', {'text': ', step two'});
+    await t.pump(const Duration(milliseconds: 100));
+    expect(find.textContaining('Step one, step two'), findsOneWidget);
+    push('message.complete', {'text': 'Step one, step two', 'status': 'complete'});
+    await t.pump(const Duration(seconds: 1));
+    expect(find.textContaining('Writing…'), findsNothing);
+    expect(calls.where((c) => c.$1 == 'session.interrupt'), isEmpty);
+    await t.pump(const Duration(seconds: 10));
+  });
+
   testWidgets('a chat is deleted by swiping it left, after confirming', (t) async {
     final rows = [
       {'id': 's9', 'title': 'Trip to Lyon'},
