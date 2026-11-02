@@ -256,12 +256,21 @@ void main() {
         'role': 'user',
         'content': [
           {'type': 'text', 'text': 'What is it?'},
-          {'type': 'image_url', 'image_url': {'url': 'data:...'}},
+          {
+            'type': 'image_url',
+            'image_url': {'url': 'data:...'},
+          },
         ],
       },
     ]);
     expect([for (final m in msgs) m.text], ['/github list my PRs', 'Read this', 'What is it?']);
-    expect([for (final m in msgs) for (final f in m.files) (f.name, f.image)], [('report.pdf', false), ('image', true)]);
+    expect(
+      [
+        for (final m in msgs)
+          for (final f in m.files) (f.name, f.image),
+      ],
+      [('report.pdf', false), ('image', true)],
+    );
     expect(skillInvocation('plain'), isNull);
   });
 
@@ -272,7 +281,10 @@ void main() {
       '"current_run_started_at":1793350000,"last_heartbeat_at":1793350600,"latest_summary":" halfway "}]},{"name":"done","tasks":[]}]}',
     )!;
     expect(b.counts, {'todo': 1, 'running': 1, 'done': 0});
-    expect([for (final t in b.running) (t.id, t.summary, t.heartbeat!.difference(t.since!))], [('t2', 'halfway', const Duration(minutes: 10))]);
+    expect(
+      [for (final t in b.running) (t.id, t.summary, t.heartbeat!.difference(t.since!))],
+      [('t2', 'halfway', const Duration(minutes: 10))],
+    );
     expect([for (final t in b.failing) (t.id, t.error)], [('t1', 'worker exited 1')]);
     expect(parseBoard('{"detail":"Not Found"}'), isNull);
   });
@@ -354,7 +366,10 @@ void main() {
       '{"id":"memory:memory:0:aa","kind":"memory","memorySource":"memory","label":"Old note","timestamp":1793000000},'
       '{"id":"memory:profile:1:bb","kind":"memory","memorySource":"profile","label":"Prefers French","timestamp":1793300000}]}',
     );
-    expect([for (final x in m) (x.id, x.title, x.profile)], [('memory:profile:1:bb', 'Prefers French', true), ('memory:memory:0:aa', 'Old note', false)]);
+    expect(
+      [for (final x in m) (x.id, x.title, x.profile)],
+      [('memory:profile:1:bb', 'Prefers French', true), ('memory:memory:0:aa', 'Old note', false)],
+    );
   });
 
   test('search keeps chats, not runs or subagents', () {
@@ -380,6 +395,9 @@ void main() {
       '"events":[{"kind":"review_requested","created_at":10,"payload":{"summary":"commit 63dcb66"}},{"kind":"commented","created_at":20,"payload":{"len":11}}]}',
     )!;
     expect(d.card.body, 'Do it');
-    expect([for (final n in d.notes) (n.event, n.author, n.text)], [('review_requested', '', 'commit 63dcb66'), ('', 'alice', 'Looks wrong')]);
+    expect(
+      [for (final n in d.notes) (n.event, n.author, n.text)],
+      [('review_requested', '', 'commit 63dcb66'), ('', 'alice', 'Looks wrong')],
+    );
   });
 }

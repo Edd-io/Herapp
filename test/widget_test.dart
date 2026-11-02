@@ -716,13 +716,20 @@ void main() {
     fakeServer((_, _, _) => null);
     addTearDown(() => callApi = hermesApi);
     final started = DateTime.now().subtract(const Duration(minutes: 25)).millisecondsSinceEpoch / 1000;
-    callApi = (base, method, path, {query, body, user, password}) async {
-      if (path == '/api/plugins/kanban/board') {
-        return '{"columns":[{"name":"ready","tasks":[{"id":"t1","title":"Fix the map","status":"ready","consecutive_failures":1,'
-            '"last_failure_error":"worker exited 1"}]},{"name":"running","tasks":[{"id":"t2","title":"Build the bridge",'
-            '"status":"running","current_run_started_at":$started,"last_heartbeat_at":$started}]},{"name":"done","tasks":[]}]}';
-      }
-      return '[]';
+    var later = false; // a worker another board starts once the page is open
+    callApi = (base, method, path, {query, body, user, password}) async => switch ((path, query?['board'])) {
+      // each project's board runs its own workers, not only the active one
+      ('/api/plugins/kanban/boards', _) =>
+        '{"boards":[{"slug":"default","total":1},{"slug":"site","total":1},{"slug":"empty","total":0},{"slug":"app","total":${later ? 1 : 0}}]}',
+      ('/api/plugins/kanban/board', 'default') =>
+        '{"columns":[{"name":"ready","tasks":[{"id":"t1","title":"Fix the map","status":"ready","consecutive_failures":1,'
+            '"last_failure_error":"worker exited 1"}]},{"name":"done","tasks":[]}]}',
+      ('/api/plugins/kanban/board', 'site') =>
+        '{"columns":[{"name":"running","tasks":[{"id":"t2","title":"Build the bridge",'
+            '"status":"running","current_run_started_at":$started,"last_heartbeat_at":$started}]}]}',
+      ('/api/plugins/kanban/board', 'app') =>
+        '{"columns":[{"name":"running","tasks":[{"id":"t3","title":"Ship the app","status":"running"}]}]}',
+      _ => '[]',
     };
     await t.pumpWidget(const App());
     await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
@@ -735,6 +742,11 @@ void main() {
     expect(find.text('No sign of life for 25 min'), findsOneWidget);
     expect(find.text('Failed: worker exited 1'), findsOneWidget);
     expect(find.text('1 ready'), findsOneWidget); // empty columns aren't counted
+
+    later = true;
+    await t.pump(const Duration(seconds: 10));
+    await t.pump();
+    expect(find.text('Ship the app'), findsOneWidget);
   });
 
   testWidgets('a wide window keeps the menu beside the chat and its pages', (t) async {

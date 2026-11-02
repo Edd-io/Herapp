@@ -541,6 +541,22 @@ Board? parseBoard(String body) {
   return null;
 }
 
+/// `/api/plugins/kanban/boards`: the boards holding live cards (each project's board runs its own workers).
+List<String> parseBoardSlugs(String body) => [
+  if (_json(body) case {'boards': final List boards})
+    for (final b in boards.whereType<Map>())
+      if ((b['total'] as num? ?? 0) > 0) '${b['slug']}',
+];
+
+/// Several boards seen as one.
+Board mergeBoards(Iterable<Board> boards) {
+  final counts = <String, int>{};
+  for (final b in boards) {
+    b.counts.forEach((status, n) => counts[status] = (counts[status] ?? 0) + n);
+  }
+  return (counts: counts, running: [for (final b in boards) ...b.running], failing: [for (final b in boards) ...b.failing]);
+}
+
 /// One past run of a cron job; [session] runs (agent ones) have a transcript, the others only [preview].
 typedef CronRun = ({String id, String title, String preview, DateTime? at, bool active, bool session});
 

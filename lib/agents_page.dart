@@ -59,17 +59,36 @@ class _AgentsPageState extends State<AgentsPage> {
   Board? board; // the kanban's workers, null without a kanban
   Object? error;
   final busy = <String>{}; // script ids with a request in flight
+  late final Timer refresh = Timer.periodic(const Duration(seconds: 10), (_) => load()); // workers come and go
 
   @override
   void initState() {
     super.initState();
     load();
+    refresh;
+  }
+
+  @override
+  void dispose() {
+    refresh.cancel();
+    super.dispose();
+  }
+
+  /// Every board with cards; an older server only serves the active one.
+  Future<Board?> loadBoard() async {
+    final slugs = parseBoardSlugs(await serverApi('GET', '/api/plugins/kanban/boards').catchError((Object _) => null) ?? '');
+    final bodies = await Future.wait([
+      if (slugs.isEmpty) serverApi('GET', '/api/plugins/kanban/board'),
+      for (final s in slugs) serverApi('GET', '/api/plugins/kanban/board', query: {'board': s}),
+    ]);
+    final boards = [for (final b in bodies) ?(b == null ? null : parseBoard(b))];
+    return boards.isEmpty ? null : mergeBoards(boards);
   }
 
   Future<void> load() async {
-    serverApi('GET', '/api/plugins/kanban/board')
-        .then((body) {
-          if (mounted) setState(() => board = body == null ? null : parseBoard(body));
+    loadBoard()
+        .then((b) {
+          if (mounted) setState(() => board = b);
         })
         .catchError((Object e) {
           debugPrint('Kanban: $e'); // the kanban is a plugin: no board, no section
