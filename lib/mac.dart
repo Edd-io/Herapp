@@ -11,7 +11,7 @@ bool get macCapable => Platform.isMacOS || Platform.isLinux;
 /// A shell kept open for one chat, so a `cd` or a variable carries over from one step to the next.
 class MacShell {
   static String get home => Platform.environment['HOME'] ?? '/';
-  static String get shell => Platform.environment['SHELL'] ?? '/bin/zsh';
+  static String get shell => Platform.isMacOS ? '/bin/zsh' : Platform.environment['SHELL'] ?? '/bin/sh';
 
   String cwd = home;
   Process? _p;
@@ -20,7 +20,7 @@ class MacShell {
   final _buf = StringBuffer();
   void Function(String)? _onOut;
   Completer<int>? _done;
-  String _why = ''; // why the shell was stopped mid-script
+  String _why = ''; // why the script was stopped
 
   /// What [macNote] says of this computer.
   String note(String token) => macNote(
@@ -32,16 +32,26 @@ class MacShell {
     cwd: cwd,
   );
 
+  String get _printMark => "printf '\\n%s %d %s\\n' $_mark \$? \"\$PWD\"";
+
   Future<Process> _start() async {
-    // a login shell, for the PATH the user's profile sets
-    final p = await Process.start(shell, ['-l'], workingDirectory: Directory(cwd).existsSync() ? cwd : home);
-    p.stdin.writeln('exec 2>&1');
+    final dir = Directory(cwd).existsSync() ? cwd : home;
+    const env = {'TERM': 'dumb', 'PAGER': 'cat', 'GIT_PAGER': 'cat', 'MANPAGER': 'cat'};
+    // a terminal of its own (on a Mac), or programs keep what they print until they end; a login shell, for
+    // the PATH the user's profile sets, and not an interactive one (no prompt, no .zshrc asking things)
+    final p = Platform.isMacOS
+        ? await Process.start('script', ['-q', '/dev/null', shell, '-l', '+i'], workingDirectory: dir, environment: env)
+        : await Process.start(shell, ['-l'], workingDirectory: dir, environment: env);
     p.stdout.transform(const Utf8Decoder(allowMalformed: true)).listen(_read);
     p.stderr.drain<void>();
     p.exitCode.then((code) {
       if (identical(_p, p)) _p = null;
       if (_done case final d? when !d.isCompleted) d.complete(code); // it ended (`exit`, killed) mid-script
     });
+    // no echo of what is typed, no \r before each \n; Ctrl-C ends the command, not the shell
+    final ready = _done = Completer<int>();
+    p.stdin.writeln('stty -echo -onlcr 2>/dev/null; trap : INT; exec 2>&1; $_printMark');
+    await ready.future;
     return p;
   }
 
@@ -55,9 +65,17 @@ class MacShell {
       cwd = m[2]!;
       _done?.complete(int.parse(m[1]!));
     } else {
-      _onOut?.call(all.split(_mark).first);
+      _onOut?.call(_clean(all.split(_mark).first));
     }
   }
+
+  /// [out] as a log reads it: no colors, and a line redrawn in place (a progress bar) only as it ended.
+  static String _clean(String out) => out
+      .replaceAll(RegExp(r'\x1B\[[0-?]*[ -/]*[@-~]'), '')
+      .split('\n')
+      .map((l) => l.endsWith('\r') ? l.substring(0, l.length - 1) : l)
+      .map((l) => l.split('\r').last)
+      .join('\n');
 
   /// Runs [script], passing what it has printed so far to [onOut]; its exit code and output. A script still
   /// running after [timeout] is stopped.
@@ -66,28 +84,39 @@ class MacShell {
     _buf.clear();
     _why = '';
     _onOut = onOut;
+    // sourced from a file, as a terminal cuts long lines; no stdin, which a command would read for the next ones
+    final file = File('${Directory.systemTemp.path}/herapp-$_mark-${DateTime.now().microsecondsSinceEpoch}.sh')
+      ..writeAsStringSync('$script\n');
     final done = _done = Completer<int>();
-    // no stdin for the script: a command reading it would eat what comes after
-    p.stdin.write("{\n$script\n} < /dev/null\nprintf '\\n%s %d %s\\n' $_mark \$? \"\$PWD\"\n");
+    p.stdin.writeln("{ source '${file.path}'; } < /dev/null; $_printMark");
     final timer = Timer(timeout, () => stop('timed out after ${timeout.inMinutes} min'));
     final code = await done.future;
     timer.cancel();
     _onOut = null;
-    final out = _buf.toString().split(_mark).first;
+    file.delete().ignore();
+    final out = _clean(_buf.toString().split(_mark).first);
     return (code, _why.isEmpty ? out : '$out\n[$_why]');
   }
 
-  /// Ends the running script, and the shell with it (the next step starts a new one, in the same directory).
+  /// Ends the running script as Ctrl-C would, the shell staying; one that holds on is killed with the shell
+  /// (the next step then starts a new one, in the same directory). Idle, it closes the shell.
   void stop([String why = 'stopped by the user']) {
     final p = _p;
     if (p == null) return;
-    _p = null;
-    if (_done?.isCompleted ?? true) {
-      p.kill(); // idle: no command of its own to end
+    final running = _done;
+    if (running == null || running.isCompleted) {
+      _p = null;
+      p.kill();
       return;
     }
     _why = why;
-    Process.run('pkill', ['-TERM', '-P', '${p.pid}']).whenComplete(p.kill).ignore();
+    p.stdin.add(const [3]);
+    Timer(const Duration(seconds: 3), () {
+      if (running.isCompleted || !identical(_p, p)) return;
+      _p = null;
+      // the shell's own children first, or they would outlive it
+      Process.run('pkill', ['-TERM', '-P', '${p.pid}']).whenComplete(p.kill).ignore();
+    });
   }
 
   /// Writes [content] to [path]; an exit code and what to tell, as [run] does.

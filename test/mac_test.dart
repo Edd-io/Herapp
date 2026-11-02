@@ -18,13 +18,14 @@ void main() {
     expect(sh.write('sub/a.txt', 'hi'), (0, 'wrote 2 bytes to ${dir.path}/sub/a.txt'));
     expect(await sh.run('cat sub/a.txt', (_) {}), (0, 'hi'));
 
-    // stopped mid-script, the next step gets a new shell in the same place
-    final slow = sh.run('echo start; sleep 30', (_) {});
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+    // what a program prints shows as it goes, even one that holds it back when not on a terminal
+    final lines = <String>[];
+    final slow = sh.run(r'''perl -e 'print "start\n"; sleep 30' ''', lines.add);
+    await Future<void>.delayed(const Duration(seconds: 1));
+    expect(lines.last, 'start\n');
+    // stopped as Ctrl-C would, the shell goes on in the same place
     sh.stop();
-    final (code, out) = await slow;
-    expect(code, isNot(0));
-    expect(out, 'start\n\n[stopped by the user]');
+    expect(await slow, (130, 'start\n\n[stopped by the user]'));
     expect(await sh.run('pwd -P', (_) {}), (0, '${dir.resolveSymbolicLinksSync()}\n'));
 
     expect((await sh.run('sleep 5', (_) {}, timeout: const Duration(seconds: 1))).$2, contains('[timed out after 0 min]'));
