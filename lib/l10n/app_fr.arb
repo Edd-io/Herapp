@@ -314,5 +314,22 @@
   "toolsMcpTest": "Tester la connexion",
   "toolsMcpOk": "Connecté · {count, plural, =1{1 outil} other{{count} outils}}",
   "toolsMcpFailed": "Connexion impossible",
-  "toolsFailed": "Non modifié : {error}"
+  "toolsFailed": "Non modifié : {error}",
+  "gitTitle": "Modifications",
+  "gitChanges": "Fichiers modifiés",
+  "gitClean": "Rien de modifié",
+  "gitNotRepo": "Ce dossier n'est pas un dépôt git.",
+  "gitMessage": "Message du commit",
+  "gitCommit": "Tout valider",
+  "gitShare": "Partager",
+  "gitPush": "Pousser",
+  "gitPushCount": "Pousser {count, plural, =1{1 commit} other{{count} commits}}",
+  "gitPr": "Ouvrir une pull request",
+  "gitPrSee": "Voir la pull request #{number}",
+  "gitAhead": "{count} en avance",
+  "gitBehind": "{count} en retard",
+  "gitCommitted": "Validé",
+  "gitPushed": "Poussé",
+  "gitPrOpened": "Pull request ouverte",
+  "gitFailed": "Git : {error}"
 }

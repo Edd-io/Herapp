@@ -19,6 +19,7 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'agents_page.dart';
+import 'git_page.dart';
 import 'hermes.dart';
 import 'kanban_page.dart';
 import 'mac.dart';
@@ -1697,32 +1698,61 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       alignment: Alignment.centerLeft,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(58, 0, 12, 6),
-        child: Opacity(
-          opacity: busy ? .5 : 1,
-          child: Hover(
-            radius: 8,
-            child: GestureDetector(
-              onTap: busy ? null : pickFolder,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(chat.folderHere ? CupertinoIcons.desktopcomputer : CupertinoIcons.folder, size: 14, color: c.outline),
-                    const SizedBox(width: 5),
-                    Flexible(
-                      child: Text(
-                        path.isEmpty ? l.folder : '$path · ${chat.folderHere ? l.folderOnHere : l.folderOnServer}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: c.outline),
-                      ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: _folderButton(c, busy, path)),
+            // what the bot changed there, on the server
+            if (!chat.folderHere && chat.folder.isNotEmpty)
+              Hover(
+                radius: 8,
+                child: GestureDetector(
+                  onTap: () => show(GitPage(path: chat.folder)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(CupertinoIcons.arrow_branch, size: 14, color: c.outline),
+                        const SizedBox(width: 4),
+                        Text(l.gitTitle, style: TextStyle(fontSize: 13, color: c.outline)),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Icon(CupertinoIcons.chevron_down, size: 10, color: c.outline),
-                  ],
+                  ),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _folderButton(ColorScheme c, bool busy, String path) {
+    final l = AppLocalizations.of(context);
+    return Opacity(
+      opacity: busy ? .5 : 1,
+      child: Hover(
+        radius: 8,
+        child: GestureDetector(
+          onTap: busy ? null : pickFolder,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(chat.folderHere ? CupertinoIcons.desktopcomputer : CupertinoIcons.folder, size: 14, color: c.outline),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    path.isEmpty ? l.folder : '$path · ${chat.folderHere ? l.folderOnHere : l.folderOnServer}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: c.outline),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(CupertinoIcons.chevron_down, size: 10, color: c.outline),
+              ],
             ),
           ),
         ),

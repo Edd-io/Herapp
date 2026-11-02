@@ -1113,4 +1113,71 @@ class AppLocalizationsFr extends AppLocalizations {
   String toolsFailed(String error) {
     return 'Non modifié : $error';
   }
+
+  @override
+  String get gitTitle => 'Modifications';
+
+  @override
+  String get gitChanges => 'Fichiers modifiés';
+
+  @override
+  String get gitClean => 'Rien de modifié';
+
+  @override
+  String get gitNotRepo => 'Ce dossier n\'est pas un dépôt git.';
+
+  @override
+  String get gitMessage => 'Message du commit';
+
+  @override
+  String get gitCommit => 'Tout valider';
+
+  @override
+  String get gitShare => 'Partager';
+
+  @override
+  String get gitPush => 'Pousser';
+
+  @override
+  String gitPushCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count commits',
+      one: '1 commit',
+    );
+    return 'Pousser $_temp0';
+  }
+
+  @override
+  String get gitPr => 'Ouvrir une pull request';
+
+  @override
+  String gitPrSee(String number) {
+    return 'Voir la pull request #$number';
+  }
+
+  @override
+  String gitAhead(int count) {
+    return '$count en avance';
+  }
+
+  @override
+  String gitBehind(int count) {
+    return '$count en retard';
+  }
+
+  @override
+  String get gitCommitted => 'Validé';
+
+  @override
+  String get gitPushed => 'Poussé';
+
+  @override
+  String get gitPrOpened => 'Pull request ouverte';
+
+  @override
+  String gitFailed(String error) {
+    return 'Git : $error';
+  }
 }

@@ -1987,6 +1987,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not changed: {error}'**
   String toolsFailed(String error);
+
+  /// No description provided for @gitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes'**
+  String get gitTitle;
+
+  /// No description provided for @gitChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Files changed'**
+  String get gitChanges;
+
+  /// No description provided for @gitClean.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing changed'**
+  String get gitClean;
+
+  /// No description provided for @gitNotRepo.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder isn\'t a git repository.'**
+  String get gitNotRepo;
+
+  /// No description provided for @gitMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit message'**
+  String get gitMessage;
+
+  /// No description provided for @gitCommit.
+  ///
+  /// In en, this message translates to:
+  /// **'Commit everything'**
+  String get gitCommit;
+
+  /// No description provided for @gitShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get gitShare;
+
+  /// No description provided for @gitPush.
+  ///
+  /// In en, this message translates to:
+  /// **'Push'**
+  String get gitPush;
+
+  /// No description provided for @gitPushCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Push {count, plural, =1{1 commit} other{{count} commits}}'**
+  String gitPushCount(int count);
+
+  /// No description provided for @gitPr.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a pull request'**
+  String get gitPr;
+
+  /// No description provided for @gitPrSee.
+  ///
+  /// In en, this message translates to:
+  /// **'See pull request #{number}'**
+  String gitPrSee(String number);
+
+  /// No description provided for @gitAhead.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} ahead'**
+  String gitAhead(int count);
+
+  /// No description provided for @gitBehind.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} behind'**
+  String gitBehind(int count);
+
+  /// No description provided for @gitCommitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Committed'**
+  String get gitCommitted;
+
+  /// No description provided for @gitPushed.
+  ///
+  /// In en, this message translates to:
+  /// **'Pushed'**
+  String get gitPushed;
+
+  /// No description provided for @gitPrOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull request opened'**
+  String get gitPrOpened;
+
+  /// No description provided for @gitFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Git: {error}'**
+  String gitFailed(String error);
 }
 
 class _AppLocalizationsDelegate

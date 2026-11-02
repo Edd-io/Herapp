@@ -221,6 +221,49 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('~/code · server'), findsOneWidget);
 
+    // what the bot changed there: files, a diff, a commit then a push
+    addTearDown(() => callApi = hermesApi);
+    final sent = <String>[];
+    var committed = false;
+    callApi = (base, method, path, {query, body, user, password}) async {
+      if (method == 'POST') {
+        sent.add('$path ${jsonEncode(body)}');
+        committed = true;
+        return '{"ok":true}';
+      }
+      expect(query?['path'], '~/code');
+      return jsonEncode(switch (path) {
+        '/api/git/status' => {'branch': 'main', 'ahead': committed ? 1 : 0, 'behind': 0},
+        '/api/git/review/list' => {
+          'files': [
+            if (!committed) {'path': 'lib/a.dart', 'added': 3, 'removed': 1, 'status': 'M'},
+          ],
+        },
+        '/api/git/review/ship-info' => {'ghReady': false, 'pr': null},
+        '/api/git/review/diff' => {'diff': '@@ -1 +1 @@\n-old\n+new'},
+        _ => {},
+      });
+    };
+    await t.tap(find.text('Changes'));
+    await t.pumpAndSettle();
+    expect(find.text('~/code · main'), findsOneWidget);
+    expect(find.text('lib/a.dart'), findsOneWidget);
+    await t.tap(find.text('lib/a.dart'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('+new', findRichText: true), findsOneWidget);
+    await t.tap(find.byIcon(CupertinoIcons.chevron_back));
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(CupertinoTextField), 'Fix a');
+    await t.pumpAndSettle();
+    await t.tap(find.text('Commit everything'));
+    await t.pumpAndSettle();
+    expect(find.text('Nothing changed'), findsOneWidget);
+    await t.tap(find.text('Push 1 commit'));
+    await t.pumpAndSettle();
+    expect(sent, ['/api/git/review/commit {"path":"~/code","message":"Fix a"}', '/api/git/review/push {"path":"~/code"}']);
+    await t.tap(find.byIcon(CupertinoIcons.chevron_back));
+    await t.pumpAndSettle();
+
     // the session starts there, as the server names it
     await t.enterText(find.byType(EditableText).last, 'Salut');
     await t.pumpAndSettle();
