@@ -2312,6 +2312,7 @@ class _FoldersState extends State<_Folders> {
         child: Column(
           children: [
             SizedBox(
+              width: double.infinity, // a column's child is only as wide as its title, the buttons over it
               height: 52,
               child: Stack(
                 alignment: Alignment.center,
