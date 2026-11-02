@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -41,6 +42,8 @@ void main() {
     final theme = t.widget<MaterialApp>(find.byType(MaterialApp)).darkTheme!.colorScheme;
     expect(theme.primary, const Color(0xFFC9A227)); // the send button, filled buttons, links
     expect(theme.onPrimary, Colors.black); // readable on a light accent
+    final cupertino = CupertinoTheme.of(t.element(find.byType(CupertinoSwitch).first));
+    expect((cupertino.applyThemeToAll, cupertino.primaryColor), (true, const Color(0xFFC9A227))); // switches on, in the accent
 
     await settings.load();
     expect(settings.theme, ThemeMode.dark);

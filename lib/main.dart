@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'chat_page.dart';
@@ -39,6 +40,8 @@ class App extends StatelessWidget {
       scaffoldBackgroundColor: c.surface,
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
+      // a picked accent also colors what is switched on, in place of the green of the switches
+      cupertinoOverrideTheme: settings.accent == 0 ? null : const CupertinoThemeData(applyThemeToAll: true),
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: settings.accent == 0 ? c.onSurface : c.primary,
         selectionColor: settings.accent == 0 ? null : c.primary.withValues(alpha: .3),
