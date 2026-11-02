@@ -1042,7 +1042,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     (l.kanban, CupertinoIcons.square_split_2x1, const KanbanPage()),
     (l.memory, CupertinoIcons.lightbulb, const MemoryPage()),
     (l.vault, CupertinoIcons.lock_shield, const VaultPage()),
-    (l.system, CupertinoIcons.desktopcomputer, const SystemPage()),
     (l.screen, CupertinoIcons.macwindow, const ScreenPage()),
     (l.tools, CupertinoIcons.hammer, const ToolsPage()),
   ];
@@ -1053,11 +1052,12 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   }
 
   Future<void> openSettings() async {
-    await showPageSheet<void>(context, (_) => const SettingsSheet());
+    final then = await showPageSheet<String>(context, (_) => const SettingsSheet());
     // server, auth or tunnel may have changed
     dropGateway();
     loadModels();
     loadSessions();
+    if (then == 'system' && mounted) openPage(const SystemPage());
   }
 
   void findChats() {

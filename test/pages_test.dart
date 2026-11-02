@@ -709,7 +709,11 @@ void main() {
     await t.pumpWidget(const App());
     await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
     await t.pumpAndSettle();
-    await t.tap(find.text('System'));
+    await t.tap(find.text('Settings')); // System sits in the settings now
+    await t.pumpAndSettle();
+    final row = find.byIcon(CupertinoIcons.desktopcomputer); // 'System' also names a theme
+    await t.scrollUntilVisible(row, 200, scrollable: find.byType(Scrollable).last);
+    await t.tap(row);
     await t.pumpAndSettle();
     expect(find.text('0.22.3 · Oct 20, 2026'), findsOneWidget);
     expect(find.text('Running'), findsOneWidget);

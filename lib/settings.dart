@@ -898,6 +898,16 @@ class _SettingsSheetState extends State<SettingsSheet> {
                         onTap: testing ? null : testServer,
                       ),
                     ),
+                    // the server's health, updates and restarts: a page of the app, opened once settings close
+                    Hover(
+                      radius: 0,
+                      child: CupertinoListTile(
+                        leading: Icon(CupertinoIcons.desktopcomputer, size: 20, color: c.onSurfaceVariant),
+                        title: Text(l.system, style: label),
+                        trailing: const CupertinoListTileChevron(),
+                        onTap: () => Navigator.pop(context, 'system'),
+                      ),
+                    ),
                   ],
                   footer: l.hermesServerFooter,
                   status: testResult,
