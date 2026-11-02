@@ -555,5 +555,17 @@
   "folderFailed": "Folder not changed: {error}",
   "@folderFailed": {"placeholders": {"error": {"type": "String"}}},
   "modelsRecent": "Recent",
-  "modelsMore": "More models"
+  "modelsMore": "More models",
+  "screen": "Bot screen",
+  "screenTakeOver": "Take over",
+  "screenHandBack": "Hand back",
+  "screenBot": "The bot has control. Take over to click and type, e.g. to solve a CAPTCHA.",
+  "screenYours": "You have control: the bot waits until you hand it back.",
+  "screenSomeone": "Someone else has control.",
+  "screenMissing": "The bot's screen isn't installed on the server (hermes computer-use screen install).",
+  "screenLost": "Connection to the screen lost.",
+  "screenRetry": "Retry",
+  "screenType": "Type on the screen",
+  "screenFailed": "Failed: {error}",
+  "@screenFailed": {"placeholders": {"error": {"type": "String"}}}
 }

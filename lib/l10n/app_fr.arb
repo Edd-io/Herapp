@@ -281,5 +281,16 @@
   "folderOnServer": "serveur",
   "folderFailed": "Dossier non changé : {error}",
   "modelsRecent": "Récents",
-  "modelsMore": "Plus de modèles"
+  "modelsMore": "Plus de modèles",
+  "screen": "Écran du bot",
+  "screenTakeOver": "Prendre la main",
+  "screenHandBack": "Rendre la main",
+  "screenBot": "Le bot a la main. Prends-la pour cliquer et taper, par exemple pour résoudre un captcha.",
+  "screenYours": "Tu as la main : le bot attend que tu la rendes.",
+  "screenSomeone": "Quelqu'un d'autre a la main.",
+  "screenMissing": "L'écran du bot n'est pas installé sur le serveur (hermes computer-use screen install).",
+  "screenLost": "Connexion à l'écran perdue.",
+  "screenRetry": "Réessayer",
+  "screenType": "Taper sur l'écran",
+  "screenFailed": "Échec : {error}"
 }

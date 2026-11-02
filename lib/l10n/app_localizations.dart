@@ -1789,6 +1789,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'More models'**
   String get modelsMore;
+
+  /// No description provided for @screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Bot screen'**
+  String get screen;
+
+  /// No description provided for @screenTakeOver.
+  ///
+  /// In en, this message translates to:
+  /// **'Take over'**
+  String get screenTakeOver;
+
+  /// No description provided for @screenHandBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Hand back'**
+  String get screenHandBack;
+
+  /// No description provided for @screenBot.
+  ///
+  /// In en, this message translates to:
+  /// **'The bot has control. Take over to click and type, e.g. to solve a CAPTCHA.'**
+  String get screenBot;
+
+  /// No description provided for @screenYours.
+  ///
+  /// In en, this message translates to:
+  /// **'You have control: the bot waits until you hand it back.'**
+  String get screenYours;
+
+  /// No description provided for @screenSomeone.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone else has control.'**
+  String get screenSomeone;
+
+  /// No description provided for @screenMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The bot\'s screen isn\'t installed on the server (hermes computer-use screen install).'**
+  String get screenMissing;
+
+  /// No description provided for @screenLost.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection to the screen lost.'**
+  String get screenLost;
+
+  /// No description provided for @screenRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get screenRetry;
+
+  /// No description provided for @screenType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type on the screen'**
+  String get screenType;
+
+  /// No description provided for @screenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed: {error}'**
+  String screenFailed(String error);
 }
 
 class _AppLocalizationsDelegate

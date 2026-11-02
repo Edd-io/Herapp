@@ -547,10 +547,11 @@ class _CronRunPageState extends State<_CronRunPage> {
 
 /// A pushed page: back button, centered title, an optional [action] on the right, [child] below.
 class PageFrame extends StatelessWidget {
-  const PageFrame({super.key, required this.title, required this.child, this.action});
+  const PageFrame({super.key, required this.title, required this.child, this.action, this.full = false});
   final String title;
   final Widget child;
   final Widget? action;
+  final bool full; // the whole width, not a readable column
 
   @override
   Widget build(BuildContext context) {
@@ -587,7 +588,7 @@ class PageFrame extends StatelessWidget {
                 ],
               ),
             ),
-            Expanded(child: readable(child)),
+            Expanded(child: full ? child : readable(child)),
           ],
         ),
       ),

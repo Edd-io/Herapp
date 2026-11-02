@@ -993,4 +993,41 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get modelsMore => 'Plus de modèles';
+
+  @override
+  String get screen => 'Écran du bot';
+
+  @override
+  String get screenTakeOver => 'Prendre la main';
+
+  @override
+  String get screenHandBack => 'Rendre la main';
+
+  @override
+  String get screenBot =>
+      'Le bot a la main. Prends-la pour cliquer et taper, par exemple pour résoudre un captcha.';
+
+  @override
+  String get screenYours => 'Tu as la main : le bot attend que tu la rendes.';
+
+  @override
+  String get screenSomeone => 'Quelqu\'un d\'autre a la main.';
+
+  @override
+  String get screenMissing =>
+      'L\'écran du bot n\'est pas installé sur le serveur (hermes computer-use screen install).';
+
+  @override
+  String get screenLost => 'Connexion à l\'écran perdue.';
+
+  @override
+  String get screenRetry => 'Réessayer';
+
+  @override
+  String get screenType => 'Taper sur l\'écran';
+
+  @override
+  String screenFailed(String error) {
+    return 'Échec : $error';
+  }
 }
