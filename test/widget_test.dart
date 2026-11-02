@@ -389,6 +389,34 @@ void main() {
     await t.pump(const Duration(seconds: 10));
   });
 
+  testWidgets('a chat reopened while the server wraps up its finished reply is idle', (t) async {
+    fakeServer(
+      (method, params, emit) => switch (method) {
+        'session.list' => {
+          'sessions': [
+            {'id': 's9', 'title': 'Done task', 'preview': ''},
+          ],
+        },
+        'session.resume' => {'session_id': 'rt', 'running': true}, // titling or saving memory: no inflight reply
+        _ => null,
+      },
+    );
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async => jsonEncode({
+      'messages': [
+        {'role': 'user', 'content': 'Hi'},
+        {'role': 'assistant', 'content': 'Hello'},
+      ],
+    });
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Done task'));
+    await t.pumpAndSettle();
+    expect(find.text('Hello'), findsOneWidget);
+    expect(find.text('Ask anything'), findsOneWidget); // not "Queue a message" behind a stop button
+  });
+
   testWidgets('a chat is deleted by swiping it left, after confirming', (t) async {
     final rows = [
       {'id': 's9', 'title': 'Trip to Lyon'},

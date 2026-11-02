@@ -230,8 +230,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       g.call('session.context_breakdown', {'session_id': c.live}).then((b) {
         if (b['context_max'] case final num max when max > 0 && c.context == null && mounted) setState(() => c.context = contextOf(b));
       }).ignore();
-      if (r['running'] != true || c.streaming || !mounted) return null;
-      final inflight = r['inflight'] is Map ? r['inflight'] as Map : const {};
+      // `running` outlasts the reply while the server wraps up (title, memory): its turn is over once `inflight` is cleared
+      final inflight = r['inflight'];
+      if (r['running'] != true || inflight is! Map || inflight['error'] != null || c.streaming || !mounted) return null;
       final reply = Msg(false, '${inflight['assistant'] ?? ''}');
       setState(() {
         c.streaming = true;
