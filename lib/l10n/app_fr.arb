@@ -355,5 +355,8 @@
   "a11yBack": "Retour",
   "a11yPickTarget": "Choisir la destination",
   "a11yShow": "Afficher",
-  "a11yHide": "Masquer"
+  "a11yHide": "Masquer",
+  "usageCalls": "{n, plural, =1{1 appel} other{{n} appels}}",
+  "usageInSessions": "{n, plural, =1{1 conversation} other{{n} conversations}}",
+  "usageLastUsed": "il y a {time}"
 }

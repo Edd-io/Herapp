@@ -1253,4 +1253,31 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get a11yHide => 'Masquer';
+
+  @override
+  String usageCalls(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n appels',
+      one: '1 appel',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String usageInSessions(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n conversations',
+      one: '1 conversation',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String usageLastUsed(String time) {
+    return 'il y a $time';
+  }
 }

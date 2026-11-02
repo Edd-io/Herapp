@@ -48,6 +48,47 @@ void main() {
     expect(find.text('Copilot'), findsOneWidget);
   });
 
+  testWidgets('usage lists each model with its provider, calls and share', (t) async {
+    fakeServer((_, _, _) => null);
+    addTearDown(() => callApi = hermesApi);
+    final at = DateTime.now().subtract(const Duration(hours: 2)).millisecondsSinceEpoch / 1000;
+    callApi = (base, method, path, {query, body, user, password}) async => jsonEncode(switch (path) {
+      '/api/analytics/usage' => {
+        'daily': [
+          {'day': '2026-11-01', 'input_tokens': 900, 'output_tokens': 100, 'sessions': 2},
+        ],
+        'by_model': [],
+        'totals': {'total_input': 900, 'total_output': 100, 'total_sessions': 2},
+      },
+      '/api/analytics/models' => {
+        'models': [
+          {'model': 'gpt-4.1', 'provider': 'copilot', 'input_tokens': 100, 'output_tokens': 0, 'sessions': 1, 'api_calls': 1},
+          {
+            'model': 'gpt-6.1-sol',
+            'provider': 'openai-codex',
+            'input_tokens': 800,
+            'output_tokens': 100,
+            'actual_cost': 0.5,
+            'sessions': 2,
+            'api_calls': 12,
+            'last_used_at': at,
+          },
+        ],
+      },
+      _ => {},
+    });
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Quotas'));
+    await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.text('gpt-4.1'), 200, scrollable: find.byType(Scrollable).last);
+    expect(find.text('openai-codex · 12 calls · 2 chats · 2h 0min ago'), findsOneWidget);
+    expect(find.text('900 · \$0.50'), findsOneWidget);
+    final bars = t.widgetList<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).map((b) => b.value).toList();
+    expect(bars.last, closeTo(100 / 900, .001)); // the busiest first, the others against it
+  });
+
   testWidgets('script jobs list under agents, pause and run', (t) async {
     t.platformDispatcher.accessibilityFeaturesTestValue = FakeAccessibilityFeatures(disableAnimations: true); // still characters
     addTearDown(t.platformDispatcher.clearAccessibilityFeaturesTestValue);

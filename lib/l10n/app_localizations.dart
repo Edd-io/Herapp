@@ -2233,6 +2233,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hide'**
   String get a11yHide;
+
+  /// No description provided for @usageCalls.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, =1{1 call} other{{n} calls}}'**
+  String usageCalls(int n);
+
+  /// No description provided for @usageInSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, =1{1 chat} other{{n} chats}}'**
+  String usageInSessions(int n);
+
+  /// No description provided for @usageLastUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} ago'**
+  String usageLastUsed(String time);
 }
 
 class _AppLocalizationsDelegate

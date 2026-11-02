@@ -866,6 +866,26 @@ Usage? parseUsage(String body) {
   return null;
 }
 
+/// A model's share of the period, counted per API call (a chat switching models splits between them).
+typedef ModelUsage = ({String model, String provider, int tokens, double cost, int sessions, int calls, DateTime? used});
+
+/// `/api/analytics/models`, busiest first.
+List<ModelUsage> parseModelUsage(String body) => switch (_json(body)) {
+  {'models': final List models} => [
+    for (final m in models.whereType<Map>())
+      (
+        model: '${m['model'] ?? ''}',
+        provider: '${m['provider'] ?? ''}',
+        tokens: _int(m['input_tokens']) + _int(m['output_tokens']),
+        cost: _num(m['actual_cost']) > 0 ? _num(m['actual_cost']) : _num(m['estimated_cost']),
+        sessions: _int(m['sessions']),
+        calls: _int(m['api_calls']),
+        used: m['last_used_at'] is num ? DateTime.fromMillisecondsSinceEpoch((_num(m['last_used_at']) * 1000).round()) : null,
+      ),
+  ]..sort((a, b) => b.tokens.compareTo(a.tokens)),
+  _ => const [],
+};
+
 /// An entry of what Hermes remembers: of the user ([profile], USER.md) or its own notes (MEMORY.md).
 /// [id] carries a fingerprint, so it goes stale once the entry changes: reload after an edit.
 typedef Memory = ({String id, String title, bool profile, DateTime? at});

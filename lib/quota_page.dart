@@ -28,6 +28,7 @@ class _QuotaPageState extends State<QuotaPage> {
   Object? error;
   bool failed = false;
   Usage? usage;
+  List<ModelUsage>? byModel; // per call, with providers; null from a server without it
   var days = 7;
 
   @override
@@ -67,8 +68,15 @@ class _QuotaPageState extends State<QuotaPage> {
 
   Future<void> loadUsage() async {
     try {
-      final body = await serverApi('GET', '/api/analytics/usage', query: {'days': '$days'});
-      if (mounted) setState(() => usage = body == null ? null : parseUsage(body));
+      final [body, models] = await Future.wait([
+        serverApi('GET', '/api/analytics/usage', query: {'days': '$days'}),
+        serverApi('GET', '/api/analytics/models', query: {'days': '$days'}).catchError((Object _) => null),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        usage = body == null ? null : parseUsage(body);
+        byModel = models == null ? null : parseModelUsage(models);
+      });
     } catch (e) {
       debugPrint('Usage: $e'); // the quotas above still show
     }
@@ -150,7 +158,9 @@ class _QuotaPageState extends State<QuotaPage> {
                           ? l.usageCache(NumberFormat.compact(locale: '${Localizations.localeOf(context)}').format(u.cache))
                           : null,
                     ),
-                    if (u.models.isNotEmpty)
+                    if (byModel case final ms? when ms.isNotEmpty)
+                      section(l.usageByModel, [for (final m in ms) _ModelUsageTile(m, share: m.tokens / ms.first.tokens.clamp(1, 1 << 62))])
+                    else if (u.models.isNotEmpty)
                       section(l.usageByModel, [
                         for (final m in u.models)
                           CupertinoListTile(
@@ -241,6 +251,69 @@ String _usageLine(BuildContext context, UsageRow r) {
     NumberFormat.compact(locale: locale).format(r.input + r.output),
     if (r.cost > 0) NumberFormat.simpleCurrency(locale: locale, name: 'USD').format(r.cost),
   ].join(' · ');
+}
+
+/// A model's tokens and cost, its provider, how often it was called and when last, over a bar of its
+/// [share] against the busiest model.
+class _ModelUsageTile extends StatelessWidget {
+  const _ModelUsageTile(this.m, {required this.share});
+  final ModelUsage m;
+  final double share;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context);
+    final locale = '${Localizations.localeOf(context)}';
+    final small = TextStyle(fontSize: 13, color: c.outline);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  m.model,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 16, color: c.onSurface),
+                ),
+              ),
+              Text(
+                [
+                  NumberFormat.compact(locale: locale).format(m.tokens),
+                  if (m.cost > 0) NumberFormat.simpleCurrency(locale: locale, name: 'USD').format(m.cost),
+                ].join(' · '),
+                style: small,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: share.clamp(.02, 1),
+              minHeight: 4,
+              color: c.onSurface,
+              backgroundColor: c.outline.withValues(alpha: .15),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            [
+              if (m.provider.isNotEmpty) m.provider,
+              l.usageCalls(m.calls),
+              l.usageInSessions(m.sessions),
+              if (m.used case final at?) l.usageLastUsed(durationText(l, DateTime.now().difference(at))),
+            ].join(' · '),
+            maxLines: 2,
+            style: small,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// The period's totals over a bar per day of tokens used.

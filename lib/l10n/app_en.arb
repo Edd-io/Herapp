@@ -640,5 +640,11 @@
   "a11yBack": "Back",
   "a11yPickTarget": "Pick the destination",
   "a11yShow": "Show",
-  "a11yHide": "Hide"
+  "a11yHide": "Hide",
+  "usageCalls": "{n, plural, =1{1 call} other{{n} calls}}",
+  "@usageCalls": {"placeholders": {"n": {"type": "int"}}},
+  "usageInSessions": "{n, plural, =1{1 chat} other{{n} chats}}",
+  "@usageInSessions": {"placeholders": {"n": {"type": "int"}}},
+  "usageLastUsed": "{time} ago",
+  "@usageLastUsed": {"placeholders": {"time": {"type": "String"}}}
 }
