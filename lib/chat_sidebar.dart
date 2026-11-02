@@ -130,8 +130,46 @@ extension _Sidebar on _ChatPageState {
                 children: [
                   // the menu scrolls away with the chats
                   tile(AppLocalizations.of(context).newChat, icon: CupertinoIcons.square_pencil, onTap: newChat),
-                  for (final (label, icon, page) in pages(AppLocalizations.of(context)))
-                    tile(label, icon: icon, onTap: () => openPage(page)),
+                  // the pages, settings last, in a compact grid that leaves the room to the chats
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+                    child: LayoutBuilder(
+                      builder: (context, box) => Wrap(
+                        children: [
+                          for (final (label, icon, onTap) in [
+                            for (final (label, icon, page) in pages(l)) (label, icon, () => openPage(page)),
+                            (l.settings, CupertinoIcons.gear, openSettings),
+                          ])
+                            SizedBox(
+                              width: box.maxWidth / 5,
+                              child: Hover(
+                                label: label,
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: onTap,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    child: Column(
+                                      children: [
+                                        Icon(icon, size: 22, color: c.onSurface),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          label,
+                                          maxLines: 2,
+                                          textAlign: TextAlign.center,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(fontSize: 11, height: 1.15, color: c.onSurfaceVariant),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                   if (listed.any((ch) => ch.pinned)) ...[
                     heading(l.chatsPinned),
                     for (final ch in listed.where((ch) => ch.pinned)) listedTile(ch),
@@ -192,7 +230,6 @@ extension _Sidebar on _ChatPageState {
                 ],
               ),
             ),
-            tile(AppLocalizations.of(context).settings, icon: CupertinoIcons.gear, onTap: openSettings),
             const SizedBox(height: 8),
           ],
         ),
