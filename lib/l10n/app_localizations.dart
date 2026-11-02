@@ -2701,6 +2701,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Between chats, a skill Hermes wrote for itself and hasn\'t used for {stale} days is marked stale, then archived after {archive} days. The AI pass also merges and rewrites similar skills, at the cost of a model call.'**
   String curatorFooter(int stale, int archive);
+
+  /// No description provided for @codeCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get codeCopied;
+
+  /// No description provided for @codeUnfold.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all {n} lines'**
+  String codeUnfold(int n);
 }
 
 class _AppLocalizationsDelegate

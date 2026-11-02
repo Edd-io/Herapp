@@ -948,7 +948,7 @@ class _Markdown extends StatelessWidget {
         listBullet: style,
         blockSpacing: 12,
         code: mono.copyWith(backgroundColor: c.surfaceContainerHighest),
-        codeblockPadding: const EdgeInsets.all(14),
+        codeblockPadding: EdgeInsets.zero, // the block lays out its own bar and code
         codeblockDecoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
         blockquote: style.copyWith(color: c.onSurfaceVariant),
         blockquoteDecoration: BoxDecoration(
@@ -994,42 +994,90 @@ class _Code extends StatefulWidget {
 }
 
 class _CodeState extends State<_Code> {
-  var copied = false;
+  var copied = false, unfolded = false;
+  static const fold = 30; // lines shown of a longer block, until it's unfolded
 
   List<TextSpan> spans(List<hl.Node> nodes, Map<String, TextStyle> theme) => [
     for (final n in nodes)
       TextSpan(text: n.value, style: theme[n.className], children: n.children == null ? null : spans(n.children!, theme)),
   ];
 
+  /// A diff: named so, or unnamed and shaped like one (its file or hunk headers).
+  bool get diff =>
+      const {'diff', 'patch'}.contains(widget.lang) ||
+      widget.lang.isEmpty && RegExp(r'^(@@ |--- |\+\+\+ )', multiLine: true).allMatches(widget.code).length >= 2;
+
   @override
   Widget build(BuildContext context) {
-    final c = Theme.of(context).colorScheme;
-    final theme = Theme.of(context).brightness == Brightness.dark ? atomOneDarkTheme : githubTheme;
+    final c = Theme.of(context).colorScheme, l = AppLocalizations.of(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final theme = dark ? atomOneDarkTheme : githubTheme;
+    final lines = widget.code.split('\n');
+    final folded = !unfolded && lines.length > fold + 5; // a few lines more aren't worth a button
+    final code = folded ? lines.take(fold).join('\n') : widget.code;
     // an unknown or missing language stays plain
-    final colored = widget.lang.isEmpty
+    final colored = widget.lang.isEmpty || diff
         ? null
         : (() {
             try {
-              return hl.highlight.parse(widget.code, language: widget.lang).nodes;
+              return hl.highlight.parse(code, language: widget.lang).nodes;
             } catch (_) {
               return null;
             }
           })();
+    // a diff's lines are tinted whole: added in green, removed in red, hunk headers in the accent's place
+    Widget diffLines() {
+      final (add, del) = dark ? (const Color(0xFF7EE787), const Color(0xFFFF8E86)) : (const Color(0xFF116329), const Color(0xFF82071E));
+      return IntrinsicWidth(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final line in code.split('\n'))
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                color: switch (line) {
+                  _ when line.startsWith('+') && !line.startsWith('+++') => add.withValues(alpha: .14),
+                  _ when line.startsWith('-') && !line.startsWith('---') => del.withValues(alpha: .14),
+                  _ => null,
+                },
+                child: Text(
+                  line,
+                  style: widget.mono.copyWith(
+                    color: switch (line) {
+                      _ when line.startsWith('@@') => c.outline,
+                      _ when line.startsWith('+') && !line.startsWith('+++') => add,
+                      _ when line.startsWith('-') && !line.startsWith('---') => del,
+                      _ => null,
+                    },
+                    fontWeight: line.startsWith('+++') || line.startsWith('---') ? FontWeight.w600 : null,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 4, 4, 0),
+        // the block's bar: its language, and a copy button that says it copied
+        Container(
+          decoration: BoxDecoration(
+            color: c.outline.withValues(alpha: .1),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          ),
+          padding: const EdgeInsets.fromLTRB(14, 0, 4, 0),
           child: Row(
             children: [
               Expanded(
-                child: Text(widget.lang, style: TextStyle(fontSize: 12, color: c.outline)),
+                child: Text(diff && widget.lang.isEmpty ? 'diff' : widget.lang, style: TextStyle(fontSize: 12, color: c.outline)),
               ),
               Hover(
                 radius: 8,
-                label: AppLocalizations.of(context).a11yCopy,
+                label: l.a11yCopy,
                 child: CupertinoButton(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   minimumSize: Size.zero,
                   onPressed: () async {
                     await Clipboard.setData(ClipboardData(text: widget.code));
@@ -1038,7 +1086,14 @@ class _CodeState extends State<_Code> {
                     await Future<void>.delayed(const Duration(seconds: 2));
                     if (mounted) setState(() => copied = false);
                   },
-                  child: Icon(copied ? CupertinoIcons.checkmark_alt : CupertinoIcons.doc_on_doc, size: 16, color: c.outline),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(copied ? CupertinoIcons.checkmark_alt : CupertinoIcons.doc_on_doc, size: 14, color: c.outline),
+                      const SizedBox(width: 5),
+                      Text(copied ? l.codeCopied : l.a11yCopy, style: TextStyle(fontSize: 12, color: c.outline)),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -1046,15 +1101,31 @@ class _CodeState extends State<_Code> {
         ),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-          child: SelectableText.rich(
-            TextSpan(
-              style: widget.mono,
-              text: colored == null ? widget.code : null,
-              children: colored == null ? null : spans(colored, theme),
+          padding: EdgeInsets.fromLTRB(diff ? 0 : 14, 12, diff ? 0 : 14, folded ? 4 : 14),
+          child: diff
+              ? diffLines()
+              : SelectableText.rich(
+                  TextSpan(
+                    style: widget.mono,
+                    text: colored == null ? code : null,
+                    children: colored == null ? null : spans(colored, theme),
+                  ),
+                ),
+        ),
+        if (folded)
+          Hover(
+            radius: 0,
+            child: GestureDetector(
+              onTap: () => setState(() => unfolded = true),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+                child: Text(
+                  l.codeUnfold(lines.length),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.onSurfaceVariant),
+                ),
+              ),
             ),
           ),
-        ),
       ],
     );
   }

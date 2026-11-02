@@ -1543,4 +1543,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String curatorFooter(int stale, int archive) {
     return 'Entre les conversations, une compétence qu’Hermes s’est écrite et qu’il n’a pas utilisée depuis $stale jours est marquée périmée, puis archivée après $archive jours. Le passage par l’IA fusionne et réécrit aussi les compétences proches, au prix d’un appel au modèle.';
   }
+
+  @override
+  String get codeCopied => 'Copié';
+
+  @override
+  String codeUnfold(int n) {
+    return 'Afficher les $n lignes';
+  }
 }

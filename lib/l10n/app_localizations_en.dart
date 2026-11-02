@@ -1522,4 +1522,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String curatorFooter(int stale, int archive) {
     return 'Between chats, a skill Hermes wrote for itself and hasn\'t used for $stale days is marked stale, then archived after $archive days. The AI pass also merges and rewrites similar skills, at the cost of a model call.';
   }
+
+  @override
+  String get codeCopied => 'Copied';
+
+  @override
+  String codeUnfold(int n) {
+    return 'Show all $n lines';
+  }
 }
