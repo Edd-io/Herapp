@@ -227,6 +227,11 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         c.model = c.applied = '$p/$m';
       }
       if (mounted) setState(() {});
+      g.call('subagent.list', {'session_id': c.live}).then((r) {
+        for (final a in (r['subagents'] as List? ?? const []).whereType<Map>()) {
+          trackSubagent('', c.live, a); // still working since before the app opened
+        }
+      }).ignore();
       g.call('session.context_breakdown', {'session_id': c.live}).then((b) {
         if (b['context_max'] case final num max when max > 0 && c.context == null && mounted) setState(() => c.context = contextOf(b));
       }).ignore();

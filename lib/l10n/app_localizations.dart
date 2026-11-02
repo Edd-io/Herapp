@@ -1304,6 +1304,24 @@ abstract class AppLocalizations {
   /// **'Workers'**
   String get workers;
 
+  /// No description provided for @subagents.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagents'**
+  String get subagents;
+
+  /// No description provided for @subagentDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get subagentDone;
+
+  /// No description provided for @subagentFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Did not finish'**
+  String get subagentFailed;
+
   /// No description provided for @workersNone.
   ///
   /// In en, this message translates to:

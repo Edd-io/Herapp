@@ -201,12 +201,49 @@ Future<Gateway?> gateway() async {
     final base = Uri.tryParse(settings.url);
     if (base == null || !base.hasAuthority) return null;
     if (vpn.enabled) await vpn.ready;
-    return connectGateway(
+    final g = await connectGateway(
       base,
       user: settings.auth ? settings.user : null,
       password: settings.password,
     ).timeout(const Duration(seconds: 20));
+    g.events.listen((e) {
+      if (e.id == null && e.type.startsWith('subagent.')) trackSubagent(e.type, e.session, e.payload);
+    });
+    return g;
   }());
+}
+
+/// A child agent a chat handed work to (`delegate_task`); [session] is the chat's runtime session.
+typedef Subagent = ({String goal, String session, String status, String tool, DateTime since, DateTime? ended});
+
+/// The subagents of the chats on this connection, by id: they report on their chat's session, and an
+/// asynchronous one keeps working after the reply that started it.
+// ponytail: never pruned, the page shows the running and the recently ended ones; prune if a session lasts weeks
+final subagents = ValueNotifier<Map<String, Subagent>>(const {});
+
+bool subagentRunning(Subagent s) => s.ended == null;
+
+/// Folds a `subagent.*` event, or a `subagent.list` row (with no [type]), into [subagents].
+void trackSubagent(String type, String session, Map p) {
+  final id = '${p['subagent_id'] ?? '$session/${p['task_index']}/${p['goal']}'}';
+  final was = subagents.value[id];
+  if (was?.ended != null) return; // a late frame after the end
+  final status = type == 'subagent.complete' ? '${p['status'] ?? 'completed'}' : '${p['status'] ?? 'running'}';
+  final over = const {'completed', 'failed', 'error', 'timeout', 'interrupted'}.contains(status);
+  subagents.value = {
+    ...subagents.value,
+    id: (
+      goal: '${p['goal'] ?? was?.goal ?? ''}'.trim(),
+      session: session,
+      status: status,
+      tool: '${p['tool_name'] ?? p['last_tool'] ?? was?.tool ?? ''}',
+      since: switch (p['started_at']) {
+        final num t => DateTime.fromMillisecondsSinceEpoch((t * 1000).round()),
+        _ => was?.since ?? DateTime.now(),
+      },
+      ended: over ? DateTime.now() : null,
+    ),
+  };
 }
 
 /// Closes the chat connection and forgets the sign-in, e.g. after the server, sign-in or tunnel changed.

@@ -704,6 +704,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get workers => 'Workers';
 
   @override
+  String get subagents => 'Sous-agents';
+
+  @override
+  String get subagentDone => 'Terminé';
+
+  @override
+  String get subagentFailed => 'N\'a pas abouti';
+
+  @override
   String get workersNone => 'Aucun worker en cours';
 
   @override

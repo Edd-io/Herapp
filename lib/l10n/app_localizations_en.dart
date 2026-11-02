@@ -701,6 +701,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workers => 'Workers';
 
   @override
+  String get subagents => 'Subagents';
+
+  @override
+  String get subagentDone => 'Finished';
+
+  @override
+  String get subagentFailed => 'Did not finish';
+
+  @override
   String get workersNone => 'No worker running';
 
   @override

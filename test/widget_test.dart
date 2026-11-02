@@ -82,6 +82,7 @@ void main() {
     FlutterSecureStorage.setMockInitialValues({});
     await settings.load();
     dropGateway();
+    subagents.value = const {};
     addTearDown(() => connectGateway = hermesGateway);
   });
 
@@ -747,6 +748,35 @@ void main() {
     await t.pump(const Duration(seconds: 10));
     await t.pump();
     expect(find.text('Ship the app'), findsOneWidget);
+  });
+
+  testWidgets('agents page shows the subagents the chats started, running or just ended', (t) async {
+    t.platformDispatcher.accessibilityFeaturesTestValue = FakeAccessibilityFeatures(disableAnimations: true); // still characters
+    addTearDown(t.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    late void Function(String, Map) push;
+    fakeServer((method, params, emit) {
+      if (method == 'session.list') push = emit;
+      return null;
+    });
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async => '[]';
+    await t.pumpWidget(const App());
+    await t.pump(const Duration(milliseconds: 100));
+    push('subagent.start', {'subagent_id': 'a1', 'goal': 'Read the docs', 'task_count': 2, 'task_index': 0});
+    push('subagent.tool', {'subagent_id': 'a1', 'goal': 'Read the docs', 'task_count': 2, 'task_index': 0, 'tool_name': 'web_search'});
+    push('subagent.start', {'subagent_id': 'a2', 'goal': 'Write the tests', 'task_count': 2, 'task_index': 1});
+    push('subagent.complete', {'subagent_id': 'a2', 'goal': 'Write the tests', 'task_count': 2, 'task_index': 1, 'status': 'completed'});
+    await t.pump(const Duration(milliseconds: 100));
+
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Agents'));
+    await t.pumpAndSettle();
+    expect(find.text('SUBAGENTS'), findsOneWidget);
+    expect(find.text('Read the docs'), findsOneWidget);
+    expect(find.textContaining('web_search'), findsOneWidget);
+    expect(find.text('Write the tests'), findsOneWidget);
+    expect(find.text('Finished'), findsOneWidget);
   });
 
   testWidgets('a wide window keeps the menu beside the chat and its pages', (t) async {

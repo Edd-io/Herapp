@@ -186,6 +186,7 @@ class _AgentsPageState extends State<AgentsPage> {
                   child: _AgentCard(j, onTap: () => open(j)),
                 ),
               if (board case final b?) _Workers(b),
+              ValueListenableBuilder(valueListenable: subagents, builder: (_, all, _) => _Subagents(all.values)),
               if (scripts.isNotEmpty)
                 CupertinoListSection.insetGrouped(
                   backgroundColor: c.surface,
@@ -289,6 +290,78 @@ class _Workers extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             child: Text(counts.join(' · '), style: small),
+          ),
+      ],
+    );
+  }
+}
+
+/// The subagents the chats handed work to: the ones running, then those that ended in the last minutes.
+class _Subagents extends StatelessWidget {
+  const _Subagents(this.all);
+  final Iterable<Subagent> all;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context);
+    final small = TextStyle(fontSize: 13, color: c.outline);
+    final now = DateTime.now();
+    final shown = [
+      for (final a in all)
+        if (a.ended == null || now.difference(a.ended!) < const Duration(minutes: 10)) a,
+    ]..sort((a, b) => (a.ended == null ? 0 : 1).compareTo(b.ended == null ? 0 : 1));
+    if (shown.isEmpty) return const SizedBox.shrink();
+    return CupertinoListSection.insetGrouped(
+      backgroundColor: c.surface,
+      decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+      separatorColor: c.outline.withValues(alpha: .2),
+      header: Text(l.subagents.toUpperCase(), style: small),
+      children: [
+        for (final a in shown)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  a.goal,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.onSurface),
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    switch (a) {
+                      _ when subagentRunning(a) => Icon(
+                        CupertinoIcons.circle_fill,
+                        size: 8,
+                        color: CupertinoColors.systemGreen.resolveFrom(context),
+                      ),
+                      _ when a.status == 'completed' => Icon(CupertinoIcons.checkmark, size: 13, color: c.outline),
+                      _ => const Icon(CupertinoIcons.xmark, size: 13, color: CupertinoColors.systemRed),
+                    },
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        switch (a) {
+                          _ when subagentRunning(a) => [
+                            l.workerSince(durationText(l, now.difference(a.since))),
+                            if (a.tool.isNotEmpty) a.tool,
+                          ].join(' · '),
+                          _ when a.status == 'completed' => l.subagentDone,
+                          _ => l.subagentFailed,
+                        },
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: small,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
       ],
     );
