@@ -1590,4 +1590,13 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get notificationsInfo =>
       'Une réponse ou une tâche finie pendant que Herapp n’est pas à l’écran te prévient.';
+
+  @override
+  String get compare => 'Comparer avec un autre modèle';
+
+  @override
+  String get compareClose => 'Fermer la comparaison';
+
+  @override
+  String get compareNoModels => 'Aucun autre modèle à comparer';
 }

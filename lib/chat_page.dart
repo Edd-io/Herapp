@@ -111,6 +111,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   bool backgrounded = false; // the next message goes to a side agent in the background
   AppLifecycleState life = AppLifecycleState.resumed; // out of sight, a reply done is told by a notification
   bool notifyAsked = false; // this launch asked the system whether it may notify
+  final comparing = <Msg>{}; // replies whose other model is still answering
   bool atBottom = true;
   int seen = 0; // the open chat's messages when the user scrolled up from its end, to count the new ones
   String query = '';
@@ -553,6 +554,75 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           action: SnackBarAction(label: l.backgroundOpen, onPressed: () => select(c)),
         ),
       );
+    }
+  }
+
+  /// Asks the question [m] answered of the model [model] too, in a hidden session seeded with the chat up to that
+  /// question, and shows its answer beside [m]'s. The session goes once it has answered.
+  Future<void> compare(Msg m, String model) async {
+    final c = chat, at = c.msgs.indexOf(m);
+    final asked = c.msgs.take(at).lastWhere((x) => x.user && !x.background, orElse: () => Msg(true, ''));
+    if (asked.text.trim().isEmpty) return;
+    final alt = Msg(false, '')..model = model;
+    setState(() {
+      m.alt = alt;
+      comparing.add(m);
+    });
+    Gateway? g;
+    var sid = '', stored = '';
+    try {
+      g = await gateway();
+      if (g == null) throw const HttpException('no server');
+      final r = await g.call('session.create', {
+        if (model.contains('/')) ...{'provider': model.substring(0, model.indexOf('/')), 'model': modelName(model)},
+        'hidden': true,
+        'messages': [
+          for (final x in c.msgs.take(c.msgs.indexOf(asked)))
+            if (!x.background && x.text.trim().isNotEmpty) {'role': x.user ? 'user' : 'assistant', 'content': x.text},
+        ],
+      });
+      sid = '${r['session_id']}';
+      stored = '${r['stored_session_id'] ?? ''}';
+      final done = Completer<void>();
+      final sub = g.events.listen((e) {
+        if (e.session != sid) return;
+        if (e.id case final id?) return g!.reply(id, null); // nobody to ask: its approvals and questions are declined
+        switch (e.type) {
+          case 'message.delta' when e.payload['text'] is String:
+            setState(() => alt.text += e.payload['text'] as String);
+          case 'message.complete':
+            if (alt.text.trim().isEmpty && e.payload['text'] is String) alt.text = e.payload['text'] as String;
+            if (e.payload['status'] == 'error') alt.text += '\n\n⚠️ ${e.payload['error'] ?? 'error'}';
+            if (!done.isCompleted) done.complete();
+          case 'error':
+            alt.text += '\n\n⚠️ ${e.payload['message']}';
+            if (!done.isCompleted) done.complete();
+        }
+      }, onDone: () => done.isCompleted ? null : done.completeError(const HttpException('connection to Hermes lost')));
+      await g.call('prompt.submit', {'session_id': sid, 'text': asked.text});
+      await done.future.whenComplete(sub.cancel);
+    } catch (e) {
+      debugPrint('Compare: $e');
+      if (mounted) alt.text += '${alt.text.isEmpty ? '' : '\n\n'}⚠️ ${serverErrorText(AppLocalizations.of(context), e)}';
+    }
+    if (g != null && !g.closed && sid.isNotEmpty) {
+      // the comparison isn't a chat of its own: it leaves no trace in the menu
+      await g.call('session.close', {'session_id': sid}).catchError((Object _) => const {});
+      if (stored.isNotEmpty) g.call('session.delete', {'session_id': stored}).ignore();
+    }
+    if (mounted) setState(() => comparing.remove(m));
+  }
+
+  /// Picks the model to compare [m] with, then asks it.
+  Future<void> pickCompare(Msg m) async {
+    final l = AppLocalizations.of(context);
+    loadModels();
+    final id = await showModelSheet(context, models: models, current: '', effort: '', onEffort: (_) {});
+    if (id != null && id.isNotEmpty && mounted) {
+      settings.haptic();
+      compare(m, id);
+    } else if (id == null && models.value.list.isEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.compareNoModels)));
     }
   }
 

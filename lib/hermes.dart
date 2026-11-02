@@ -15,6 +15,9 @@ class Msg {
   /// Asked of, or answered by, a side agent in the background (`prompt.background`): not a turn of the chat.
   bool background = false;
 
+  /// The same question answered by another model, to compare with this reply (kept here only).
+  Msg? alt;
+
   /// What the user attached to this message.
   final List<Attachment> files;
 

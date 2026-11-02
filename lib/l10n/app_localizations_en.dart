@@ -1569,4 +1569,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notificationsInfo =>
       'A reply or background task done while Herapp is out of sight tells you.';
+
+  @override
+  String get compare => 'Compare with another model';
+
+  @override
+  String get compareClose => 'Close the comparison';
+
+  @override
+  String get compareNoModels => 'No other model to compare with';
 }

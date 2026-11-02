@@ -2773,6 +2773,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A reply or background task done while Herapp is out of sight tells you.'**
   String get notificationsInfo;
+
+  /// No description provided for @compare.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare with another model'**
+  String get compare;
+
+  /// No description provided for @compareClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close the comparison'**
+  String get compareClose;
+
+  /// No description provided for @compareNoModels.
+  ///
+  /// In en, this message translates to:
+  /// **'No other model to compare with'**
+  String get compareNoModels;
 }
 
 class _AppLocalizationsDelegate

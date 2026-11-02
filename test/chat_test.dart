@@ -527,6 +527,53 @@ void main() {
     expect(find.byType(InteractiveViewer), findsNothing);
   });
 
+  testWidgets('a reply is compared with another model\'s answer to the same question', (t) async {
+    stillStripes(t);
+    addTearDown(() => fetchModels = hermesModels);
+    fetchModels = (base, {user, password}) async => (
+      models: <Model>[
+        (provider: 'Anthropic', name: 'claude-sonnet-5-5', id: 'anthropic/claude-sonnet-5-5', reasoning: true),
+        (provider: 'OpenRouter', name: 'openai/gpt-5', id: 'openrouter/openai/gpt-5', reasoning: true),
+      ],
+      current: 'anthropic/claude-sonnet-5-5',
+      quotas: <Quota>[],
+    );
+    var created = 0;
+    final calls = fakeServer((method, params, emit) {
+      switch (method) {
+        case 'session.create':
+          return {'session_id': 'rt', 'stored_session_id': 's${++created}'};
+        case 'prompt.submit':
+          emit('message.complete', {'text': created == 1 ? 'Paris.' : 'Paris, of course.', 'status': 'complete'});
+      }
+      return null;
+    });
+    await t.pumpWidget(const App());
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(EditableText).last, 'Capital of France?');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 1));
+    await t.pumpAndSettle();
+
+    await t.tap(find.byTooltip('Compare with another model'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('openai/gpt-5').last);
+    await t.pump(const Duration(seconds: 1));
+    await t.pumpAndSettle();
+    final hidden = calls.where((c) => c.$1 == 'session.create').last.$2;
+    expect((hidden['provider'], hidden['model'], hidden['hidden']), ('openrouter', 'openai/gpt-5', true));
+    expect(hidden['messages'], isEmpty); // the chat before the question: nothing
+    expect(calls.where((c) => c.$1 == 'prompt.submit').last.$2['text'], 'Capital of France?');
+    expect(find.textContaining('Paris, of course.'), findsOneWidget);
+    expect(find.textContaining('Paris.'), findsWidgets);
+    expect(calls.where((c) => c.$1 == 'session.delete').single.$2, {'session_id': 's2'}); // no trace in the menu
+
+    await t.tap(find.byTooltip('Close the comparison'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Paris, of course.'), findsNothing);
+  });
+
   testWidgets('a reply browsing the web shows the bot screen, which opens to take over', (t) async {
     const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     final calls = fakeServer((method, params, emit) {

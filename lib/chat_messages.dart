@@ -212,7 +212,9 @@ extension _Messages on _ChatPageState {
                       onAnswer: (r) => answer(m, r),
                       choice: (label, onTap, main, danger) => _choice(c, label, onTap, main: main, danger: danger),
                     ),
-            if (text.trim().isNotEmpty)
+            if (m.alt case final alt?)
+              _compared(c, m, alt, _Markdown(text.trimLeft(), style: body.copyWith(color: c.onSurface)))
+            else if (text.trim().isNotEmpty)
               _Markdown(text.trimLeft(), style: body.copyWith(color: c.onSurface)) // text after a tool call starts with blank lines
             else if (live && m.ask == null && m.tools.every((t) => t.done))
               _PulseDot(c.onSurface),
@@ -247,6 +249,13 @@ extension _Messages on _ChatPageState {
                           ),
                         ),
                       ),
+                      if (m.alt == null)
+                        _IconBtn(
+                          small: true,
+                          label: l.compare,
+                          onTap: () => pickCompare(m),
+                          child: Icon(CupertinoIcons.rectangle_split_3x1, size: 18, color: c.onSurfaceVariant),
+                        ),
                       if (last)
                         _IconBtn(
                           small: true,
@@ -370,6 +379,70 @@ extension _Messages on _ChatPageState {
       ),
     ),
   );
+
+  /// [m]'s answer beside the one [alt]'s model gave to the same question; one above the other when narrow.
+  Widget _compared(ColorScheme c, Msg m, Msg alt, Widget original) {
+    final l = AppLocalizations.of(context);
+    const body = TextStyle(fontSize: 17, height: 1.45);
+    Widget head(String model, {VoidCallback? onClose}) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              model.isEmpty ? 'Herapp' : modelName(model),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.outline),
+            ),
+          ),
+          if (onClose != null)
+            _IconBtn(
+              small: true,
+              label: l.compareClose,
+              onTap: onClose,
+              child: Icon(CupertinoIcons.xmark, size: 14, color: c.outline),
+            ),
+        ],
+      ),
+    );
+    final other = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        head(alt.model, onClose: comparing.contains(m) ? null : () => setState(() => m.alt = null)),
+        if (alt.text.trim().isNotEmpty) _Markdown(alt.text.trimLeft(), style: body.copyWith(color: c.onSurface)),
+        if (comparing.contains(m) && alt.text.trim().isEmpty) _PulseDot(c.onSurface),
+      ],
+    );
+    Widget card(Widget child) => Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: c.outline.withValues(alpha: .25)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: child,
+    );
+    return LayoutBuilder(
+      builder: (context, box) => box.maxWidth >= 640
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: card(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [head(m.model.isNotEmpty ? m.model : chat.model), original],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: card(other)),
+              ],
+            )
+          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [original, const SizedBox(height: 12), card(other)]),
+    );
+  }
 
   /// The card asking whether Hermes may run a command, with the choices the server allows.
   Widget _approval(ColorScheme c, Msg m, Map p) {

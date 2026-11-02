@@ -445,5 +445,8 @@
   "paletteModel": "Changer de modèle",
   "paletteFolder": "Choisir le dossier",
   "notifications": "Notifications",
-  "notificationsInfo": "Une réponse ou une tâche finie pendant que Herapp n’est pas à l’écran te prévient."
+  "notificationsInfo": "Une réponse ou une tâche finie pendant que Herapp n’est pas à l’écran te prévient.",
+  "compare": "Comparer avec un autre modèle",
+  "compareClose": "Fermer la comparaison",
+  "compareNoModels": "Aucun autre modèle à comparer"
 }
