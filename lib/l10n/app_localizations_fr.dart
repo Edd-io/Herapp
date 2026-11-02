@@ -85,12 +85,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String systemChanges(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count nouveautés',
-      one: '1 nouveauté',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count nouveautés', one: '1 nouveauté');
     return '$_temp0';
   }
 
@@ -98,8 +93,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get systemUpdateNow => 'Mettre à jour';
 
   @override
-  String get systemUpdateConfirm =>
-      'Hermes va se mettre à jour et redémarrer. Les réponses en cours s\'arrêteront.';
+  String get systemUpdateConfirm => 'Hermes va se mettre à jour et redémarrer. Les réponses en cours s\'arrêteront.';
 
   @override
   String get systemUpdating => 'Mise à jour en cours…';
@@ -188,8 +182,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get macShell => 'Commandes sur cet ordinateur';
 
   @override
-  String get macShellHint =>
-      'Hermes peut demander depuis le chat à lancer des commandes ici ; tu les valides dans l’app.';
+  String get macShellHint => 'Hermes peut demander depuis le chat à lancer des commandes ici ; tu les valides dans l’app.';
 
   @override
   String get macTitle => 'Sur cet ordinateur';
@@ -224,8 +217,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get hermesServer => 'Serveur Hermes';
 
   @override
-  String get hermesServerFooter =>
-      'Adresse à laquelle l’app enverra les messages.';
+  String get hermesServerFooter => 'Adresse à laquelle l’app enverra les messages.';
 
   @override
   String get wireguard => 'WireGuard';
@@ -257,12 +249,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get wgRemove => 'Supprimer la configuration';
 
   @override
-  String get wgFooter =>
-      'Tout le trafic réseau de l’app passe par le tunnel. Tunnel activé mais coupé : l’app ne communique plus.';
+  String get wgFooter => 'Tout le trafic réseau de l’app passe par le tunnel. Tunnel activé mais coupé : l’app ne communique plus.';
 
   @override
-  String get wgInvalidFile =>
-      'Ce fichier n’est pas une configuration WireGuard.';
+  String get wgInvalidFile => 'Ce fichier n’est pas une configuration WireGuard.';
 
   @override
   String get serverTest => 'Tester la connexion';
@@ -329,8 +319,7 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get serverTunnelFailed =>
-      'le tunnel WireGuard n’arrive pas à joindre le serveur';
+  String get serverTunnelFailed => 'le tunnel WireGuard n’arrive pas à joindre le serveur';
 
   @override
   String get modelsNone => 'Aucun modèle n\'est configuré sur le serveur.';
@@ -346,12 +335,10 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get serverNotSet =>
-      'Renseigne l\'adresse de ton serveur Hermes dans les réglages.';
+  String get serverNotSet => 'Renseigne l\'adresse de ton serveur Hermes dans les réglages.';
 
   @override
-  String get serverRestart =>
-      'Hermes a été mis à jour mais tourne encore sur l\'ancienne version. Redémarre le serveur Hermes.';
+  String get serverRestart => 'Hermes a été mis à jour mais tourne encore sur l\'ancienne version. Redémarre le serveur Hermes.';
 
   @override
   String serverLoadFailed(String message) {
@@ -393,15 +380,13 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get quotaFooter =>
-      'Utilisation remontée par Hermes pour les abonnements. Tire vers le bas pour actualiser.';
+  String get quotaFooter => 'Utilisation remontée par Hermes pour les abonnements. Tire vers le bas pour actualiser.';
 
   @override
   String get deleteChat => 'Supprimer le chat';
 
   @override
-  String get deleteChatMessage =>
-      'Ce chat sera supprimé définitivement de Hermes.';
+  String get deleteChatMessage => 'Ce chat sera supprimé définitivement de Hermes.';
 
   @override
   String get cancel => 'Annuler';
@@ -464,8 +449,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cronSchedule => 'Planification';
 
   @override
-  String get cronScheduleHint =>
-      '0 9 * * *, every 30m, every monday 9am, ou une date comme 2026-11-02T08:00';
+  String get cronScheduleHint => '0 9 * * *, every 30m, every monday 9am, ou une date comme 2026-11-02T08:00';
 
   @override
   String get cronRepeat => 'Répétitions';
@@ -539,15 +523,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cronContextFrom => 'Contexte des tâches';
 
   @override
-  String get cronContextHint =>
-      'Ids des tâches dont la dernière sortie est transmise à celle-ci';
+  String get cronContextHint => 'Ids des tâches dont la dernière sortie est transmise à celle-ci';
 
   @override
   String get cronDelete => 'Supprimer la tâche';
 
   @override
-  String get cronDeleteMessage =>
-      'Cette tâche sera supprimée définitivement de Hermes.';
+  String get cronDeleteMessage => 'Cette tâche sera supprimée définitivement de Hermes.';
 
   @override
   String get approvalTitle => 'Hermes veut lancer une commande';
@@ -566,12 +548,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String toolsUsed(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count actions',
-      one: '1 action',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count actions', one: '1 action');
     return '$_temp0';
   }
 
@@ -604,8 +581,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get agentNew => 'Nouvel agent';
 
   @override
-  String get agentsEmpty =>
-      'Aucun agent pour l’instant. Un agent travaille seul à son rythme et te dit ce qui compte.';
+  String get agentsEmpty => 'Aucun agent pour l’instant. Un agent travaille seul à son rythme et te dit ce qui compte.';
 
   @override
   String get agentWorking => 'Au travail…';
@@ -676,8 +652,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get vaultAdd => 'Ajouter un compte';
 
   @override
-  String get vaultEmpty =>
-      'Aucun compte pour l’instant. Ajoute ceux avec lesquels Hermes peut se connecter à ta place.';
+  String get vaultEmpty => 'Aucun compte pour l’instant. Ajoute ceux avec lesquels Hermes peut se connecter à ta place.';
 
   @override
   String get vaultFooter =>
@@ -687,8 +662,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get vaultDelete => 'Retirer le compte';
 
   @override
-  String get vaultDeleteMessage =>
-      'Hermes ne pourra plus se connecter avec ce compte.';
+  String get vaultDeleteMessage => 'Hermes ne pourra plus se connecter avec ce compte.';
 
   @override
   String get vaultTwoFactor => '2FA';
@@ -771,12 +745,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String kanbanReady(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n prêtes',
-      one: '1 prête',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n prêtes', one: '1 prête');
     return '$_temp0';
   }
 
@@ -792,23 +761,13 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String kanbanBlocked(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n bloquées',
-      one: '1 bloquée',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n bloquées', one: '1 bloquée');
     return '$_temp0';
   }
 
   @override
   String kanbanDone(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n terminées',
-      one: '1 terminée',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n terminées', one: '1 terminée');
     return '$_temp0';
   }
 
@@ -917,8 +876,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get kanbanDetails => 'Détails';
 
   @override
-  String get kanbanAddFooter =>
-      'Elle part en Triage, où le planificateur la reprend.';
+  String get kanbanAddFooter => 'Elle part en Triage, où le planificateur la reprend.';
 
   @override
   String get kanbanDescription => 'Description';
@@ -939,8 +897,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get kanbanSendBack => 'Renvoyer';
 
   @override
-  String get kanbanSendBackMessage =>
-      'La tâche repart en Prête, avec ton commentaire si tu en as écrit un.';
+  String get kanbanSendBackMessage => 'La tâche repart en Prête, avec ton commentaire si tu en as écrit un.';
 
   @override
   String get kanbanReviewRequested => 'Revue demandée';
@@ -964,12 +921,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get folderServer => 'Serveur';
 
   @override
-  String get folderHereHint =>
-      'Hermes y lance ses commandes depuis le chat ; tu les valides.';
+  String get folderHereHint => 'Hermes y lance ses commandes depuis le chat ; tu les valides.';
 
   @override
-  String get folderServerHint =>
-      'Hermes y travaille avec ses propres outils, sur le serveur.';
+  String get folderServerHint => 'Hermes y travaille avec ses propres outils, sur le serveur.';
 
   @override
   String get folderChoose => 'Choisir';
@@ -1004,8 +959,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get screenHandBack => 'Rendre la main';
 
   @override
-  String get screenBot =>
-      'Le bot a la main. Prends-la pour cliquer et taper, par exemple pour résoudre un captcha.';
+  String get screenBot => 'Le bot a la main. Prends-la pour cliquer et taper, par exemple pour résoudre un captcha.';
 
   @override
   String get screenYours => 'Tu as la main : le bot attend que tu la rendes.';
@@ -1014,8 +968,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get screenSomeone => 'Quelqu\'un d\'autre a la main.';
 
   @override
-  String get screenMissing =>
-      'L\'écran du bot n\'est pas installé sur le serveur (hermes computer-use screen install).';
+  String get screenMissing => 'L\'écran du bot n\'est pas installé sur le serveur (hermes computer-use screen install).';
 
   @override
   String get screenLost => 'Connexion à l\'écran perdue.';
@@ -1089,20 +1042,14 @@ class AppLocalizationsFr extends AppLocalizations {
   String get toolsNone => 'Aucun skill ne correspond.';
 
   @override
-  String get toolsNextChats =>
-      'Un changement vaut pour les chats lancés après.';
+  String get toolsNextChats => 'Un changement vaut pour les chats lancés après.';
 
   @override
   String get toolsMcpTest => 'Tester la connexion';
 
   @override
   String toolsMcpOk(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count outils',
-      one: '1 outil',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count outils', one: '1 outil');
     return 'Connecté · $_temp0';
   }
 
@@ -1140,12 +1087,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String gitPushCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count commits',
-      one: '1 commit',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count commits', one: '1 commit');
     return 'Pousser $_temp0';
   }
 
@@ -1182,8 +1124,7 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get voiceUnavailable =>
-      'Dictée indisponible : autorise le micro et la reconnaissance vocale dans les réglages du système.';
+  String get voiceUnavailable => 'Dictée indisponible : autorise le micro et la reconnaissance vocale dans les réglages du système.';
 
   @override
   String get linkDown => 'Le serveur ne répond pas';
@@ -1256,23 +1197,13 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String usageCalls(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n appels',
-      one: '1 appel',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n appels', one: '1 appel');
     return '$_temp0';
   }
 
   @override
   String usageInSessions(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n conversations',
-      one: '1 conversation',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n conversations', one: '1 conversation');
     return '$_temp0';
   }
 
@@ -1311,8 +1242,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get subagentSteerHint => 'Une consigne pour ce sous-agent';
 
   @override
-  String get subagentSteered =>
-      'Consigne transmise : il la lira après son outil en cours.';
+  String get subagentSteered => 'Consigne transmise : il la lira après son outil en cours.';
 
   @override
   String get subagentSteerRefused => 'Il n’accepte plus de consigne.';
@@ -1325,12 +1255,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String spawnTreeCount(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n agents',
-      one: '1 agent',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n agents', one: '1 agent');
     return '$_temp0';
   }
 
@@ -1432,12 +1357,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String welcomeSubagents(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n sous-agents au travail',
-      one: '1 sous-agent au travail',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n sous-agents au travail', one: '1 sous-agent au travail');
     return '$_temp0';
   }
 
@@ -1446,12 +1366,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String toolsEarlier(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n étapes avant',
-      one: '1 étape avant',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n étapes avant', one: '1 étape avant');
     return '$_temp0';
   }
 
@@ -1489,8 +1404,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get backgroundTask => 'Tâche en arrière-plan';
 
   @override
-  String get backgroundNext =>
-      'Le prochain message part en tâche d’arrière-plan';
+  String get backgroundNext => 'Le prochain message part en tâche d’arrière-plan';
 
   @override
   String backgroundRunning(String task) {
@@ -1557,12 +1471,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String toBottomNew(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n nouveaux messages',
-      one: '1 nouveau message',
-    );
+    String _temp0 = intl.Intl.pluralLogic(n, locale: localeName, other: '$n nouveaux messages', one: '1 nouveau message');
     return '$_temp0';
   }
 
@@ -1588,8 +1497,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get notifications => 'Notifications';
 
   @override
-  String get notificationsInfo =>
-      'Une réponse ou une tâche finie pendant que Herapp n’est pas à l’écran te prévient.';
+  String get notificationsInfo => 'Une réponse ou une tâche finie pendant que Herapp n’est pas à l’écran te prévient.';
 
   @override
   String get compare => 'Comparer avec un autre modèle';

@@ -43,6 +43,7 @@ void main() {
 
     await t.tap(find.byIcon(CupertinoIcons.arrow_2_circlepath).last); // the reply's; the first is the message's
     await t.pump(const Duration(seconds: 10));
+    // no stored transcript to read: the turn's ordinal, as an older server takes
     expect(calls.where((c) => c.$1 == 'prompt.submit').last.$2, containsPair('truncate_before_user_ordinal', 0));
     expect(find.textContaining('Hello there'), findsOneWidget); // replaced, not appended
     expect(calls.where((c) => c.$1 == 'session.create'), hasLength(1));
@@ -238,6 +239,16 @@ void main() {
 
   testWidgets('a sent message is rewritten or sent again in its place', (t) async {
     final calls = fakeServer(replies);
+    // the stored transcript gives the row a resend cuts from
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async => path == '/api/sessions/s1/messages'
+        ? jsonEncode({
+            'messages': [
+              {'id': 7, 'role': 'user', 'content': 'One'},
+              {'id': 8, 'role': 'assistant', 'content': 'Hello there'},
+            ],
+          })
+        : '[]';
     await t.pumpWidget(const App());
     Future<void> sendText(String text) async {
       await t.enterText(find.byType(EditableText).last, text);
@@ -261,7 +272,7 @@ void main() {
     expect(calls.where((c) => c.$1 == 'prompt.submit').last.$2, {
       'session_id': 'rt',
       'text': 'Uno',
-      'truncate_before_user_ordinal': 0,
+      'truncate_before_row_id': 7,
       'confirm_truncate': true,
     });
     expect(find.text('One'), findsNothing);
@@ -274,7 +285,7 @@ void main() {
     await t.pump(const Duration(seconds: 1));
     await t.pump(const Duration(seconds: 1));
     expect(calls.where((c) => c.$1 == 'prompt.submit').last.$2, containsPair('text', 'Uno'));
-    expect(calls.where((c) => c.$1 == 'prompt.submit').last.$2, containsPair('truncate_before_user_ordinal', 0));
+    expect(calls.where((c) => c.$1 == 'prompt.submit').last.$2, containsPair('truncate_before_row_id', 7));
     expect(find.textContaining('Hello there'), findsOneWidget);
 
     // an edit can be dropped

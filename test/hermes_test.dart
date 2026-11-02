@@ -515,4 +515,16 @@ rm -rf ~
     );
     expect(gist('a' * 300).length, 180);
   });
+
+  test('a resend finds the stored row of the user message it cuts from', () {
+    final rows = [
+      {'id': 10, 'role': 'user', 'content': 'first'},
+      {'id': 11, 'role': 'assistant', 'content': 'a'},
+      {'id': 12, 'role': 'user', 'content': 'summary', 'display_kind': 'hidden'},
+      {'id': 13, 'role': 'user', 'content': 'second'},
+    ];
+    expect(userRowId(rows, 0), 10);
+    expect(userRowId(rows, 1), 13); // the hidden note isn't counted, as the chat doesn't show it
+    expect(userRowId(rows, 2), isNull);
+  });
 }

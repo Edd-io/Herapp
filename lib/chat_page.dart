@@ -504,6 +504,18 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     if (!later) respond();
   }
 
+  /// The stored row of [c]'s [turn]th user message, read from the server's transcript; null for a chat not stored.
+  Future<int?> storedRow(Chat c, int turn) async {
+    if (c.stored.isEmpty) return null;
+    try {
+      final body = await serverApi('GET', '/api/sessions/${Uri.encodeComponent(c.stored)}/messages');
+      return userRowId((jsonDecode(body ?? '{}') as Map)['messages'], turn);
+    } catch (e) {
+      debugPrint('Stored row: $e');
+      return null;
+    }
+  }
+
   /// Hands [task] to a side agent on [c]'s session, which works on it while the chat goes on; its answer
   /// then joins the chat after what was said meanwhile (before a question still being answered).
   /// ponytail: kept here only, as the server keeps the side agent's work out of the chat's transcript
@@ -813,7 +825,11 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         'session_id': sid,
         'text': prompt,
         if (typed.isNotEmpty) 'title_preview': typed,
-        if (again) ...{'truncate_before_user_ordinal': turn, 'confirm_truncate': true},
+        // a resend cuts the history from its stored row (the server refuses a bare ordinal on a stored chat)
+        if (again) ...{
+          if (await storedRow(c, turn) case final row?) 'truncate_before_row_id': row else 'truncate_before_user_ordinal': turn,
+          'confirm_truncate': true,
+        },
         if (queued) 'queued': true,
       });
       if (told) c.macTold = true;

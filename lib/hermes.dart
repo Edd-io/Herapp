@@ -644,13 +644,27 @@ int dayGroup(DateTime at, DateTime now) {
 }
 
 /// The user and assistant turns of a transcript; tool rows go to the reply that follows them.
+/// Whether a stored message shows in the chat: compaction notes and the gateway's own notices (background jobs
+/// done...) aren't the user's words.
+bool shownRow(Map m) => m['display_kind'] != 'hidden' && m['display_kind'] != 'internal_notification';
+
+/// The stored row id of the [turn]th user message of [messages] (`/api/sessions/{id}/messages`), counted as the
+/// chat shows them: what a resend cuts the history from. Null when the server has no such row.
+int? userRowId(Object? messages, int turn) {
+  final rows = [
+    for (final m in (messages is List ? messages : const []).whereType<Map>())
+      if (m['role'] == 'user' && shownRow(m)) m,
+  ];
+  return turn >= 0 && turn < rows.length && rows[turn]['id'] is int ? rows[turn]['id'] as int : null;
+}
+
 List<Msg> transcript(Object? messages) {
   final out = <Msg>[];
   var tools = <Tool>[];
   final args = <String, Map>{}; // of each tool call, by id, from the assistant turn that made it
   for (final m in (messages is List ? messages : const []).whereType<Map>()) {
     // compaction notes and the gateway's own notices (background jobs done...) aren't the user's words
-    if (m['display_kind'] == 'hidden' || m['display_kind'] == 'internal_notification') continue;
+    if (!shownRow(m)) continue;
     for (final call in (m['tool_calls'] is List ? m['tool_calls'] as List : const []).whereType<Map>()) {
       final a = (call['function'] as Map?)?['arguments'];
       if ((a is String ? _json(a) : a) case final Map map) args['${call['id']}'] = map;
