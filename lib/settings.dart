@@ -59,6 +59,10 @@ class Settings extends ChangeNotifier {
   String get model => _p.getString('model') ?? '';
   set model(String v) => _save(_p.setString('model', v));
 
+  /// The models last picked, the latest first (5 at most).
+  List<String> get recentModels => _p.getStringList('recentModels') ?? const [];
+  void usedModel(String id) => _save(_p.setStringList('recentModels', {id, ...recentModels}.take(5).toList()));
+
   /// Last chosen reasoning effort ('' = the server's), used for new chats.
   String get effort => _p.getString('effort') ?? '';
   set effort(String v) => _save(_p.setString('effort', v));

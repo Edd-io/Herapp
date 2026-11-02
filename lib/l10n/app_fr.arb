@@ -279,5 +279,7 @@
   "folderEmpty": "Aucun dossier ici",
   "folderOnHere": "cet ordinateur",
   "folderOnServer": "serveur",
-  "folderFailed": "Dossier non changé : {error}"
+  "folderFailed": "Dossier non changé : {error}",
+  "modelsRecent": "Récents",
+  "modelsMore": "Plus de modèles"
 }

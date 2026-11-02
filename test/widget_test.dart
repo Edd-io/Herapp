@@ -599,6 +599,10 @@ void main() {
 
     await t.tap(find.text('Anthropic')); // pill under the headline
     await t.pumpAndSettle();
+    // the models used last come first, the others behind a button
+    expect(find.text('openai/gpt-5'), findsNothing);
+    await t.tap(find.text('More models'));
+    await t.pumpAndSettle();
     await t.tap(find.text('openai/gpt-5').last);
     await t.pumpAndSettle();
     expect(settings.model, 'openrouter/openai/gpt-5');
@@ -607,6 +611,10 @@ void main() {
     // the effort is picked on top of the same sheet, kept for the next chats
     await t.tap(find.text('OpenRouter'));
     await t.pumpAndSettle();
+    expect(settings.recentModels, ['openrouter/openai/gpt-5']);
+    expect(find.text('openai/gpt-5'), findsNWidgets(2)); // the pill, and the sheet's recent ones
+    expect(find.text('claude-sonnet-5-5'), findsNothing);
+    expect(find.text('plain'), findsNothing);
     await t.tap(find.text('High'));
     await t.pumpAndSettle();
     expect(settings.effort, 'high');

@@ -46,11 +46,15 @@ Future<String?> showModelSheet(
   required String effort,
   required ValueChanged<String> onEffort,
   bool allowDefault = false,
-}) => showPanel<String>(
-  context,
-  (context) => ModelSheet(models: models, current: current, effort: effort, onEffort: onEffort, allowDefault: allowDefault),
-  scrollControlled: true,
-);
+}) async {
+  final id = await showPanel<String>(
+    context,
+    (context) => ModelSheet(models: models, current: current, effort: effort, onEffort: onEffort, allowDefault: allowDefault),
+    scrollControlled: true,
+  );
+  if (id != null && id.isNotEmpty) settings.usedModel(id);
+  return id;
+}
 
 class ModelSheet extends StatefulWidget {
   const ModelSheet({
@@ -72,6 +76,7 @@ class ModelSheet extends StatefulWidget {
 
 class _ModelSheetState extends State<ModelSheet> {
   late String effort = widget.effort;
+  var all = false; // every model, not only the recent ones
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +88,12 @@ class _ModelSheetState extends State<ModelSheet> {
         valueListenable: widget.models,
         builder: (context, m, _) {
           final providers = {for (final x in m.list) x.provider};
+          // the models last used first, the current one with them; the others behind "More models"
+          final recent = [
+            for (final id in {widget.current, ...settings.recentModels})
+              ?m.list.where((x) => x.id == id).firstOrNull,
+          ].take(5).toList();
+          final grouped = all || recent.isEmpty;
           // a model known not to think has no effort to pick
           final thinks = m.list.where((x) => x.id == widget.current).firstOrNull?.reasoning ?? true;
           final note = switch (m) {
@@ -186,32 +197,61 @@ class _ModelSheetState extends State<ModelSheet> {
                         padding: const EdgeInsets.only(top: 16),
                         child: group([_ModelRow(name: l.cronServerDefault, id: '', selected: widget.current.isEmpty)]),
                       ),
-                    for (final p in providers) ...[
+                    if (recent.isNotEmpty && note == null) ...[
                       Padding(
                         padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 10,
-                              backgroundColor: c.onSurface,
-                              child: Text(
-                                p.isEmpty ? '' : p[0].toUpperCase(),
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.surface),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              p,
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
-                            ),
-                          ],
-                        ),
+                        child: Text(l.modelsRecent.toUpperCase(), style: TextStyle(fontSize: 13, color: c.outline)),
                       ),
                       group([
-                        for (final x in m.list.where((x) => x.provider == p))
-                          _ModelRow(name: x.name, id: x.id, selected: x.id == widget.current),
+                        for (final x in recent) _ModelRow(name: x.name, detail: x.provider, id: x.id, selected: x.id == widget.current),
+                        if (!grouped)
+                          InkWell(
+                            onTap: () => setState(() => all = true),
+                            highlightColor: c.onSurface.withValues(alpha: .06),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      l.modelsMore,
+                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.primary),
+                                    ),
+                                  ),
+                                  Icon(CupertinoIcons.chevron_down, size: 15, color: c.outline),
+                                ],
+                              ),
+                            ),
+                          ),
                       ]),
                     ],
+                    if (grouped)
+                      for (final p in providers) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 10,
+                                backgroundColor: c.onSurface,
+                                child: Text(
+                                  p.isEmpty ? '' : p[0].toUpperCase(),
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.surface),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                p,
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
+                              ),
+                            ],
+                          ),
+                        ),
+                        group([
+                          for (final x in m.list.where((x) => x.provider == p))
+                            _ModelRow(name: x.name, id: x.id, selected: x.id == widget.current),
+                        ]),
+                      ],
                   ],
                 ),
               ),
@@ -224,8 +264,8 @@ class _ModelSheetState extends State<ModelSheet> {
 }
 
 class _ModelRow extends StatelessWidget {
-  const _ModelRow({required this.name, required this.id, required this.selected});
-  final String name, id;
+  const _ModelRow({required this.name, required this.id, required this.selected, this.detail = ''});
+  final String name, id, detail; // detail: its provider, among others'
   final bool selected;
 
   @override
@@ -244,6 +284,11 @@ class _ModelRow extends StatelessWidget {
                 style: TextStyle(fontSize: 16, fontWeight: selected ? FontWeight.w600 : FontWeight.w500, color: c.onSurface),
               ),
             ),
+            if (detail.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Text(detail, style: TextStyle(fontSize: 13, color: c.outline)),
+              ),
             AnimatedOpacity(
               opacity: selected ? 1 : 0,
               duration: const Duration(milliseconds: 150),

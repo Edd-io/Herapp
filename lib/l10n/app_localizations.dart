@@ -1777,6 +1777,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Folder not changed: {error}'**
   String folderFailed(String error);
+
+  /// No description provided for @modelsRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get modelsRecent;
+
+  /// No description provided for @modelsMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More models'**
+  String get modelsMore;
 }
 
 class _AppLocalizationsDelegate

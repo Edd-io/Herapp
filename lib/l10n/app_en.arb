@@ -553,5 +553,7 @@
   "folderOnHere": "this computer",
   "folderOnServer": "server",
   "folderFailed": "Folder not changed: {error}",
-  "@folderFailed": {"placeholders": {"error": {"type": "String"}}}
+  "@folderFailed": {"placeholders": {"error": {"type": "String"}}},
+  "modelsRecent": "Recent",
+  "modelsMore": "More models"
 }

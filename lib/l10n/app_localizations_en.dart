@@ -966,4 +966,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String folderFailed(String error) {
     return 'Folder not changed: $error';
   }
+
+  @override
+  String get modelsRecent => 'Recent';
+
+  @override
+  String get modelsMore => 'More models';
 }
