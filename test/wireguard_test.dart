@@ -7,7 +7,7 @@ import 'package:herapp/wireguard.dart';
 
 // Separate file: the testWidgets environment interferes with the real networking used here.
 void main() {
-  final skip = Platform.isMacOS ? false : 'the tunnel library is built for Apple only (hook/build.dart)';
+  final skip = Platform.isWindows ? 'no tunnel library for Windows (hook/build.dart)' : false;
   test('native tunnel: invalid config rejected, traffic blocked until connected', () async {
     vpn
       ..config = '[Interface]\n[Peer]\n'

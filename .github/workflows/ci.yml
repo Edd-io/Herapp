@@ -13,6 +13,10 @@ jobs:
         with:
           flutter-version: 3.41.2
           cache: true
+      - uses: actions/setup-go@v5 # the tunnel library, built by hook/build.dart
+        with:
+          go-version-file: native/wg/go.mod
+          cache-dependency-path: native/wg/go.sum
       - run: flutter pub get
       - name: Translations generated from the .arb files
         run: flutter gen-l10n && git diff --exit-code lib/l10n

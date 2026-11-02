@@ -8,10 +8,13 @@ void main(List<String> args) => build(args, (input, output) async {
   if (!input.config.buildCodeAssets) return;
   final code = input.config.code;
   final src = input.packageRoot.resolve('native/wg/');
-  final lib = input.outputDirectory.resolve('libwg.dylib');
+  final apple = code.targetOS == OS.iOS || code.targetOS == OS.macOS;
+  final lib = input.outputDirectory.resolve(apple ? 'libwg.dylib' : 'libwg.so');
   final arch = switch (code.targetArchitecture) {
     Architecture.arm64 => 'arm64',
     Architecture.x64 => 'amd64',
+    Architecture.arm => 'arm',
+    Architecture.ia32 => '386',
     final a => throw UnsupportedError('WireGuard : architecture $a non prise en charge'),
   };
   final go = ['build', '-trimpath'];
@@ -54,8 +57,32 @@ void main(List<String> args) => build(args, (input, output) async {
           'CGO_LDFLAGS': '$min -Wl,-install_name,@rpath/libwg.dylib -Wl,-headerpad_max_install_names',
         },
       );
+    case OS.android || OS.linux:
+      final android = code.targetOS == OS.android;
+      // the NDK's clang (or the Linux toolchain's) as Flutter hands it; a bare `cc` when building for this Linux
+      final cc = code.cCompiler?.compiler.toFilePath() ?? 'cc';
+      final triple = switch (arch) {
+        'arm64' => 'aarch64-linux-android',
+        'arm' => 'armv7a-linux-androideabi',
+        'amd64' => 'x86_64-linux-android',
+        _ => 'i686-linux-android',
+      };
+      await _run(
+        'go',
+        [...go, '-buildmode=c-shared', '-o', lib.toFilePath(), '.'],
+        dir: src,
+        env: {
+          'CGO_ENABLED': '1',
+          'GOOS': android ? 'android' : 'linux',
+          'GOARCH': arch,
+          if (arch == 'arm') 'GOARM': '7',
+          'CC': android ? '$cc --target=$triple${code.android.targetNdkApi}' : cc,
+          // Android 15+ devices may use 16 KB pages
+          if (android) 'CGO_LDFLAGS': '-Wl,-soname,libwg.so -Wl,-z,max-page-size=16384',
+        },
+      );
     default:
-      // ponytail: Apple only; Android/Linux/Windows = go c-shared with the compiler from code.cCompiler
+      // ponytail: no Windows build; it would be go c-shared to a .dll the same way
       return;
   }
   output.assets.code.add(CodeAsset(package: input.packageName, name: 'wireguard.dart', linkMode: DynamicLoadingBundled(), file: lib));
