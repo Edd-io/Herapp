@@ -22,14 +22,19 @@ class MacShell {
   Completer<int>? _done;
   String _why = ''; // why the script was stopped
 
-  /// What [macNote] says of this computer.
-  String note(String token) => macNote(
+  /// Whether a script is running.
+  bool get busy => !(_done?.isCompleted ?? true);
+
+  /// What [macNote] says of this computer, and of the [folder] picked to work in (here or on the server).
+  String note(String token, {String folder = '', bool here = false}) => macNote(
     token: token,
     host: Platform.localHostname,
     os: '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
     shell: shell,
     home: home,
     cwd: cwd,
+    folder: folder,
+    here: here,
   );
 
   String get _printMark => "printf '\\n%s %d %s\\n' $_mark \$? \"\$PWD\"";

@@ -268,5 +268,15 @@
   "kanbanSendBackMessage": "La tâche repart en Prête, avec ton commentaire si tu en as écrit un.",
   "kanbanReviewRequested": "Revue demandée",
   "kanbanCompleted": "Terminée",
-  "language": "Langue"
+  "language": "Langue",
+  "folder": "Dossier",
+  "folderTitle": "Où Hermes doit-il travailler ?",
+  "folderHere": "Sur cet ordinateur…",
+  "folderServer": "Sur le serveur…",
+  "folderServerTitle": "Un dossier sur le serveur",
+  "folderChoose": "Choisir ce dossier",
+  "folderEmpty": "Aucun dossier ici",
+  "folderOnHere": "cet ordinateur",
+  "folderOnServer": "serveur",
+  "folderFailed": "Dossier non changé : {error}"
 }

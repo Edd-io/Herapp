@@ -541,5 +541,16 @@
   "kanbanSendBackMessage": "The task goes back to Ready, with your comment if you wrote one.",
   "kanbanReviewRequested": "Review requested",
   "kanbanCompleted": "Completed",
-  "language": "Language"
+  "language": "Language",
+  "folder": "Folder",
+  "folderTitle": "Where should Hermes work?",
+  "folderHere": "On this computer…",
+  "folderServer": "On the server…",
+  "folderServerTitle": "A folder on the server",
+  "folderChoose": "Choose this folder",
+  "folderEmpty": "No folders here",
+  "folderOnHere": "this computer",
+  "folderOnServer": "server",
+  "folderFailed": "Folder not changed: {error}",
+  "@folderFailed": {"placeholders": {"error": {"type": "String"}}}
 }

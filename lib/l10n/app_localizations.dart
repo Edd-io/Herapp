@@ -1711,6 +1711,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Language'**
   String get language;
+
+  /// No description provided for @folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder'**
+  String get folder;
+
+  /// No description provided for @folderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Where should Hermes work?'**
+  String get folderTitle;
+
+  /// No description provided for @folderHere.
+  ///
+  /// In en, this message translates to:
+  /// **'On this computer…'**
+  String get folderHere;
+
+  /// No description provided for @folderServer.
+  ///
+  /// In en, this message translates to:
+  /// **'On the server…'**
+  String get folderServer;
+
+  /// No description provided for @folderServerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A folder on the server'**
+  String get folderServerTitle;
+
+  /// No description provided for @folderChoose.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose this folder'**
+  String get folderChoose;
+
+  /// No description provided for @folderEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No folders here'**
+  String get folderEmpty;
+
+  /// No description provided for @folderOnHere.
+  ///
+  /// In en, this message translates to:
+  /// **'this computer'**
+  String get folderOnHere;
+
+  /// No description provided for @folderOnServer.
+  ///
+  /// In en, this message translates to:
+  /// **'server'**
+  String get folderOnServer;
+
+  /// No description provided for @folderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder not changed: {error}'**
+  String folderFailed(String error);
 }
 
 class _AppLocalizationsDelegate

@@ -58,7 +58,22 @@ class Chat {
   bool macTold = false; // the instructions went in since the app opened, and no compression since
   bool macTrusted = false; // "always in this chat": what isn't risky runs unasked
   int compressions = 0;
+  // the folder it works in, picked in the app: on the server, or here through [shell]
+  String folder = '';
+  bool folderHere = false;
   String get title => name.isNotEmpty ? name : msgs.firstOrNull?.text ?? ''; // only titled chats are listed
+
+  /// Works in [path] from now on, which Hermes is told with the next message.
+  void workIn(String path, {required bool here}) {
+    folder = path;
+    folderHere = here;
+    macTold = false;
+    if (here) {
+      shell
+        ..stop() // idle: the next step starts a shell there
+        ..cwd = path;
+    }
+  }
 }
 
 class ChatPage extends StatefulWidget {
@@ -164,6 +179,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         ..live = '${r['session_id']}'
         ..on = g
         ..applied = created ? c.model : c.applied;
+      if (created && c.folder.isNotEmpty && !c.folderHere) {
+        c.folder = '${(await g.call('session.cwd.set', {'session_id': c.live, 'cwd': c.folder}))['cwd'] ?? c.folder}';
+      }
     }
     if (c.model.contains('/') && c.model != c.applied) {
       final provider = c.model.substring(0, c.model.indexOf('/'));
@@ -517,7 +535,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       // what this computer can do for the chat goes before the user's words, which still title it
       final told = macOn && !c.macTold;
       if (told) {
-        prompt = '${c.shell.note(settings.macToken)}\n\n$prompt';
+        prompt = '${c.shell.note(settings.macToken, folder: c.folder, here: c.folderHere)}\n\n$prompt';
         if (typed.isEmpty) typed = asked.text;
       }
       await g.call('prompt.submit', {
@@ -731,9 +749,66 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   });
 
   void newChat() {
-    if (chat.msgs.isNotEmpty) chats.insert(0, chat = Chat());
+    final was = chat; // a new chat works where the last one did
+    if (chat.msgs.isNotEmpty) chats.insert(0, chat = Chat()..workIn(was.folder, here: was.folderHere));
     setState(() {});
     closeDrawer();
+  }
+
+  /// Picks the folder [chat] works in: on this computer (which then runs its commands), or on the server.
+  Future<void> pickFolder() async {
+    final l = AppLocalizations.of(context);
+    final c = chat;
+    final here = await showChoices<bool>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text(l.folderTitle),
+        actions: [
+          if (macCapable) CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, true), child: Text(l.folderHere)),
+          CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, false), child: Text(l.folderServer)),
+        ],
+        cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(context), child: Text(l.cancel)),
+      ),
+    );
+    if (here == null || !mounted) return;
+    var path = here
+        ? await getDirectoryPath(initialDirectory: c.folderHere ? c.folder : null, confirmButtonText: l.folderChoose)
+        : await showChoices<String>(
+            context: context, // ignore: use_build_context_synchronously, mounted checked above
+            builder: (_) => _ServerFolders(start: c.folderHere || c.folder.isEmpty ? '~/' : c.folder, list: serverFolders),
+          );
+    if (path == null || !mounted) return;
+    if (!here && c.stored.isNotEmpty) {
+      // a chat not sent yet moves once its session is created
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        if (await gateway() case final g?) {
+          path = '${(await g.call('session.workspace.move', {'session_key': c.stored, 'cwd': path}))['cwd'] ?? path}';
+        }
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text(l.folderFailed(e is HttpException ? e.message : '$e'))));
+        return;
+      }
+    }
+    if (here) settings.macShell = true; // working here is Hermes running commands here
+    if (mounted) setState(() => c.workIn(path!, here: here));
+  }
+
+  /// The server's folders in what [path] names, those starting with its last part, hidden ones last.
+  Future<List<String>> serverFolders(String path) async {
+    final g = await gateway();
+    if (g == null) return const [];
+    // ponytail: the server lists 30 entries (no build dirs), hidden ones first: asked again without them;
+    // typing a name's start finds the rest
+    final found = await Future.wait([
+      g.call('complete.path', {'word': '@$path'}),
+      g.call('complete.path', {'word': '@folder:$path'}),
+    ]);
+    return {
+      for (final r in found)
+        for (final i in (r['items'] is List ? r['items'] as List : const []).whereType<Map>())
+          if (i['display'] case final String d when d.endsWith('/')) d,
+    }.toList()..sort((a, b) => a.startsWith('.') == b.startsWith('.') ? a.compareTo(b) : (a.startsWith('.') ? 1 : -1));
   }
 
   /// Asks, then deletes [c] from the server (a chat never sent is only dropped); false if kept.
@@ -1608,7 +1683,53 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               ),
             ),
           _composerRow(c, hasText),
+          if (const [TargetPlatform.macOS, TargetPlatform.windows, TargetPlatform.linux].contains(defaultTargetPlatform)) _folderChip(c),
         ],
+      ),
+    );
+  }
+
+  /// The folder the chat works in, under the composer; it changes between turns.
+  Widget _folderChip(ColorScheme c) {
+    final l = AppLocalizations.of(context);
+    final busy = streaming || chat.shell.busy;
+    final home = MacShell.home;
+    final path = chat.folderHere && (chat.folder == home || chat.folder.startsWith('$home/'))
+        ? '~${chat.folder.substring(home.length)}'
+        : chat.folder;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(58, 0, 12, 6),
+        child: Opacity(
+          opacity: busy ? .5 : 1,
+          child: Hover(
+            radius: 8,
+            child: GestureDetector(
+              onTap: busy ? null : pickFolder,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(chat.folderHere ? CupertinoIcons.desktopcomputer : CupertinoIcons.folder, size: 14, color: c.outline),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        path.isEmpty ? l.folder : '$path · ${chat.folderHere ? l.folderOnHere : l.folderOnServer}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, color: c.outline),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(CupertinoIcons.chevron_down, size: 10, color: c.outline),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -2108,6 +2229,159 @@ class _ToolsState extends State<_Tools> {
 }
 
 /// The results the app handed Hermes for the steps a reply asked: one line, opened to read them.
+/// Browses the server's folders from [start]; pops the one picked.
+class _ServerFolders extends StatefulWidget {
+  const _ServerFolders({required this.start, required this.list});
+  final String start;
+  final Future<List<String>> Function(String path) list;
+
+  @override
+  State<_ServerFolders> createState() => _ServerFoldersState();
+}
+
+class _ServerFoldersState extends State<_ServerFolders> {
+  late final path = TextEditingController(text: widget.start.endsWith('/') ? widget.start : '${widget.start}/');
+  List<String>? dirs; // null while listed
+  String? listed;
+
+  @override
+  void initState() {
+    super.initState();
+    path.addListener(load);
+    load();
+  }
+
+  @override
+  void dispose() {
+    path.dispose();
+    super.dispose();
+  }
+
+  Future<void> load() async {
+    final t = path.text;
+    if (t == listed) return;
+    listed = t;
+    if (dirs != null) setState(() => dirs = null);
+    final found = await widget.list(t).catchError((Object _) => <String>[]);
+    if (mounted && path.text == t) setState(() => dirs = found);
+  }
+
+  String get base => path.text.substring(0, path.text.lastIndexOf('/') + 1); // the folder listed
+
+  void go(String to) => path.value = TextEditingValue(
+    text: to,
+    selection: TextSelection.collapsed(offset: to.length),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final c = Theme.of(context).colorScheme;
+    final parent = switch (base.isEmpty ? '' : base.substring(0, base.length - 1)) {
+      '' => null, // at the root
+      '~' => '/',
+      final b => b.substring(0, b.lastIndexOf('/') + 1),
+    };
+    final picked = path.text.length > 1 && path.text.endsWith('/') ? path.text.substring(0, path.text.length - 1) : path.text;
+    return SafeArea(
+      child: Material(
+        color: c.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l.folderServerTitle,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Hover(
+                    radius: 8,
+                    child: GestureDetector(
+                      onTap: parent == null ? null : () => go(parent),
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(CupertinoIcons.arrow_up, size: 18, color: parent == null ? c.outlineVariant : c.onSurface),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: CupertinoTextField(
+                      controller: path,
+                      autofocus: true,
+                      autocorrect: false,
+                      style: TextStyle(fontSize: 15, color: c.onSurface),
+                      decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
+                      onSubmitted: (_) => Navigator.pop(context, picked),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 280,
+                child: switch (dirs) {
+                  null => const Center(child: CupertinoActivityIndicator()),
+                  [] => Center(
+                    child: Text(l.folderEmpty, style: TextStyle(fontSize: 14, color: c.outline)),
+                  ),
+                  final dirs => ListView(
+                    children: [
+                      for (final d in dirs)
+                        Hover(
+                          radius: 8,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => go('$base$d'),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                              child: Row(
+                                children: [
+                                  Icon(CupertinoIcons.folder, size: 16, color: c.outline),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      d.substring(0, d.length - 1),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontSize: 15, color: c.onSurface),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                },
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  CupertinoButton(onPressed: () => Navigator.pop(context), child: Text(l.cancel)),
+                  CupertinoButton.filled(
+                    onPressed: picked.isEmpty ? null : () => Navigator.pop(context, picked),
+                    child: Text(l.folderChoose),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MacResult extends StatefulWidget {
   const _MacResult(this.text);
   final String text;

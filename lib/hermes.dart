@@ -130,11 +130,17 @@ String macNote({
   required String shell,
   required String home,
   required String cwd,
+  String folder = '',
+  bool here = false,
 }) =>
     '''
 $macNoteTag
 The user's computer ($host, $os) is connected to this chat through the Herapp app, which can run commands on it for you. Your own terminal tool runs on the server: whenever a request concerns the user's computer (its files, apps, projects), use this instead.
-
+${folder.isEmpty
+        ? ''
+        : here
+        ? '\nThe user picked $folder on this computer to work in: do the work there, through these blocks.\n'
+        : '\nThe user picked $folder on the server to work in: work there with your own tools, and use these blocks only for what concerns this computer.\n'}
 To run commands there, end your message with one or more blocks fenced as `mac-$token`:
 
 ```mac-$token

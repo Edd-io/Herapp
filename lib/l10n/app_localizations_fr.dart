@@ -950,4 +950,36 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get language => 'Langue';
+
+  @override
+  String get folder => 'Dossier';
+
+  @override
+  String get folderTitle => 'Où Hermes doit-il travailler ?';
+
+  @override
+  String get folderHere => 'Sur cet ordinateur…';
+
+  @override
+  String get folderServer => 'Sur le serveur…';
+
+  @override
+  String get folderServerTitle => 'Un dossier sur le serveur';
+
+  @override
+  String get folderChoose => 'Choisir ce dossier';
+
+  @override
+  String get folderEmpty => 'Aucun dossier ici';
+
+  @override
+  String get folderOnHere => 'cet ordinateur';
+
+  @override
+  String get folderOnServer => 'serveur';
+
+  @override
+  String folderFailed(String error) {
+    return 'Dossier non changé : $error';
+  }
 }

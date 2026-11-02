@@ -929,4 +929,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get language => 'Language';
+
+  @override
+  String get folder => 'Folder';
+
+  @override
+  String get folderTitle => 'Where should Hermes work?';
+
+  @override
+  String get folderHere => 'On this computer…';
+
+  @override
+  String get folderServer => 'On the server…';
+
+  @override
+  String get folderServerTitle => 'A folder on the server';
+
+  @override
+  String get folderChoose => 'Choose this folder';
+
+  @override
+  String get folderEmpty => 'No folders here';
+
+  @override
+  String get folderOnHere => 'this computer';
+
+  @override
+  String get folderOnServer => 'server';
+
+  @override
+  String folderFailed(String error) {
+    return 'Folder not changed: $error';
+  }
 }

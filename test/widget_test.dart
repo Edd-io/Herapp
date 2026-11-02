@@ -170,6 +170,53 @@ void main() {
     expect(find.textContaining('Vu.'), findsOneWidget);
   }, skip: !macCapable);
 
+  testWidgets('on a computer, the chat works in a folder picked on the server', (t) async {
+    settings.macShell = false;
+    final calls = fakeServer(
+      (method, params, emit) => switch (method) {
+        'complete.path' => {
+          'items': switch (params['word']) {
+            '@~/' => [
+              {'text': '@folder:code/', 'display': 'code/', 'meta': 'dir'},
+              {'text': '@file:notes.txt', 'display': 'notes.txt', 'meta': ''},
+            ],
+            '@folder:~/' => [
+              {'text': '@folder:.config/', 'display': '.config/', 'meta': 'dir'},
+              {'text': '@folder:code/', 'display': 'code/', 'meta': 'dir'},
+            ],
+            _ => [],
+          },
+        },
+        'session.create' => {'session_id': 'rt', 'stored_session_id': 's1'},
+        'session.cwd.set' => {'cwd': '/home/me/code'},
+        'prompt.submit' => {'status': 'streaming'},
+        _ => null,
+      },
+    );
+    await t.pumpWidget(const App());
+    await t.tap(find.text('Folder'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('On the server…'));
+    await t.pumpAndSettle();
+    expect(find.text('notes.txt'), findsNothing); // folders only, hidden ones last
+    expect(t.getTopLeft(find.text('code')).dy, lessThan(t.getTopLeft(find.text('.config')).dy));
+    await t.tap(find.text('code'));
+    await t.pumpAndSettle();
+    expect(find.text('No folders here'), findsOneWidget);
+    await t.tap(find.text('Choose this folder'));
+    await t.pumpAndSettle();
+    expect(find.text('~/code · server'), findsOneWidget);
+
+    // the session starts there, as the server names it
+    await t.enterText(find.byType(EditableText).last, 'Salut');
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 1));
+    expect(calls.where((c) => c.$1 == 'session.cwd.set').single.$2, {'session_id': 'rt', 'cwd': '~/code'});
+    expect(calls.where((c) => c.$1 == 'prompt.submit').single.$2['text'], 'Salut');
+    expect(find.text('/home/me/code · server'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
   testWidgets('a reply being written lets the user scroll up through it', (t) async {
     late void Function(String, Map) push;
     fakeServer((method, params, emit) {
