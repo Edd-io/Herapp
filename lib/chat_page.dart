@@ -1692,19 +1692,21 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 ),
               ),
             ),
-            tile(AppLocalizations.of(context).newChat, icon: CupertinoIcons.square_pencil, onTap: newChat),
-            for (final (label, icon, page) in pages(AppLocalizations.of(context))) tile(label, icon: icon, onTap: () => openPage(page)),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
-              child: Text(
-                AppLocalizations.of(context).chats,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
-              ),
-            ),
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
+                  // the menu scrolls away with the chats
+                  tile(AppLocalizations.of(context).newChat, icon: CupertinoIcons.square_pencil, onTap: newChat),
+                  for (final (label, icon, page) in pages(AppLocalizations.of(context)))
+                    tile(label, icon: icon, onTap: () => openPage(page)),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
+                    child: Text(
+                      AppLocalizations.of(context).chats,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
+                    ),
+                  ),
                   if (bot case final b? when b.name.toLowerCase().contains(q))
                     tile(b.name, icon: CupertinoIcons.bubble_left_bubble_right, selected: identical(b, chat), onTap: () => select(b)),
                   for (final ch in listed)
