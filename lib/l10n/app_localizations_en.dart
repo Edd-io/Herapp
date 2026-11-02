@@ -1164,4 +1164,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get voiceUnavailable =>
       'Dictation isn\'t available: allow the microphone and speech recognition in the system settings.';
+
+  @override
+  String get linkDown => 'The server isn’t answering';
+
+  @override
+  String get linkDownVpn => 'The server isn’t answering through the VPN';
+
+  @override
+  String get linkRetry => 'Try again';
+
+  @override
+  String get linkRestartVpn => 'Restart VPN';
 }

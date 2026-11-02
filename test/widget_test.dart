@@ -481,8 +481,7 @@ void main() {
   });
 
   testWidgets('a reply browsing the web shows the bot screen, which opens to take over', (t) async {
-    const png =
-        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     final calls = fakeServer((method, params, emit) {
       switch (method) {
         case 'session.create':
@@ -1623,11 +1622,14 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.byType(CupertinoSwitch).at(1)); // github-pr on (dev, the first category)
     await t.pumpAndSettle();
-    expect([for (final (m, p, b) in sent) '$m $p ${jsonEncode(b)}'], [
-      'POST /api/mcp/servers/github/test null',
-      'PUT /api/mcp/servers/github/enabled {"enabled":false}',
-      'PUT /api/skills/toggle {"name":"github-pr","enabled":true}',
-    ]);
+    expect(
+      [for (final (m, p, b) in sent) '$m $p ${jsonEncode(b)}'],
+      [
+        'POST /api/mcp/servers/github/test null',
+        'PUT /api/mcp/servers/github/enabled {"enabled":false}',
+        'PUT /api/skills/toggle {"name":"github-pr","enabled":true}',
+      ],
+    );
     expect(t.widget<CupertinoSwitch>(find.byType(CupertinoSwitch).at(1)).value, isTrue);
 
     await t.enterText(find.byType(CupertinoSearchTextField), 'wiki');
@@ -1716,5 +1718,27 @@ void main() {
     await t.pumpAndSettle();
     expect(posts.last, '/api/gateway/restart');
     expect(find.text('The gateway is restarting.'), findsOneWidget);
+  });
+
+  testWidgets('a strip tells while the server does not answer, until it is back', (t) async {
+    stillStripes(t);
+    fakeServer(replies);
+    addTearDown(() => callApi = hermesApi);
+    var down = true;
+    callApi = (base, method, path, {query, body, user, password}) async =>
+        down ? throw const SocketException('Connection refused') : jsonEncode(path == '/api/status' ? {'version': '1'} : []);
+    await t.pumpWidget(const App());
+    await serverApi('GET', '/api/skills').catchError((Object _) => null);
+    await t.pump();
+    expect(find.text('The server isn’t answering'), findsOneWidget);
+
+    await t.tap(find.text('Try again'));
+    await t.pump();
+    expect(find.text('The server isn’t answering'), findsOneWidget); // still down
+
+    down = false;
+    await t.pump(const Duration(seconds: 5)); // asked again on its own
+    await t.pump();
+    expect(find.text('The server isn’t answering'), findsNothing);
   });
 }

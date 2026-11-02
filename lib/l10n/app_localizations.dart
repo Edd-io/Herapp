@@ -2095,6 +2095,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dictation isn\'t available: allow the microphone and speech recognition in the system settings.'**
   String get voiceUnavailable;
+
+  /// No description provided for @linkDown.
+  ///
+  /// In en, this message translates to:
+  /// **'The server isn’t answering'**
+  String get linkDown;
+
+  /// No description provided for @linkDownVpn.
+  ///
+  /// In en, this message translates to:
+  /// **'The server isn’t answering through the VPN'**
+  String get linkDownVpn;
+
+  /// No description provided for @linkRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get linkRetry;
+
+  /// No description provided for @linkRestartVpn.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart VPN'**
+  String get linkRestartVpn;
 }
 
 class _AppLocalizationsDelegate

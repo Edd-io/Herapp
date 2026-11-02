@@ -96,11 +96,11 @@ Future<ModelOptions?> serverOptions() async {
   final base = Uri.tryParse(settings.url);
   if (base == null || !base.hasAuthority) return null;
   if (vpn.enabled) await vpn.ready; // don't race the tunnel at startup
-  return fetchModels(base, user: settings.auth ? settings.user : null, password: settings.password).timeout(const Duration(seconds: 20));
+  return _watch(
+    fetchModels(base, user: settings.auth ? settings.user : null, password: settings.password).timeout(const Duration(seconds: 20)),
+  );
 }
 
-/// REST call to the configured server, through the tunnel; null if no server is set.
-/// [body] is sent as JSON.
 /// Window width from which the app lays out for a computer or tablet: menu always shown, text column narrowed.
 const wideWidth = 900.0;
 
@@ -192,19 +192,77 @@ Future<T?> showChoices<T>({required BuildContext context, required WidgetBuilder
       )
     : showCupertinoModalPopup<T>(context: context, builder: builder);
 
+/// REST call to the configured server, through the tunnel; null if no server is set.
+/// [body] is sent as JSON.
 Future<String?> serverApi(String method, String path, {Map<String, String>? query, Object? body}) async {
   final base = Uri.tryParse(settings.url);
-  if (base == null || !base.hasAuthority) return null;
+  if (base == null || !base.hasAuthority) {
+    _reached(true); // no server to miss
+    return null;
+  }
   if (vpn.enabled) await vpn.ready;
-  return callApi(
-    base,
-    method,
-    path,
-    query: query,
-    body: body,
-    user: settings.auth ? settings.user : null,
-    password: settings.password,
-  ).timeout(const Duration(seconds: 20));
+  return _watch(
+    callApi(
+      base,
+      method,
+      path,
+      query: query,
+      body: body,
+      user: settings.auth ? settings.user : null,
+      password: settings.password,
+    ).timeout(const Duration(seconds: 20)),
+  );
+}
+
+/// False while the server can't be reached; every request tells, and [checkServer] asks again until it answers.
+final online = ValueNotifier(true);
+Timer? _again;
+var _checking = false;
+
+/// [call], noting in [online] whether it reached the server.
+Future<T> _watch<T>(Future<T> call) async {
+  try {
+    final r = await call;
+    _reached(true);
+    return r;
+  } catch (e) {
+    if (unreachable(e)) {
+      _reached(false);
+    } else if (e is HttpException) {
+      _reached(true); // the server answered, refusing
+    }
+    rethrow;
+  }
+}
+
+void _reached(bool ok) {
+  online.value = ok;
+  if (ok) {
+    _again?.cancel();
+    _again = null;
+  } else {
+    _again ??= Timer.periodic(const Duration(seconds: 5), (_) => checkServer());
+  }
+}
+
+/// Asks the server whether it is there, updating [online].
+Future<void> checkServer() async {
+  if (_checking) return;
+  _checking = true;
+  try {
+    await serverApi('GET', '/api/status');
+  } catch (_) {
+    // [online] already tells
+  } finally {
+    _checking = false;
+  }
+}
+
+/// Starts the tunnel afresh (when on) and reopens the chat connection, then asks the server again.
+Future<void> reconnect() async {
+  if (vpn.enabled) await vpn.apply();
+  dropGateway();
+  await checkServer();
 }
 
 Future<Gateway?>? _gateway;
@@ -217,20 +275,25 @@ Future<Gateway?> gateway() async {
     if (g != null && !g.closed) return g;
     if (!identical(_gateway, current)) return gateway(); // another caller is already reconnecting
   }
-  return (_gateway = () async {
+  late final Future<Gateway?> opening;
+  return _gateway = opening = () async {
     final base = Uri.tryParse(settings.url);
     if (base == null || !base.hasAuthority) return null;
     if (vpn.enabled) await vpn.ready;
-    final g = await connectGateway(
-      base,
-      user: settings.auth ? settings.user : null,
-      password: settings.password,
-    ).timeout(const Duration(seconds: 20));
-    g.events.listen((e) {
-      if (e.id == null && e.type.startsWith('subagent.')) trackSubagent(e.type, e.session, e.payload);
-    });
+    final g = await _watch(
+      connectGateway(base, user: settings.auth ? settings.user : null, password: settings.password).timeout(const Duration(seconds: 20)),
+    );
+    g.events.listen(
+      (e) {
+        if (e.id == null && e.type.startsWith('subagent.')) trackSubagent(e.type, e.session, e.payload);
+      },
+      // lost rather than closed by [dropGateway]: is the server still there?
+      onDone: () {
+        if (identical(_gateway, opening)) checkServer();
+      },
+    );
     return g;
-  }());
+  }();
 }
 
 /// A child agent a chat handed work to (`delegate_task`); [session] is the chat's runtime session.
@@ -281,6 +344,73 @@ String serverErrorText(AppLocalizations l, Object? e) => switch (e) {
   HttpException(:final message) => l.serverLoadFailed(message),
   _ => l.serverLoadFailed('$e'),
 };
+
+/// A strip above the app while the server doesn't answer, to try again (restarting the tunnel when on).
+class ConnectionBanner extends StatefulWidget {
+  const ConnectionBanner({super.key, required this.child});
+  final Widget child;
+
+  @override
+  State<ConnectionBanner> createState() => _ConnectionBannerState();
+}
+
+class _ConnectionBannerState extends State<ConnectionBanner> {
+  var trying = false;
+
+  Future<void> retry() async {
+    setState(() => trying = true);
+    await reconnect();
+    if (mounted) setState(() => trying = false);
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder(
+    valueListenable: online,
+    builder: (context, up, child) {
+      if (up) return child!;
+      final l = AppLocalizations.of(context);
+      const white = TextStyle(fontSize: 14, color: Colors.white);
+      return Column(
+        children: [
+          Material(
+            color: CupertinoColors.systemOrange.darkColor,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Row(
+                    children: [
+                      const Icon(CupertinoIcons.wifi_exclamationmark, size: 18, color: Colors.white),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(vpn.enabled ? l.linkDownVpn : l.linkDown, style: white)),
+                      trying
+                          ? const Padding(
+                              padding: EdgeInsets.all(10),
+                              child: CupertinoActivityIndicator(color: Colors.white),
+                            )
+                          : CupertinoButton(
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              minimumSize: const Size(0, 36),
+                              onPressed: retry,
+                              child: Text(vpn.enabled ? l.linkRestartVpn : l.linkRetry, style: white.copyWith(fontWeight: FontWeight.w600)),
+                            ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: MediaQuery.removePadding(context: context, removeTop: true, child: child!),
+          ),
+        ],
+      );
+    },
+    child: widget.child,
+  );
+}
 
 class SettingsSheet extends StatefulWidget {
   const SettingsSheet({super.key});

@@ -364,6 +364,15 @@ Future<String> hermesApi(
 /// REST caller, swappable in tests.
 var callApi = hermesApi;
 
+/// Whether [e] means the server couldn't be reached at all (network, tunnel, a gateway in front with Hermes
+/// down), rather than an answer refusing the request.
+bool unreachable(Object e) => switch (e) {
+  SocketException() || TimeoutException() || TlsException() || WebSocketException() => true,
+  // the tunnel's proxy failing to dial, or a reverse proxy without Hermes behind it
+  HttpException(:final message) => RegExp(r'^Proxy failed|^Connection closed|HTTP 50[234]\)').hasMatch(message),
+  _ => false,
+};
+
 /// Fetches the models the server can use.
 Future<ModelOptions> hermesModels(Uri base, {String? user, String? password}) async {
   final body = await hermesApi(base, 'GET', '/api/model/options', query: {'explicit_only': 'true'}, user: user, password: password);

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,6 +6,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:herapp/hermes.dart';
 
 void main() {
+  test('only network failures read as an unreachable server', () {
+    expect(unreachable(const SocketException('Connection refused')), isTrue);
+    expect(unreachable(TimeoutException('slow')), isTrue);
+    expect(unreachable(const HttpException('Proxy failed to establish tunnel (502 Bad Gateway)')), isTrue);
+    expect(unreachable(const HttpException('/api/status failed (HTTP 502)')), isTrue);
+    expect(unreachable(const HttpException('/api/skills failed (HTTP 500)')), isFalse);
+    expect(unreachable(const HttpException('Not found')), isFalse);
+    expect(unreachable(StateError('no server')), isFalse);
+  });
+
   test('status URL is built from the base URL', () {
     expect(hermesStatusUri(Uri.parse('https://h.example/')).toString(), 'https://h.example/api/status');
     expect(hermesStatusUri(Uri.parse('https://h.example')).toString(), 'https://h.example/api/status');

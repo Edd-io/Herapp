@@ -617,5 +617,9 @@
   "gitPrOpened": "Pull request opened",
   "gitFailed": "Git: {error}",
   "@gitFailed": {"placeholders": {"error": {"type": "String"}}},
-  "voiceUnavailable": "Dictation isn't available: allow the microphone and speech recognition in the system settings."
+  "voiceUnavailable": "Dictation isn't available: allow the microphone and speech recognition in the system settings.",
+  "linkDown": "The server isn’t answering",
+  "linkDownVpn": "The server isn’t answering through the VPN",
+  "linkRetry": "Try again",
+  "linkRestartVpn": "Restart VPN"
 }

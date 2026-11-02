@@ -73,12 +73,12 @@ class App extends StatelessWidget {
       // sizes are set for a phone held close; a computer screen sits further away and its UI runs smaller.
       // A window has no safe area: an inset of its own keeps the content off its edges, through every SafeArea.
       builder: (context, child) {
-        if (!(Platform.isMacOS || Platform.isWindows || Platform.isLinux)) return AppLock(child: child!);
+        if (!(Platform.isMacOS || Platform.isWindows || Platform.isLinux)) return AppLock(child: ConnectionBanner(child: child!));
         const edges = EdgeInsets.fromLTRB(4, 12, 12, 16);
         return AppLock(
           child: MediaQuery(
             data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(.9), padding: edges, viewPadding: edges),
-            child: child!,
+            child: ConnectionBanner(child: child!),
           ),
         );
       },

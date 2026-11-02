@@ -1184,4 +1184,16 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get voiceUnavailable =>
       'Dictée indisponible : autorise le micro et la reconnaissance vocale dans les réglages du système.';
+
+  @override
+  String get linkDown => 'Le serveur ne répond pas';
+
+  @override
+  String get linkDownVpn => 'Le serveur ne répond pas par le VPN';
+
+  @override
+  String get linkRetry => 'Réessayer';
+
+  @override
+  String get linkRestartVpn => 'Relancer le VPN';
 }
