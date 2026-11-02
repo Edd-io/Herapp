@@ -667,6 +667,7 @@ void main() {
             {'name': 'b'},
           ],
         },
+        '/api/curator' => null, // an older server
         _ => {'ok': true},
       });
     };
@@ -701,6 +702,54 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('bookstack'), findsOneWidget);
     expect(find.text('github-pr'), findsNothing);
+  });
+
+  testWidgets('the curator pauses, merges skills with the AI, and runs now', (t) async {
+    fakeServer((_, _, _) => null);
+    addTearDown(() => callApi = hermesApi);
+    final sent = <String>[];
+    var paused = false;
+    callApi = (base, method, path, {query, body, user, password}) async {
+      if (method != 'GET') sent.add('$method $path ${jsonEncode(body)}');
+      if (path == '/api/curator/paused') paused = (body as Map)['paused'] == true;
+      return jsonEncode(switch (path) {
+        '/api/curator' => {
+          'enabled': true,
+          'paused': paused,
+          'interval_hours': 168,
+          'last_run_at': '2026-10-28T14:47:59+00:00',
+          'stale_after_days': 14,
+          'archive_after_days': 30,
+        },
+        '/api/config' => {
+          'curator': {'consolidate': false},
+        },
+        '/api/mcp/servers' => {'servers': []},
+        '/api/skills' => [],
+        _ => {'ok': true},
+      });
+    };
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Skills & MCP'));
+    await t.pumpAndSettle();
+    expect(find.text('CURATOR'), findsOneWidget);
+    expect(find.textContaining('every 168 h · last on Oct 28, 2026'), findsOneWidget);
+
+    await t.tap(find.byType(CupertinoSwitch).first);
+    await t.pumpAndSettle();
+    expect(t.widget<CupertinoSwitch>(find.byType(CupertinoSwitch).first).value, isFalse); // paused, as the server says
+    await t.tap(find.byType(CupertinoSwitch).last);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Run now'));
+    await t.pumpAndSettle();
+    expect(find.text('The curator is running'), findsOneWidget);
+    expect(sent, [
+      'PUT /api/curator/paused {"paused":true}',
+      'PUT /api/config {"config":{"curator":{"consolidate":true}}}',
+      'POST /api/curator/run null',
+    ]);
   });
 
   testWidgets('the system page shows the server, updates it and restarts its gateway', (t) async {

@@ -424,5 +424,14 @@
   "backgroundLabel": "arrière-plan",
   "backgroundDone": "Tâche en arrière-plan terminée dans « {chat} »",
   "backgroundOpen": "Ouvrir",
-  "subagentModelInherit": "Comme la conversation"
+  "subagentModelInherit": "Comme la conversation",
+  "curator": "Curateur",
+  "curatorActive": "Range les compétences",
+  "curatorOff": "Désactivé dans la config du serveur",
+  "curatorEvery": "toutes les {hours} h",
+  "curatorLast": "dernière fois le {when}",
+  "curatorMerge": "L’IA les fusionne et les réécrit",
+  "curatorRun": "Lancer maintenant",
+  "curatorStarted": "Le curateur est lancé",
+  "curatorFooter": "Entre les conversations, une compétence qu’Hermes s’est écrite et qu’il n’a pas utilisée depuis {stale} jours est marquée périmée, puis archivée après {archive} jours. Le passage par l’IA fusionne et réécrit aussi les compétences proches, au prix d’un appel au modèle."
 }

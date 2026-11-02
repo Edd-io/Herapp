@@ -62,7 +62,8 @@ import 'app_localizations_fr.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -70,7 +71,8 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -82,15 +84,19 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[Locale('en'), Locale('fr')];
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('fr'),
+  ];
 
   /// No description provided for @statusThinking.
   ///
@@ -2641,9 +2647,64 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Same as the chat'**
   String get subagentModelInherit;
+
+  /// No description provided for @curator.
+  ///
+  /// In en, this message translates to:
+  /// **'Curator'**
+  String get curator;
+
+  /// No description provided for @curatorActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Tidies up the skills'**
+  String get curatorActive;
+
+  /// No description provided for @curatorOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Turned off in the server\'s config'**
+  String get curatorOff;
+
+  /// No description provided for @curatorEvery.
+  ///
+  /// In en, this message translates to:
+  /// **'every {hours} h'**
+  String curatorEvery(int hours);
+
+  /// No description provided for @curatorLast.
+  ///
+  /// In en, this message translates to:
+  /// **'last on {when}'**
+  String curatorLast(String when);
+
+  /// No description provided for @curatorMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'AI merges and rewrites them'**
+  String get curatorMerge;
+
+  /// No description provided for @curatorRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Run now'**
+  String get curatorRun;
+
+  /// No description provided for @curatorStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'The curator is running'**
+  String get curatorStarted;
+
+  /// No description provided for @curatorFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Between chats, a skill Hermes wrote for itself and hasn\'t used for {stale} days is marked stale, then archived after {archive} days. The AI pass also merges and rewrites similar skills, at the cost of a model call.'**
+  String curatorFooter(int stale, int archive);
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -2652,7 +2713,8 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['en', 'fr'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['en', 'fr'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;

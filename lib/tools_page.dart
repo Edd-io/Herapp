@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'cron_page.dart';
 import 'l10n/app_localizations.dart';
@@ -162,6 +163,7 @@ class _ToolsPageState extends State<ToolsPage> {
                                 ),
                         ),
                     ], footer: l.toolsNextChats),
+                  const _Curator(),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: CupertinoSearchTextField(controller: search, placeholder: l.toolsSearch, onChanged: (_) => setState(() {})),
@@ -178,6 +180,117 @@ class _ToolsPageState extends State<ToolsPage> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+/// The curator, which keeps the skills Hermes wrote for itself in shape between chats: paused or not, whether
+/// an AI pass also merges and rewrites them (`curator.consolidate`), when it last ran, and a run now.
+class _Curator extends StatefulWidget {
+  const _Curator();
+
+  @override
+  State<_Curator> createState() => _CuratorState();
+}
+
+class _CuratorState extends State<_Curator> {
+  Map? state; // `/api/curator`
+  bool merges = false, busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final [s, config] = await Future.wait([serverApi('GET', '/api/curator'), serverApi('GET', '/api/config')]);
+      if (!mounted) return;
+      setState(() {
+        state = jsonDecode(s ?? 'null') as Map?;
+        merges = (jsonDecode(config ?? '{}') as Map)['curator']?['consolidate'] == true;
+      });
+    } catch (e) {
+      debugPrint('Curator: $e'); // an older server has none: the section stays out
+    }
+  }
+
+  /// Runs [change] on the server, then shows what it holds; a failure is told.
+  Future<void> act(Future<void> Function() change, {String? done}) async {
+    final messenger = ScaffoldMessenger.of(context), l = AppLocalizations.of(context);
+    settings.haptic();
+    setState(() => busy = true);
+    try {
+      await change();
+      if (done != null) messenger.showSnackBar(SnackBar(content: Text(done)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(l.toolsFailed(e is HttpException ? e.message : '$e'))));
+    }
+    await load();
+    if (mounted) setState(() => busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = state;
+    if (s == null) return const SizedBox.shrink();
+    final c = Theme.of(context).colorScheme, l = AppLocalizations.of(context);
+    final small = TextStyle(fontSize: 13, color: c.outline), on = s['enabled'] != false;
+    final last = DateTime.tryParse('${s['last_run_at']}')?.toLocal();
+    Widget row(String title, Widget trailing, {String? subtitle}) => CupertinoListTile(
+      padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+      title: Text(title, style: TextStyle(fontSize: 16, color: c.onSurface)),
+      subtitle: subtitle == null ? null : Text(subtitle, maxLines: 2, style: small),
+      trailing: trailing,
+    );
+    return CupertinoListSection.insetGrouped(
+      backgroundColor: c.surface,
+      decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+      separatorColor: c.outline.withValues(alpha: .2),
+      header: Text(l.curator.toUpperCase(), style: small),
+      footer: Text(l.curatorFooter(s['stale_after_days'] ?? 14, s['archive_after_days'] ?? 30), style: small),
+      children: [
+        row(
+          l.curatorActive,
+          CupertinoSwitch(
+            value: on && s['paused'] != true,
+            onChanged: busy || !on ? null : (v) => act(() => serverApi('PUT', '/api/curator/paused', body: {'paused': !v})),
+          ),
+          subtitle: [
+            if (!on) l.curatorOff,
+            if (on && s['interval_hours'] is num) l.curatorEvery((s['interval_hours'] as num).round()),
+            if (last != null) l.curatorLast(DateFormat.yMMMd('${Localizations.localeOf(context)}').add_Hm().format(last)),
+          ].join(' · '),
+        ),
+        row(
+          l.curatorMerge,
+          CupertinoSwitch(
+            value: merges,
+            onChanged: busy || !on
+                ? null
+                : (v) => act(
+                    () => serverApi(
+                      'PUT',
+                      '/api/config',
+                      body: {
+                        'config': {
+                          'curator': {'consolidate': v},
+                        },
+                      },
+                    ),
+                  ),
+          ),
+        ),
+        Hover(
+          radius: 0,
+          child: CupertinoListTile(
+            title: Text(l.curatorRun, style: TextStyle(fontSize: 16, color: on && !busy ? c.primary : c.outline)),
+            trailing: busy ? const CupertinoActivityIndicator(radius: 8) : null,
+            onTap: busy || !on ? null : () => act(() => serverApi('POST', '/api/curator/run'), done: l.curatorStarted),
+          ),
+        ),
+      ],
     );
   }
 }
