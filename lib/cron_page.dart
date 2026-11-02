@@ -281,6 +281,7 @@ class _CronEditPageState extends State<CronEditPage> {
                   Positioned(
                     left: 4,
                     child: IconButton(
+                      tooltip: AppLocalizations.of(context).a11yBack,
                       onPressed: () => Navigator.pop(context, false),
                       icon: Icon(CupertinoIcons.chevron_back, color: c.onSurface),
                     ),
@@ -354,6 +355,7 @@ class _CronEditPageState extends State<CronEditPage> {
                       trailing: targets.isEmpty
                           ? null
                           : IconButton(
+                              tooltip: AppLocalizations.of(context).a11yPickTarget,
                               onPressed: pickTarget,
                               icon: Icon(CupertinoIcons.chevron_up_chevron_down, size: 18, color: c.outline),
                             ),
@@ -616,6 +618,7 @@ class PageFrame extends StatelessWidget {
                   Positioned(
                     left: 4,
                     child: IconButton(
+                      tooltip: AppLocalizations.of(context).a11yBack,
                       onPressed: () => Navigator.pop(context),
                       icon: Icon(CupertinoIcons.chevron_back, color: c.onSurface),
                     ),

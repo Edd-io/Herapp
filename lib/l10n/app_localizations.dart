@@ -2119,6 +2119,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restart VPN'**
   String get linkRestartVpn;
+
+  /// No description provided for @a11yMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Menu'**
+  String get a11yMenu;
+
+  /// No description provided for @a11yToBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll to bottom'**
+  String get a11yToBottom;
+
+  /// No description provided for @a11yEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get a11yEdit;
+
+  /// No description provided for @a11yResend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send again'**
+  String get a11yResend;
+
+  /// No description provided for @a11yCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get a11yCopy;
+
+  /// No description provided for @a11yRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read aloud'**
+  String get a11yRead;
+
+  /// No description provided for @a11yStopReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop reading'**
+  String get a11yStopReading;
+
+  /// No description provided for @a11yRegenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Regenerate'**
+  String get a11yRegenerate;
+
+  /// No description provided for @a11yRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get a11yRemove;
+
+  /// No description provided for @a11yCancelEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel editing'**
+  String get a11yCancelEdit;
+
+  /// No description provided for @a11yAttach.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach files'**
+  String get a11yAttach;
+
+  /// No description provided for @a11yDictate.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictate'**
+  String get a11yDictate;
+
+  /// No description provided for @a11yStopDictating.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop dictating'**
+  String get a11yStopDictating;
+
+  /// No description provided for @a11ySend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get a11ySend;
+
+  /// No description provided for @a11yParent.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent folder'**
+  String get a11yParent;
+
+  /// No description provided for @a11yBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get a11yBack;
+
+  /// No description provided for @a11yPickTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the destination'**
+  String get a11yPickTarget;
+
+  /// No description provided for @a11yShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show'**
+  String get a11yShow;
+
+  /// No description provided for @a11yHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide'**
+  String get a11yHide;
 }
 
 class _AppLocalizationsDelegate

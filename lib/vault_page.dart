@@ -267,6 +267,7 @@ class _VaultAddPageState extends State<VaultAddPage> {
       ),
     );
     final eye = IconButton(
+      tooltip: hidden ? AppLocalizations.of(context).a11yShow : AppLocalizations.of(context).a11yHide,
       onPressed: () => setState(() => hidden = !hidden),
       icon: Icon(hidden ? CupertinoIcons.eye : CupertinoIcons.eye_slash, size: 20, color: c.outline),
     );

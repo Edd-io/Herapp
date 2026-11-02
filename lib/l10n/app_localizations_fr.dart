@@ -1196,4 +1196,61 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get linkRestartVpn => 'Relancer le VPN';
+
+  @override
+  String get a11yMenu => 'Menu';
+
+  @override
+  String get a11yToBottom => 'Aller en bas';
+
+  @override
+  String get a11yEdit => 'Modifier';
+
+  @override
+  String get a11yResend => 'Renvoyer';
+
+  @override
+  String get a11yCopy => 'Copier';
+
+  @override
+  String get a11yRead => 'Lire à voix haute';
+
+  @override
+  String get a11yStopReading => 'Arrêter la lecture';
+
+  @override
+  String get a11yRegenerate => 'Régénérer';
+
+  @override
+  String get a11yRemove => 'Retirer';
+
+  @override
+  String get a11yCancelEdit => 'Annuler la modification';
+
+  @override
+  String get a11yAttach => 'Joindre des fichiers';
+
+  @override
+  String get a11yDictate => 'Dicter';
+
+  @override
+  String get a11yStopDictating => 'Arrêter la dictée';
+
+  @override
+  String get a11ySend => 'Envoyer';
+
+  @override
+  String get a11yParent => 'Dossier parent';
+
+  @override
+  String get a11yBack => 'Retour';
+
+  @override
+  String get a11yPickTarget => 'Choisir la destination';
+
+  @override
+  String get a11yShow => 'Afficher';
+
+  @override
+  String get a11yHide => 'Masquer';
 }

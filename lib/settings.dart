@@ -116,10 +116,12 @@ Widget readable(Widget child, {double width = 720}) => Align(
 bool isWide(BuildContext context) => MediaQuery.sizeOf(context).width >= wideWidth;
 
 /// Lights up what the mouse points at, as desktop buttons do; touch screens never see it.
+/// [label] names an icon-only button, for screen readers and as a tooltip.
 class Hover extends StatefulWidget {
-  const Hover({super.key, required this.child, this.radius = 10});
+  const Hover({super.key, required this.child, this.radius = 10, this.label});
   final Widget child;
   final double radius; // of the highlight's corners; a large one makes a round button's circle
+  final String? label;
 
   @override
   State<Hover> createState() => _HoverState();
@@ -129,19 +131,22 @@ class _HoverState extends State<Hover> {
   var on = false;
 
   @override
-  Widget build(BuildContext context) => MouseRegion(
-    cursor: SystemMouseCursors.click,
-    onEnter: (_) => setState(() => on = true),
-    onExit: (_) => setState(() => on = false),
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 120),
-      foregroundDecoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: on ? .07 : 0),
-        borderRadius: BorderRadius.circular(widget.radius),
+  Widget build(BuildContext context) {
+    final lit = MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => on = true),
+      onExit: (_) => setState(() => on = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        foregroundDecoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: on ? .07 : 0),
+          borderRadius: BorderRadius.circular(widget.radius),
+        ),
+        child: widget.child,
       ),
-      child: widget.child,
-    ),
-  );
+    );
+    return widget.label == null ? lit : Tooltip(message: widget.label, child: lit);
+  }
 }
 
 /// A floating window over a wide window's content, [width] wide at most, [height] tall when given.

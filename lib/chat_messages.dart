@@ -40,11 +40,13 @@ extension _Messages on _ChatPageState {
                   children: [
                     _IconBtn(
                       small: true,
+                      label: l.a11yEdit,
                       onTap: () => edit(m),
                       child: Icon(CupertinoIcons.pencil, size: 18, color: c.onSurfaceVariant),
                     ),
                     _IconBtn(
                       small: true,
+                      label: l.a11yResend,
                       onTap: () => resend(m),
                       child: Icon(CupertinoIcons.arrow_2_circlepath, size: 18, color: c.onSurfaceVariant),
                     ),
@@ -94,6 +96,7 @@ extension _Messages on _ChatPageState {
                 children: [
                   _IconBtn(
                     small: true,
+                    label: l.a11yCopy,
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: m.text.trim()));
                       settings.haptic();
@@ -104,6 +107,7 @@ extension _Messages on _ChatPageState {
                     listenable: voice,
                     builder: (context, _) => _IconBtn(
                       small: true,
+                      label: identical(voice.reading, m) ? l.a11yStopReading : l.a11yRead,
                       onTap: () => voice.read(m, text),
                       child: Icon(
                         identical(voice.reading, m) ? CupertinoIcons.stop_circle : CupertinoIcons.speaker_2,
@@ -115,6 +119,7 @@ extension _Messages on _ChatPageState {
                   if (last)
                     _IconBtn(
                       small: true,
+                      label: l.a11yRegenerate,
                       onTap: regenerate,
                       child: Icon(CupertinoIcons.arrow_2_circlepath, size: 18, color: c.onSurfaceVariant),
                     ),
@@ -409,6 +414,7 @@ class _Attachment extends StatelessWidget {
           right: -6,
           child: Hover(
             radius: 999,
+            label: AppLocalizations.of(context).a11yRemove,
             child: GestureDetector(
               onTap: onRemove,
               child: Container(
@@ -790,6 +796,7 @@ class _CodeState extends State<_Code> {
               ),
               Hover(
                 radius: 8,
+                label: AppLocalizations.of(context).a11yCopy,
                 child: CupertinoButton(
                   padding: const EdgeInsets.all(8),
                   minimumSize: Size.zero,

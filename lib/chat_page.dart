@@ -905,6 +905,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   bool get wide => MediaQuery.sizeOf(context).width >= wideWidth;
 
+  AppLocalizations get l => AppLocalizations.of(context);
+
   /// The menu's pages, in order; ⌘1… opens them.
   List<(String, IconData, Widget)> pages(AppLocalizations l) => [
     (l.quotas, CupertinoIcons.gauge, const QuotaPage()),
@@ -1107,7 +1109,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               height: 52,
               child: Row(
                 children: [
-                  if (wide) const SizedBox(width: 52) else _IconBtn(onTap: openDrawer, child: _MenuIcon(c.onSurface)),
+                  if (wide) const SizedBox(width: 52) else _IconBtn(label: l.a11yMenu, onTap: openDrawer, child: _MenuIcon(c.onSurface)),
                   Expanded(
                     // empty: no title, the centered pill is the picker
                     child: chat.msgs.isEmpty
@@ -1138,6 +1140,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                           ),
                   ),
                   _IconBtn(
+                    label: l.newChat,
                     onTap: newChat,
                     child: Icon(CupertinoIcons.square_pencil, size: 24, color: c.onSurface),
                   ),
@@ -1233,6 +1236,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                               curve: Curves.easeOutBack,
                               child: Hover(
                                 radius: 999,
+                                label: l.a11yToBottom,
                                 child: GestureDetector(
                                   onTap: toBottom,
                                   child: Container(
@@ -1312,7 +1316,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 }
 
 class _IconBtn extends StatelessWidget {
-  const _IconBtn({required this.onTap, required this.child, this.small = false});
+  const _IconBtn({required this.label, required this.onTap, required this.child, this.small = false});
+  final String label;
   final VoidCallback onTap;
   final Widget child;
   final bool small;
@@ -1320,6 +1325,7 @@ class _IconBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Hover(
     radius: 12,
+    label: label,
     child: CupertinoButton(padding: EdgeInsets.all(small ? 6 : 14), onPressed: onTap, child: child),
   );
 }

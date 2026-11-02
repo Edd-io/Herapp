@@ -825,4 +825,20 @@ void main() {
     expect(paths.where((p) => p == '/api/sessions/b2/messages'), hasLength(2));
     expect(calls.where((c) => c.$1 == 'session.list' && c.$2['title'] == 'Bot Chat'), isNotEmpty);
   });
+
+  testWidgets('every button of a conversation is named for screen readers', (t) async {
+    final handle = t.ensureSemantics();
+    fakeServer(replies);
+    await t.pumpWidget(const App());
+    await t.enterText(find.byType(EditableText).last, 'Salut');
+    await t.pumpAndSettle();
+    await expectLater(t, meetsGuideline(labeledTapTargetGuideline)); // the composer, send shown
+    await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await t.pump(const Duration(seconds: 10));
+    await t.pump(const Duration(seconds: 1));
+    expect(find.textContaining('Hello there'), findsOneWidget);
+    await expectLater(t, meetsGuideline(labeledTapTargetGuideline)); // a reply and its actions, the mic
+    expect(find.byTooltip('Read aloud'), findsOneWidget);
+    handle.dispose();
+  });
 }

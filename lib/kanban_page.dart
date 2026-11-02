@@ -264,6 +264,7 @@ class _KanbanCardPageState extends State<KanbanCardPage> {
         title: widget.title,
         action: d != null && (d.card.status == 'review' || d.card.status == 'blocked') && !busy
             ? IconButton(
+                tooltip: AppLocalizations.of(context).kanbanApprove,
                 onPressed: act,
                 icon: Icon(CupertinoIcons.checkmark_seal, color: c.onSurface),
               )

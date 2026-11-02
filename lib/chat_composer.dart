@@ -23,9 +23,13 @@ extension _Composer on _ChatPageState {
                   Expanded(
                     child: Text(AppLocalizations.of(context).editingMessage, style: TextStyle(fontSize: 13, color: c.outline)),
                   ),
-                  GestureDetector(
-                    onTap: cancelEdit,
-                    child: Icon(CupertinoIcons.xmark_circle_fill, size: 18, color: c.outline),
+                  Hover(
+                    radius: 999,
+                    label: l.a11yCancelEdit,
+                    child: GestureDetector(
+                      onTap: cancelEdit,
+                      child: Icon(CupertinoIcons.xmark_circle_fill, size: 18, color: c.outline),
+                    ),
                   ),
                 ],
               ),
@@ -174,6 +178,7 @@ extension _Composer on _ChatPageState {
         children: [
           Hover(
             radius: 999,
+            label: l.a11yAttach,
             child: GestureDetector(
               onTap: attachFiles, // mid-reply too, for the queued message
               child: Container(
@@ -223,6 +228,7 @@ extension _Composer on _ChatPageState {
                                 ? const SizedBox(height: 44)
                                 : Hover(
                                     key: ValueKey('mic${voice.listening}'),
+                                    label: voice.listening ? l.a11yStopDictating : l.a11yDictate,
                                     radius: 999,
                                     child: GestureDetector(
                                       onTap: dictate,
@@ -244,6 +250,7 @@ extension _Composer on _ChatPageState {
                                   )
                           : Hover(
                               key: ValueKey(stopping),
+                              label: stopping ? l.macStop : l.a11ySend,
                               radius: 999,
                               child: GestureDetector(
                                 onTap: stopping ? stop : send,
@@ -480,6 +487,7 @@ class _FoldersState extends State<_Folders> {
                 children: [
                   Hover(
                     radius: 8,
+                    label: l.a11yParent,
                     child: GestureDetector(
                       onTap: parent == null ? null : () => go(parent),
                       child: Padding(
