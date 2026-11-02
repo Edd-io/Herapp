@@ -37,11 +37,18 @@ class MacShell {
   Future<Process> _start() async {
     final dir = Directory(cwd).existsSync() ? cwd : home;
     const env = {'TERM': 'dumb', 'PAGER': 'cat', 'GIT_PAGER': 'cat', 'MANPAGER': 'cat'};
-    // a terminal of its own (on a Mac), or programs keep what they print until they end; a login shell, for
-    // the PATH the user's profile sets, and not an interactive one (no prompt, no .zshrc asking things)
-    final p = Platform.isMacOS
-        ? await Process.start('script', ['-q', '/dev/null', shell, '-l', '+i'], workingDirectory: dir, environment: env)
-        : await Process.start(shell, ['-l'], workingDirectory: dir, environment: env);
+    // a terminal of its own, or programs keep what they print until they end; a login shell, for the PATH the
+    // user's profile sets, and not an interactive one (no prompt, no .zshrc asking things): `+i` for zsh, and
+    // commands read as a script from /dev/stdin for any shell
+    Process p;
+    try {
+      p = Platform.isMacOS
+          ? await Process.start('script', ['-q', '/dev/null', shell, '-l', '+i'], workingDirectory: dir, environment: env)
+          : await Process.start('script', ['-qfec', "'$shell' -l /dev/stdin", '/dev/null'], workingDirectory: dir, environment: env);
+    } on ProcessException {
+      // no script(1) (a minimal Linux): pipes, where some programs print only once done and Ctrl-C can't reach
+      p = await Process.start(shell, ['-l'], workingDirectory: dir, environment: env);
+    }
     p.stdout.transform(const Utf8Decoder(allowMalformed: true)).listen(_read);
     p.stderr.drain<void>();
     p.exitCode.then((code) {
@@ -88,7 +95,7 @@ class MacShell {
     final file = File('${Directory.systemTemp.path}/herapp-$_mark-${DateTime.now().microsecondsSinceEpoch}.sh')
       ..writeAsStringSync('$script\n');
     final done = _done = Completer<int>();
-    p.stdin.writeln("{ source '${file.path}'; } < /dev/null; $_printMark");
+    p.stdin.writeln("{ . '${file.path}'; } < /dev/null; $_printMark");
     final timer = Timer(timeout, () => stop('timed out after ${timeout.inMinutes} min'));
     final code = await done.future;
     timer.cancel();
