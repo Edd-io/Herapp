@@ -1732,25 +1732,24 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           mainAxisSize: MainAxisSize.min,
           children: [
             Flexible(child: _folderButton(c, busy, path)),
-            // what the bot changed there, on the server
-            if (!chat.folderHere && chat.folder.isNotEmpty)
-              Hover(
-                radius: 8,
-                child: GestureDetector(
-                  onTap: () => show(GitPage(path: chat.folder)),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(CupertinoIcons.arrow_branch, size: 14, color: c.outline),
-                        const SizedBox(width: 4),
-                        Text(l.gitTitle, style: TextStyle(fontSize: 13, color: c.outline)),
-                      ],
-                    ),
+            // what the bot changed there (no folder picked: the server's default one)
+            Hover(
+              radius: 8,
+              child: GestureDetector(
+                onTap: () => show(GitPage(path: chat.folder, here: chat.folderHere)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(CupertinoIcons.arrow_branch, size: 14, color: c.outline),
+                      const SizedBox(width: 4),
+                      Text(l.gitTitle, style: TextStyle(fontSize: 13, color: c.outline)),
+                    ],
                   ),
                 ),
               ),
+            ),
           ],
         ),
       ),
