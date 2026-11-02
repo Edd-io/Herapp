@@ -1443,4 +1443,18 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get welcomeRoutines => 'Résultats des tâches planifiées';
+
+  @override
+  String toolsEarlier(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n étapes avant',
+      one: '1 étape avant',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get toolsFold => 'Replier';
 }

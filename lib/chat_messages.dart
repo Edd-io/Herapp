@@ -565,7 +565,22 @@ class _Attachment extends StatelessWidget {
   }
 }
 
-/// The tools a reply used: listed while it runs, folded into one line once it's done.
+/// An icon for what a tool does, by its name.
+IconData toolIcon(String name) => switch (name.toLowerCase()) {
+  final n when n.contains('search') || n.startsWith('web') => CupertinoIcons.globe,
+  final n when n.startsWith('browser') || n == 'computer_use' => CupertinoIcons.compass,
+  final n when n.contains('write') || n.contains('patch') || n.contains('edit') => CupertinoIcons.pencil,
+  final n when n.contains('read') || n.contains('file') || n.contains('search_files') => CupertinoIcons.doc_text,
+  final n when n.contains('terminal') || n.contains('shell') || n.contains('exec') || n.contains('process') =>
+    CupertinoIcons.chevron_left_slash_chevron_right,
+  final n when n.contains('memory') => CupertinoIcons.lightbulb,
+  final n when n.contains('delegate') || n.contains('agent') => CupertinoIcons.sparkles,
+  final n when n.contains('image') || n.contains('vision') => CupertinoIcons.photo,
+  _ => CupertinoIcons.wrench,
+};
+
+/// The steps a reply took, as a timeline: its latest steps while it runs, then one line with a strip of
+/// what it used, which unfolds into the whole timeline.
 class _Tools extends StatefulWidget {
   const _Tools(this.tools, {required this.live});
   final List<Tool> tools;
@@ -581,64 +596,125 @@ class _ToolsState extends State<_Tools> {
   @override
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context);
     final style = TextStyle(fontSize: 14, color: c.onSurfaceVariant);
-    Widget row(Widget lead, Widget text) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+    final rail = c.outline.withValues(alpha: .35);
+    // one step: its dot on the rail (a spinner while it runs), its tool and what it was given
+    Widget step(Tool t, {required bool first, required bool end}) => IntrinsicHeight(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(width: 18, child: Center(child: lead)),
-          const SizedBox(width: 6),
-          Expanded(child: text),
+          SizedBox(
+            width: 18,
+            child: Column(
+              children: [
+                Expanded(
+                  child: Center(child: Container(width: 1.5, color: first ? Colors.transparent : rail)),
+                ),
+                t.done ? Icon(toolIcon(t.name), size: 13, color: c.onSurfaceVariant) : const CupertinoActivityIndicator(radius: 6),
+                Expanded(
+                  child: Center(child: Container(width: 1.5, color: end ? Colors.transparent : rail)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: t.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    if (t.detail.trim().isNotEmpty) TextSpan(text: '  ${t.detail.trim().split('\n').first}'),
+                  ],
+                ),
+                style: style,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
         ],
       ),
     );
-    final rows = [
-      for (final t in widget.tools)
-        row(
-          t.done ? Icon(CupertinoIcons.checkmark_alt, size: 14, color: c.onSurfaceVariant) : const CupertinoActivityIndicator(radius: 6),
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: t.name,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                if (t.detail.trim().isNotEmpty) TextSpan(text: '  ${t.detail.trim().split('\n').first}'),
-              ],
-            ),
-            style: style,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+    Widget timeline(List<Tool> tools) => Column(
+      children: [for (final (i, t) in tools.indexed) step(t, first: i == 0, end: i == tools.length - 1)],
+    );
+    Widget toggle(Widget lead, String text) => Hover(
+      radius: 8,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => open = !open),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            children: [
+              SizedBox(width: 18, child: Center(child: lead)),
+              const SizedBox(width: 8),
+              Text(text, style: style),
+              const SizedBox(width: 2),
+              Icon(open ? CupertinoIcons.chevron_up : CupertinoIcons.chevron_down, size: 13, color: c.onSurfaceVariant),
+            ],
           ),
         ),
-    ];
+      ),
+    );
+
+    final tools = widget.tools;
     if (widget.live) {
+      // the last few steps in sight; the earlier ones behind a line that unfolds them
+      final hidden = open ? 0 : (tools.length - 3).clamp(0, tools.length);
       return Padding(
         padding: const EdgeInsets.only(bottom: 6),
-        child: Column(children: rows),
+        child: Column(
+          children: [
+            if (hidden > 0 || open && tools.length > 3)
+              toggle(Icon(CupertinoIcons.ellipsis, size: 13, color: c.onSurfaceVariant), open ? l.toolsFold : l.toolsEarlier(hidden)),
+            timeline(tools.sublist(hidden)),
+          ],
+        ),
       );
+    }
+    // what it used, each tool once with its count: the strip of the folded line
+    final used = <String, int>{};
+    for (final t in tools) {
+      used[t.name] = (used[t.name] ?? 0) + 1;
     }
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Hover(
-            radius: 8,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() => open = !open),
-              child: row(
-                Icon(CupertinoIcons.wrench, size: 14, color: c.onSurfaceVariant),
-                Row(
-                  children: [
-                    Text(AppLocalizations.of(context).toolsUsed(widget.tools.length), style: style),
-                    Icon(open ? CupertinoIcons.chevron_up : CupertinoIcons.chevron_down, size: 13, color: c.onSurfaceVariant),
-                  ],
-                ),
+          toggle(Icon(CupertinoIcons.wrench, size: 14, color: c.onSurfaceVariant), l.toolsUsed(tools.length)),
+          if (!open)
+            Padding(
+              padding: const EdgeInsets.only(left: 26, top: 2, bottom: 2),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final MapEntry(key: name, value: n) in used.entries)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(10)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(toolIcon(name), size: 12, color: c.onSurfaceVariant),
+                          const SizedBox(width: 5),
+                          Text(n > 1 ? '$name ×$n' : name, style: TextStyle(fontSize: 12, color: c.onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
+                ],
               ),
-            ),
-          ),
-          if (open) ...rows,
+            )
+          else
+            timeline(tools),
         ],
       ),
     );

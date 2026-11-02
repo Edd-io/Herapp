@@ -697,5 +697,8 @@
   "welcomeNow": "RIGHT NOW",
   "welcomeSubagents": "{n, plural, =1{1 subagent at work} other{{n} subagents at work}}",
   "@welcomeSubagents": {"placeholders": {"n": {"type": "int"}}},
-  "welcomeRoutines": "Scheduled jobs’ results"
+  "welcomeRoutines": "Scheduled jobs’ results",
+  "toolsEarlier": "{n, plural, =1{1 earlier step} other{{n} earlier steps}}",
+  "@toolsEarlier": {"placeholders": {"n": {"type": "int"}}},
+  "toolsFold": "Fold"
 }

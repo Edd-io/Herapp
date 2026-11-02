@@ -2539,6 +2539,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scheduled jobs’ results'**
   String get welcomeRoutines;
+
+  /// No description provided for @toolsEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, =1{1 earlier step} other{{n} earlier steps}}'**
+  String toolsEarlier(int n);
+
+  /// No description provided for @toolsFold.
+  ///
+  /// In en, this message translates to:
+  /// **'Fold'**
+  String get toolsFold;
 }
 
 class _AppLocalizationsDelegate

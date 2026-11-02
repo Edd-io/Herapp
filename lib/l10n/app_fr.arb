@@ -406,5 +406,7 @@
   "suggestWeb": "Cherche sur le web et résume : ",
   "welcomeNow": "EN CE MOMENT",
   "welcomeSubagents": "{n, plural, =1{1 sous-agent au travail} other{{n} sous-agents au travail}}",
-  "welcomeRoutines": "Résultats des tâches planifiées"
+  "welcomeRoutines": "Résultats des tâches planifiées",
+  "toolsEarlier": "{n, plural, =1{1 étape avant} other{{n} étapes avant}}",
+  "toolsFold": "Replier"
 }

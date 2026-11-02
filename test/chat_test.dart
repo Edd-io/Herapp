@@ -1036,4 +1036,34 @@ void main() {
     await mouse.removePointer();
     debugDefaultTargetPlatformOverride = null;
   });
+
+  testWidgets('a reply\'s steps run as a short timeline, then fold into a strip of the tools it used', (t) async {
+    var turn = 0;
+    fakeServer((method, params, emit) {
+      if (method != 'prompt.submit') return replies(method, params, emit);
+      turn++;
+      for (final (i, name) in ['web_search', 'web_search', 'read_file', 'web_search', 'terminal'].indexed) {
+        emit('tool.start', {'tool_id': 't$turn$i', 'name': name, 'context': 'step $i'});
+        if (turn == 1) emit('tool.complete', {'tool_id': 't$turn$i', 'name': name});
+      }
+      if (turn == 1) emit('message.complete', {'text': 'Done', 'status': 'complete'});
+      return {'status': 'streaming'};
+    });
+    await t.pumpWidget(const App());
+    for (final q in ['One', 'Two']) {
+      await t.enterText(find.byType(EditableText).last, q);
+      await t.pump(const Duration(seconds: 1));
+      await t.sendKeyEvent(LogicalKeyboardKey.enter);
+      await t.pump(const Duration(seconds: 2));
+      await t.pump(const Duration(seconds: 1));
+    }
+    expect(find.text('web_search ×3'), findsOneWidget); // the first reply's strip
+    expect(find.text('terminal'), findsOneWidget);
+    expect(find.text('2 earlier steps'), findsOneWidget); // the running one shows its last 3
+    expect(find.textContaining('step 0'), findsNothing);
+
+    await t.tap(find.text('5 actions'));
+    await t.pump();
+    expect(find.textContaining('step 0'), findsOneWidget); // unfolded into the whole timeline
+  });
 }

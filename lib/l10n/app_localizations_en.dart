@@ -1423,4 +1423,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get welcomeRoutines => 'Scheduled jobs’ results';
+
+  @override
+  String toolsEarlier(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n earlier steps',
+      one: '1 earlier step',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get toolsFold => 'Fold';
 }
