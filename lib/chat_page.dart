@@ -28,6 +28,7 @@ import 'mac.dart';
 import 'l10n/app_localizations.dart';
 import 'memory_page.dart';
 import 'model_sheet.dart';
+import 'palette.dart';
 import 'quota_page.dart';
 import 'screen_page.dart';
 import 'tools_page.dart';
@@ -1137,9 +1138,50 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     if (then == 'system' && mounted) openPage(const SystemPage());
   }
 
-  void findChats() {
-    if (!wide) openDrawer();
-    searchFocus.requestFocus();
+  /// The command palette: the keyboard commands, a few of the chat's actions, the chats by title, and those whose
+  /// messages match what's typed.
+  void openPalette() {
+    final l = AppLocalizations.of(context);
+    final apple = const [TargetPlatform.macOS, TargetPlatform.iOS].contains(defaultTargetPlatform);
+    String keys(SingleActivator k) => '${apple ? '⌘' : 'Ctrl+'}${k.trigger.keyLabel}';
+    final all = commands(l), icons = [CupertinoIcons.square_pencil, CupertinoIcons.search, CupertinoIcons.gear];
+    PaletteItem chatItem(String title, VoidCallback run) =>
+        (label: title, icon: CupertinoIcons.chat_bubble, group: l.paletteChats, keys: '', run: run);
+    showPalette(
+      context,
+      [
+        for (final (i, (label, key, run)) in all.indexed)
+          if (i != 1) (label: label, icon: i < 3 ? icons[i] : pages(l)[i - 3].$2, group: '', keys: keys(key), run: run),
+        (label: l.paletteModel, icon: CupertinoIcons.cube, group: '', keys: '', run: pickModel),
+        (
+          label: l.backgroundTask,
+          icon: CupertinoIcons.moon_zzz,
+          group: '',
+          keys: '',
+          run: () {
+            setState(() => backgrounded = true);
+            focus.requestFocus();
+          },
+        ),
+        if (const [TargetPlatform.macOS, TargetPlatform.windows, TargetPlatform.linux].contains(defaultTargetPlatform))
+          (label: l.paletteFolder, icon: CupertinoIcons.folder, group: '', keys: '', run: pickFolder),
+        for (final ch in [...chats, ?bot])
+          if (ch.title.trim().isNotEmpty) chatItem(ch.title, () => select(ch)),
+      ],
+      more: (q) async {
+        try {
+          final body = await serverApi('GET', '/api/sessions/search', query: {'q': q.trim(), 'limit': '10'});
+          return [
+            for (final f in body == null ? const <Found>[] : parseFound(body))
+              if (![...chats, ?bot].any((ch) => ch.stored == f.id && ch.title.toLowerCase().contains(q.toLowerCase())))
+                chatItem(f.title, () => openFound(f)),
+          ];
+        } catch (e) {
+          debugPrint('Palette search: $e');
+          return const [];
+        }
+      },
+    );
   }
 
   /// Keyboard commands (⌘ on Apple keyboards, Ctrl elsewhere): new chat, search, settings, the menu's pages; Esc closes.
@@ -1158,7 +1200,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     ];
     return [
       (l.newChat, key(LogicalKeyboardKey.keyN), newChat),
-      (l.search, key(LogicalKeyboardKey.keyK), findChats),
+      (l.paletteMenu, key(LogicalKeyboardKey.keyK), openPalette),
       (l.settings, key(LogicalKeyboardKey.comma), openSettings),
       for (final (i, (label, _, page)) in pages(l).indexed) (label, key(digits[i]), () => openPage(page)),
     ];

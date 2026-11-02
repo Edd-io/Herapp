@@ -736,5 +736,11 @@
   "@codeUnfold": {"placeholders": {"n": {"type": "int"}}},
   "toBottomWriting": "Writing",
   "toBottomNew": "{n, plural, =1{1 new message} other{{n} new messages}}",
-  "@toBottomNew": {"placeholders": {"n": {"type": "int"}}}
+  "@toBottomNew": {"placeholders": {"n": {"type": "int"}}},
+  "paletteMenu": "Find or Run…",
+  "paletteHint": "A command, a page or a chat",
+  "paletteNone": "Nothing matches",
+  "paletteChats": "Chat",
+  "paletteModel": "Change the model",
+  "paletteFolder": "Pick the folder"
 }

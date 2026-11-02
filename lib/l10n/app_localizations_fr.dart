@@ -1565,4 +1565,22 @@ class AppLocalizationsFr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get paletteMenu => 'Chercher ou lancer…';
+
+  @override
+  String get paletteHint => 'Une commande, une page ou une conversation';
+
+  @override
+  String get paletteNone => 'Rien ne correspond';
+
+  @override
+  String get paletteChats => 'Conversation';
+
+  @override
+  String get paletteModel => 'Changer de modèle';
+
+  @override
+  String get paletteFolder => 'Choisir le dossier';
 }

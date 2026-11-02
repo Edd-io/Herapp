@@ -1544,4 +1544,22 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get paletteMenu => 'Find or Run…';
+
+  @override
+  String get paletteHint => 'A command, a page or a chat';
+
+  @override
+  String get paletteNone => 'Nothing matches';
+
+  @override
+  String get paletteChats => 'Chat';
+
+  @override
+  String get paletteModel => 'Change the model';
+
+  @override
+  String get paletteFolder => 'Pick the folder';
 }

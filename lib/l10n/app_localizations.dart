@@ -2725,6 +2725,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{n, plural, =1{1 new message} other{{n} new messages}}'**
   String toBottomNew(int n);
+
+  /// No description provided for @paletteMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Find or Run…'**
+  String get paletteMenu;
+
+  /// No description provided for @paletteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A command, a page or a chat'**
+  String get paletteHint;
+
+  /// No description provided for @paletteNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing matches'**
+  String get paletteNone;
+
+  /// No description provided for @paletteChats.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get paletteChats;
+
+  /// No description provided for @paletteModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Change the model'**
+  String get paletteModel;
+
+  /// No description provided for @paletteFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the folder'**
+  String get paletteFolder;
 }
 
 class _AppLocalizationsDelegate

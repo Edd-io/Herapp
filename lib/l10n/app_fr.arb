@@ -437,5 +437,11 @@
   "codeCopied": "Copié",
   "codeUnfold": "Afficher les {n} lignes",
   "toBottomWriting": "En train d’écrire",
-  "toBottomNew": "{n, plural, =1{1 nouveau message} other{{n} nouveaux messages}}"
+  "toBottomNew": "{n, plural, =1{1 nouveau message} other{{n} nouveaux messages}}",
+  "paletteMenu": "Chercher ou lancer…",
+  "paletteHint": "Une commande, une page ou une conversation",
+  "paletteNone": "Rien ne correspond",
+  "paletteChats": "Conversation",
+  "paletteModel": "Changer de modèle",
+  "paletteFolder": "Choisir le dossier"
 }

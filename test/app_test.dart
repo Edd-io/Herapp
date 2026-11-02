@@ -112,7 +112,7 @@ void main() {
     expect(find.text('Nothing is waiting for you.'), findsNothing); // back to the chat
   });
 
-  testWidgets('keyboard commands open pages, search and close', (t) async {
+  testWidgets('keyboard commands open pages and the palette, and close', (t) async {
     t.view.physicalSize = const Size(1400, 900);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
@@ -133,8 +133,19 @@ void main() {
     await t.sendKeyEvent(LogicalKeyboardKey.escape);
     await t.pumpAndSettle();
     expect(find.text('Nothing is waiting for you.'), findsNothing);
+    // the palette: typed, moved through with the arrows, run with Enter
     await press(LogicalKeyboardKey.keyK);
-    expect(t.widget<TextField>(find.byType(TextField).first).focusNode!.hasFocus, isTrue); // the search field
+    expect(find.text('A command, a page or a chat'), findsOneWidget);
+    await t.enterText(find.byType(TextField).last, 'a');
+    await t.pump();
+    expect(find.text('Ctrl+3'), findsOneWidget); // Kanban, with its shortcut
+    await t.enterText(find.byType(TextField).last, 'kan');
+    await t.pump();
+    expect(find.text('Ctrl+1'), findsNothing); // Quotas left out
+    await t.sendKeyEvent(LogicalKeyboardKey.enter);
+    await t.pumpAndSettle();
+    expect(find.text('A command, a page or a chat'), findsNothing);
+    expect(find.text('Nothing is waiting for you.'), findsOneWidget);
   });
 
   testWidgets('a file dropped on the window joins the next message', (t) async {
@@ -259,7 +270,7 @@ void main() {
     await t.pumpWidget(const App());
     await t.pump();
     final sent = jsonEncode(menus);
-    for (final label in ['File', 'New chat', 'Search', 'Settings', 'View', 'Kanban', 'Window']) {
+    for (final label in ['File', 'New chat', 'Find or Run…', 'Settings', 'View', 'Kanban', 'Window']) {
       expect(sent, contains('"$label"'));
     }
     debugDefaultTargetPlatformOverride = null;
