@@ -1721,31 +1721,37 @@ abstract class AppLocalizations {
   /// No description provided for @folderTitle.
   ///
   /// In en, this message translates to:
-  /// **'Where should Hermes work?'**
+  /// **'Working folder'**
   String get folderTitle;
 
   /// No description provided for @folderHere.
   ///
   /// In en, this message translates to:
-  /// **'On this computer…'**
+  /// **'This computer'**
   String get folderHere;
 
   /// No description provided for @folderServer.
   ///
   /// In en, this message translates to:
-  /// **'On the server…'**
+  /// **'Server'**
   String get folderServer;
 
-  /// No description provided for @folderServerTitle.
+  /// No description provided for @folderHereHint.
   ///
   /// In en, this message translates to:
-  /// **'A folder on the server'**
-  String get folderServerTitle;
+  /// **'Hermes runs its commands here from the chat; you approve them.'**
+  String get folderHereHint;
+
+  /// No description provided for @folderServerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes works there with its own tools, on the server.'**
+  String get folderServerHint;
 
   /// No description provided for @folderChoose.
   ///
   /// In en, this message translates to:
-  /// **'Choose this folder'**
+  /// **'Choose'**
   String get folderChoose;
 
   /// No description provided for @folderEmpty.

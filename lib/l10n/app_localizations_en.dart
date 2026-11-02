@@ -934,19 +934,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get folder => 'Folder';
 
   @override
-  String get folderTitle => 'Where should Hermes work?';
+  String get folderTitle => 'Working folder';
 
   @override
-  String get folderHere => 'On this computer…';
+  String get folderHere => 'This computer';
 
   @override
-  String get folderServer => 'On the server…';
+  String get folderServer => 'Server';
 
   @override
-  String get folderServerTitle => 'A folder on the server';
+  String get folderHereHint =>
+      'Hermes runs its commands here from the chat; you approve them.';
 
   @override
-  String get folderChoose => 'Choose this folder';
+  String get folderServerHint =>
+      'Hermes works there with its own tools, on the server.';
+
+  @override
+  String get folderChoose => 'Choose';
 
   @override
   String get folderEmpty => 'No folders here';

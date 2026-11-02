@@ -955,19 +955,24 @@ class AppLocalizationsFr extends AppLocalizations {
   String get folder => 'Dossier';
 
   @override
-  String get folderTitle => 'Où Hermes doit-il travailler ?';
+  String get folderTitle => 'Dossier de travail';
 
   @override
-  String get folderHere => 'Sur cet ordinateur…';
+  String get folderHere => 'Cet ordinateur';
 
   @override
-  String get folderServer => 'Sur le serveur…';
+  String get folderServer => 'Serveur';
 
   @override
-  String get folderServerTitle => 'Un dossier sur le serveur';
+  String get folderHereHint =>
+      'Hermes y lance ses commandes depuis le chat ; tu les valides.';
 
   @override
-  String get folderChoose => 'Choisir ce dossier';
+  String get folderServerHint =>
+      'Hermes y travaille avec ses propres outils, sur le serveur.';
+
+  @override
+  String get folderChoose => 'Choisir';
 
   @override
   String get folderEmpty => 'Aucun dossier ici';

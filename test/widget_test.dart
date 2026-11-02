@@ -195,15 +195,16 @@ void main() {
     );
     await t.pumpWidget(const App());
     await t.tap(find.text('Folder'));
-    await t.pumpAndSettle();
-    await t.tap(find.text('On the server…'));
+    await t.pump();
+    await t.pump(const Duration(seconds: 1)); // not settled: this computer's tab lists for real
+    await t.tap(find.text('Server'));
     await t.pumpAndSettle();
     expect(find.text('notes.txt'), findsNothing); // folders only, hidden ones last
     expect(t.getTopLeft(find.text('code')).dy, lessThan(t.getTopLeft(find.text('.config')).dy));
     await t.tap(find.text('code'));
     await t.pumpAndSettle();
     expect(find.text('No folders here'), findsOneWidget);
-    await t.tap(find.text('Choose this folder'));
+    await t.tap(find.text('Choose'));
     await t.pumpAndSettle();
     expect(find.text('~/code · server'), findsOneWidget);
 
