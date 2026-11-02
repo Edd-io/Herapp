@@ -742,5 +742,7 @@
   "paletteNone": "Nothing matches",
   "paletteChats": "Chat",
   "paletteModel": "Change the model",
-  "paletteFolder": "Pick the folder"
+  "paletteFolder": "Pick the folder",
+  "notifications": "Notifications",
+  "notificationsInfo": "A reply or background task done while Herapp is out of sight tells you."
 }

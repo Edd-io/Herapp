@@ -1,6 +1,7 @@
 import Carbon
 import Cocoa
 import FlutterMacOS
+import UserNotifications
 
 /// Tells the app to start a new question when the global shortcut is pressed.
 private var quickAsk: FlutterMethodChannel?
@@ -24,10 +25,17 @@ class MainFlutterWindow: NSWindow {
         Handoff.shared.offer(call.arguments as? [String: Any])
         result(nil)
       case "continued": result(Handoff.shared.take { quickAsk?.invokeMethod("continue", arguments: $0) })
+      case "notifyAllow":
+        Notifier.shared.allow()
+        result(nil)
+      case "notify":
+        Notifier.shared.post(call.arguments as? [String: Any])
+        result(nil)
       default: result(FlutterMethodNotImplemented)
       }
     }
     registerQuickAsk()
+    Notifier.shared.listen()
 
     super.awakeFromNib()
   }
@@ -82,5 +90,42 @@ final class Handoff {
     guard a.activityType == Self.type, let chat = a.userInfo as? [String: Any] else { return false }
     if let open { open(chat) } else { waiting = chat }
     return true
+  }
+}
+
+/// A reply done while the app is out of sight, told by the system; a tap opens its chat (as Handoff does).
+final class Notifier: NSObject, UNUserNotificationCenterDelegate {
+  static let shared = Notifier()
+
+  /// Takes the taps from launch on: one that opens the app comes before the chat listens.
+  func listen() { UNUserNotificationCenter.current().delegate = self }
+
+  func allow() { UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in } }
+
+  /// Posts `{title, body, session, server}`, grouped by chat.
+  func post(_ args: [String: Any]?) {
+    guard let args else { return }
+    let content = UNMutableNotificationContent()
+    content.title = args["title"] as? String ?? "Herapp"
+    content.body = args["body"] as? String ?? ""
+    content.sound = .default
+    content.threadIdentifier = args["session"] as? String ?? ""
+    content.userInfo = args
+    UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+  }
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+    withCompletionHandler done: @escaping (UNNotificationPresentationOptions) -> Void
+  ) { done([.banner, .sound]) }
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler done: @escaping () -> Void
+  ) {
+    let chat = response.notification.request.content.userInfo as? [String: Any] ?? [:]
+    let a = NSUserActivity(activityType: Handoff.type)
+    a.userInfo = chat
+    _ = Handoff.shared.received(a)
+    done()
   }
 }

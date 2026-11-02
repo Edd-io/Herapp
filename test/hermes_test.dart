@@ -507,4 +507,12 @@ rm -rf ~
       'Here:\n\n![my shot.png](media:%2Fworkspace%2Fmy%20shot.png)\n📎 `notes.md`\nsee MEDIA:/x.png inline',
     );
   });
+
+  test('a notification tells a reply on one line, without its Markdown or files', () {
+    expect(
+      gist('## Done\n\nThe **build** passes:\n\n```\nok\n```\nMEDIA:/workspace/a.png\nSee [the log](https://x.test).'),
+      'Done The build passes: See the log.',
+    );
+    expect(gist('a' * 300).length, 180);
+  });
 }

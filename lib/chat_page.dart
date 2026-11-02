@@ -109,6 +109,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   Msg? fresh; // latest user message, animated on arrival
   Msg? editing; // a sent message the composer rewrites, to send in its place
   bool backgrounded = false; // the next message goes to a side agent in the background
+  AppLifecycleState life = AppLifecycleState.resumed; // out of sight, a reply done is told by a notification
+  bool notifyAsked = false; // this launch asked the system whether it may notify
   bool atBottom = true;
   int seen = 0; // the open chat's messages when the user scrolled up from its end, to count the new ones
   String query = '';
@@ -397,7 +399,21 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   // the share extension opens the app: what it left waits in its inbox
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
+    life = s;
     if (s == AppLifecycleState.resumed) takeShared();
+  }
+
+  /// Tells, through the system, that [c] answered [text] while the app is out of sight; a tap opens [c].
+  void notifyDone(Chat c, String text) {
+    if (!settings.notifications || life == AppLifecycleState.resumed || text.trim().isEmpty) return;
+    const MethodChannel('herapp/quick')
+        .invokeMethod<void>('notify', {
+          'title': c.title.trim().isEmpty ? 'Herapp' : c.title,
+          'body': gist(text),
+          'session': c.stored,
+          'server': settings.url, // a tap goes through Handoff's [continueChat]
+        })
+        .catchError((Object _) {});
   }
 
   /// Starts a new chat with what was shared from other apps (iPhone's "Share → Hermes"), to send once looked over.
@@ -455,6 +471,11 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     final text = input.text.trim();
     if (text.isEmpty && pending.isEmpty) return;
     settings.haptic();
+    // asked once a message goes, so the system's question comes when it makes sense
+    if (settings.notifications && !notifyAsked) {
+      notifyAsked = true;
+      const MethodChannel('herapp/quick').invokeMethod<void>('notifyAllow').catchError((Object _) {});
+    }
     if (RegExp(r'^/(?:background|bg)\s+(\S[\s\S]*)$').firstMatch(text)?[1] ?? (backgrounded ? text : null) case final task?
         when task.isNotEmpty) {
       input.clear();
@@ -510,6 +531,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     }
     if (!mounted) return;
     settings.haptic();
+    notifyDone(c, answer);
     setState(() {
       c.tasks.remove(task);
       final at = c.streaming ? c.msgs.lastIndexWhere((m) => m.user && !m.background) : -1;
@@ -768,6 +790,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           if (p['status'] == 'error') return failTurn(c, reply, '${p['error'] ?? p['failure_reason'] ?? 'error'}');
           c.streaming = false; // over: nothing left to interrupt
           stop(of: c, next: true);
+          notifyDone(c, reply.text);
           if (macOn) runMac(c, reply);
         case 'error':
           failTurn(c, reply, '${e.payload['message']}');

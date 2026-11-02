@@ -1562,4 +1562,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paletteFolder => 'Pick the folder';
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get notificationsInfo =>
+      'A reply or background task done while Herapp is out of sight tells you.';
 }

@@ -59,6 +59,10 @@ class Settings extends ChangeNotifier {
   bool get haptics => _p.getBool('haptics') ?? true;
   set haptics(bool v) => _save(_p.setBool('haptics', v));
 
+  /// Whether a reply done while the app is out of sight is told by a notification.
+  bool get notifications => _p.getBool('notifications') ?? true;
+  set notifications(bool v) => _save(_p.setBool('notifications', v));
+
   /// Whether the app asks the device's unlock (Face ID, Touch ID, passcode) to open.
   bool get lock => _p.getBool('lock') ?? false;
   set lock(bool v) => _save(_p.setBool('lock', v));
@@ -818,6 +822,17 @@ class _SettingsSheetState extends State<SettingsSheet> {
                   CupertinoListTile(
                     title: Text(l.haptics, style: label),
                     trailing: CupertinoSwitch(value: settings.haptics, onChanged: (v) => settings.haptics = v),
+                  ),
+                  CupertinoListTile(
+                    title: Text(l.notifications, style: label),
+                    subtitle: Text(l.notificationsInfo, maxLines: 2, style: TextStyle(fontSize: 13, color: c.outline)),
+                    trailing: CupertinoSwitch(
+                      value: settings.notifications,
+                      onChanged: (v) {
+                        settings.notifications = v;
+                        if (v) const MethodChannel('herapp/quick').invokeMethod<void>('notifyAllow').catchError((Object _) {});
+                      },
+                    ),
                   ),
                   if (canLock)
                     CupertinoListTile(

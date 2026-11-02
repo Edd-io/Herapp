@@ -1583,4 +1583,11 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get paletteFolder => 'Choisir le dossier';
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get notificationsInfo =>
+      'Une réponse ou une tâche finie pendant que Herapp n’est pas à l’écran te prévient.';
 }

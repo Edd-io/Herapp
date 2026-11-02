@@ -1,6 +1,7 @@
 import AppIntents
 import Flutter
 import UIKit
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -8,6 +9,7 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    Notifier.shared.listen()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -41,6 +43,12 @@ final class QuickAsk {
         result(nil)
       case "continued":
         result(Handoff.shared.take { [weak self] in self?.channel?.invokeMethod("continue", arguments: $0) })
+      case "notifyAllow":
+        Notifier.shared.allow()
+        result(nil)
+      case "notify":
+        Notifier.shared.post(call.arguments as? [String: Any])
+        result(nil)
       default: result(FlutterMethodNotImplemented)
       }
     }
@@ -100,7 +108,7 @@ final class Handoff: NSObject, FlutterSceneLifeCycleDelegate {
     return waiting
   }
 
-  private func received(_ a: NSUserActivity?) -> Bool {
+  func received(_ a: NSUserActivity?) -> Bool {
     guard let a, a.activityType == Self.type, let chat = a.userInfo as? [String: Any] else { return false }
     if let open { open(chat) } else { waiting = chat }
     return true
@@ -133,5 +141,44 @@ struct AskHermes: AppIntent {
 struct HermesShortcuts: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
     AppShortcut(intent: AskHermes(), phrases: ["Ask \(.applicationName)", "Demande à \(.applicationName)"])
+  }
+}
+
+/// A reply done while the app is out of sight, told by the system; a tap opens its chat (as Handoff does).
+final class Notifier: NSObject, UNUserNotificationCenterDelegate {
+  static let shared = Notifier()
+
+  /// Takes the taps from launch on: one that opens the app comes before the chat listens.
+  func listen() { UNUserNotificationCenter.current().delegate = self }
+
+  func allow() { UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in } }
+
+  /// Posts `{title, body, session, server}`, grouped by chat.
+  func post(_ args: [String: Any]?) {
+    guard let args else { return }
+    let content = UNMutableNotificationContent()
+    content.title = args["title"] as? String ?? "Herapp"
+    content.body = args["body"] as? String ?? ""
+    content.sound = .default
+    content.threadIdentifier = args["session"] as? String ?? ""
+    content.userInfo = args
+    UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+  }
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+    withCompletionHandler done: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    if #available(iOS 14, *) { done([.banner, .sound]) } else { done([.alert, .sound]) }
+  }
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler done: @escaping () -> Void
+  ) {
+    let chat = response.notification.request.content.userInfo as? [String: Any] ?? [:]
+    let a = NSUserActivity(activityType: Handoff.type)
+    a.userInfo = chat
+    _ = Handoff.shared.received(a)
+    done()
   }
 }

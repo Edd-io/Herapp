@@ -443,5 +443,7 @@
   "paletteNone": "Rien ne correspond",
   "paletteChats": "Conversation",
   "paletteModel": "Changer de modèle",
-  "paletteFolder": "Choisir le dossier"
+  "paletteFolder": "Choisir le dossier",
+  "notifications": "Notifications",
+  "notificationsInfo": "Une réponse ou une tâche finie pendant que Herapp n’est pas à l’écran te prévient."
 }

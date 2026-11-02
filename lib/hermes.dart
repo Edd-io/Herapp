@@ -55,6 +55,18 @@ List<MacStep> macSteps(String text, String token) => [
     m[2] == null ? (script: m[3]!.trimRight(), path: '', content: '') : (script: '', path: m[2]!, content: m[3]!),
 ];
 
+/// A reply as a notification tells it: its words without the Markdown, code or attached files, on one line.
+String gist(String text, {int max = 180}) {
+  final plain = text
+      .replaceAll(RegExp(r'```[\s\S]*?(```|$)'), ' ')
+      .replaceAll(RegExp(r'^[ \t]*MEDIA:.*$', multiLine: true), ' ')
+      .replaceAllMapped(RegExp(r'!?\[([^\]]*)\]\([^)]*\)'), (m) => m[1]!)
+      .replaceAll(RegExp(r'[*_`#>|]+'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  return plain.length <= max ? plain : '${plain.substring(0, max - 1).trimRight()}…';
+}
+
 /// [text] with its `MEDIA:/path` lines, Hermes's way of handing over a file of its machine, turned to Markdown:
 /// a picture as an image (`media:` + its encoded path, fetched through `/api/media`), any other file named.
 String withMedia(String text) => text.replaceAllMapped(RegExp(r'^[ \t]*MEDIA:[ \t]*(\S[^\n]*?)[ \t]*$', multiLine: true), (m) {

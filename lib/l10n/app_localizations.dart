@@ -2761,6 +2761,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pick the folder'**
   String get paletteFolder;
+
+  /// No description provided for @notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notifications;
+
+  /// No description provided for @notificationsInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'A reply or background task done while Herapp is out of sight tells you.'**
+  String get notificationsInfo;
 }
 
 class _AppLocalizationsDelegate
