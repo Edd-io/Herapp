@@ -109,6 +109,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   Msg? editing; // a sent message the composer rewrites, to send in its place
   bool backgrounded = false; // the next message goes to a side agent in the background
   bool atBottom = true;
+  int seen = 0; // the open chat's messages when the user scrolled up from its end, to count the new ones
   String query = '';
   List<Found> found = []; // conversations whose messages match [query]
   final pending = <Attachment>[]; // photos and files for the next message
@@ -134,7 +135,11 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     });
     scroll.addListener(() {
       final b = scroll.position.extentAfter < 40;
-      if (b != atBottom) setState(() => atBottom = b);
+      if (b == atBottom) return;
+      setState(() {
+        atBottom = b;
+        seen = chat.msgs.length;
+      });
     });
     loadModels();
     loadSessions();
@@ -1066,7 +1071,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   }
 
   void select(Chat c) {
-    setState(() => chat = c);
+    setState(() {
+      chat = c;
+      seen = c.msgs.length;
+    });
     closeDrawer();
     // the Bot Chat also fills up while away, from the scheduled jobs
     if ((!c.loaded || identical(c, bot)) && !c.loading && !c.streaming) open(c);
@@ -1452,25 +1460,52 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                               scale: atBottom ? 0 : 1,
                               duration: const Duration(milliseconds: 200),
                               curve: Curves.easeOutBack,
-                              child: Hover(
-                                radius: 999,
-                                label: l.a11yToBottom,
-                                child: GestureDetector(
-                                  onTap: toBottom,
-                                  child: Container(
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      color: c.surface,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: c.surfaceContainerHighest),
-                                      boxShadow: [
-                                        BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 8, offset: const Offset(0, 2)),
-                                      ],
+                              // what came below while reading higher up: the reply being written, or how many messages
+                              child: Builder(
+                                builder: (context) {
+                                  final fresh = chat.msgs.length - seen;
+                                  final label = streaming ? l.toBottomWriting : (fresh > 0 ? l.toBottomNew(fresh) : null);
+                                  return Hover(
+                                    radius: 999,
+                                    label: l.a11yToBottom,
+                                    child: GestureDetector(
+                                      onTap: toBottom,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        height: 36,
+                                        padding: EdgeInsets.symmetric(horizontal: label == null ? 0 : 14),
+                                        constraints: const BoxConstraints(minWidth: 36),
+                                        decoration: BoxDecoration(
+                                          color: c.surface,
+                                          borderRadius: BorderRadius.circular(18),
+                                          border: Border.all(color: c.surfaceContainerHighest),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: .08),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            if (streaming && !atBottom) ...[_PulseDot(c.onSurface, size: 8), const SizedBox(width: 8)],
+                                            if (label != null) ...[
+                                              Text(
+                                                label,
+                                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.onSurface),
+                                              ),
+                                              const SizedBox(width: 6),
+                                            ],
+                                            Icon(CupertinoIcons.arrow_down, size: label == null ? 18 : 14, color: c.onSurface),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                    child: Icon(CupertinoIcons.arrow_down, size: 18, color: c.onSurface),
-                                  ),
-                                ),
+                                  );
+                                },
                               ),
                             ),
                           ),

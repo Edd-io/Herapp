@@ -2713,6 +2713,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show all {n} lines'**
   String codeUnfold(int n);
+
+  /// No description provided for @toBottomWriting.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing'**
+  String get toBottomWriting;
+
+  /// No description provided for @toBottomNew.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, =1{1 new message} other{{n} new messages}}'**
+  String toBottomNew(int n);
 }
 
 class _AppLocalizationsDelegate

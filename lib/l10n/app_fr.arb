@@ -435,5 +435,7 @@
   "curatorStarted": "Le curateur est lancé",
   "curatorFooter": "Entre les conversations, une compétence qu’Hermes s’est écrite et qu’il n’a pas utilisée depuis {stale} jours est marquée périmée, puis archivée après {archive} jours. Le passage par l’IA fusionne et réécrit aussi les compétences proches, au prix d’un appel au modèle.",
   "codeCopied": "Copié",
-  "codeUnfold": "Afficher les {n} lignes"
+  "codeUnfold": "Afficher les {n} lignes",
+  "toBottomWriting": "En train d’écrire",
+  "toBottomNew": "{n, plural, =1{1 nouveau message} other{{n} nouveaux messages}}"
 }

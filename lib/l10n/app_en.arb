@@ -733,5 +733,8 @@
   "@curatorFooter": {"placeholders": {"stale": {"type": "int"}, "archive": {"type": "int"}}},
   "codeCopied": "Copied",
   "codeUnfold": "Show all {n} lines",
-  "@codeUnfold": {"placeholders": {"n": {"type": "int"}}}
+  "@codeUnfold": {"placeholders": {"n": {"type": "int"}}},
+  "toBottomWriting": "Writing",
+  "toBottomNew": "{n, plural, =1{1 new message} other{{n} new messages}}",
+  "@toBottomNew": {"placeholders": {"n": {"type": "int"}}}
 }

@@ -221,13 +221,19 @@ void main() {
     await finger.moveBy(const Offset(0, 300));
     await t.pump();
     await finger.up();
-    await t.pumpAndSettle();
+    await t.pump(const Duration(seconds: 1)); // the fling ends (the button's dot pulses on)
     expect(position.maxScrollExtent - position.pixels, greaterThan(200)); // the drag wasn't taken back
+    expect(find.text('Writing'), findsOneWidget); // the button down says the reply goes on below
     push('message.delta', {'text': 'Even more.\n\n'});
     await t.pump(const Duration(milliseconds: 100));
     expect(position.maxScrollExtent - position.pixels, greaterThan(200)); // and stays where the user left it
     push('message.complete', {'text': '', 'status': 'complete'});
     await t.pump(const Duration(seconds: 1));
+    expect(find.text('Writing'), findsNothing);
+
+    await t.tap(find.byIcon(CupertinoIcons.arrow_down));
+    await t.pumpAndSettle();
+    expect(position.pixels, position.maxScrollExtent);
   });
 
   testWidgets('a sent message is rewritten or sent again in its place', (t) async {

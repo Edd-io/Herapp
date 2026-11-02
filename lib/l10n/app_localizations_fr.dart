@@ -1551,4 +1551,18 @@ class AppLocalizationsFr extends AppLocalizations {
   String codeUnfold(int n) {
     return 'Afficher les $n lignes';
   }
+
+  @override
+  String get toBottomWriting => 'En train d’écrire';
+
+  @override
+  String toBottomNew(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n nouveaux messages',
+      one: '1 nouveau message',
+    );
+    return '$_temp0';
+  }
 }
