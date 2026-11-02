@@ -19,7 +19,6 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'agents_page.dart';
-import 'connectors_page.dart';
 import 'cron_page.dart';
 import 'git_page.dart';
 import 'image_sheet.dart';
@@ -1038,7 +1037,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     (l.system, CupertinoIcons.desktopcomputer, const SystemPage()),
     (l.screen, CupertinoIcons.macwindow, const ScreenPage()),
     (l.tools, CupertinoIcons.hammer, const ToolsPage()),
-    (l.connectors, CupertinoIcons.link, const ConnectorsPage()),
   ];
 
   void openPage(Widget page) {
@@ -1072,7 +1070,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       LogicalKeyboardKey.digit6,
       LogicalKeyboardKey.digit7,
       LogicalKeyboardKey.digit8,
-      LogicalKeyboardKey.digit9,
     ];
     return [
       (l.newChat, key(LogicalKeyboardKey.keyN), newChat),

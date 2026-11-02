@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:herapp/agents_page.dart';
 import 'package:herapp/cron_page.dart';
@@ -744,87 +743,5 @@ void main() {
     await t.pumpAndSettle();
     expect(posts.last, '/api/gateway/restart');
     expect(find.text('The gateway is restarting.'), findsOneWidget);
-  });
-
-  testWidgets('connectors: one is switched off for the bot, another connects through its sign-in page', (t) async {
-    var op = 0;
-    final calls = fakeServer(
-      (method, params, emit) => switch (method) {
-        'connectors.catalog' => {
-          'connectors': [
-            {'slug': 'gmail', 'name': 'Gmail', 'category': 'Email'},
-            {'slug': 'gcal', 'name': 'Google Calendar', 'category': 'Calendar', 'description': 'Events'},
-          ],
-        },
-        'connectors.list' => {
-          'available': true,
-          'connectors': [
-            {'connector': 'gmail', 'enabled': true, 'connected': true},
-            {'connector': 'gcal', 'enabled': true, 'connected': op > 1},
-          ],
-        },
-        'connectors.accounts' => {
-          'accounts': [
-            {'connection_id': 'ca_1', 'connector': 'gmail', 'label': 'me@example.com', 'status': 'active'},
-          ],
-        },
-        'connectors.policy.get' => {
-          'layers': [
-            {
-              'kind': 'member',
-              'revision': '01JB0000000000000000000000',
-              'body': {'mode': 'unrestricted'},
-            },
-          ],
-          'effective': {'mode': 'unrestricted', 'revision': '01JB0000000000000000000000'},
-        },
-        'connectors.connect' => {
-          'op_id': 'op_1',
-          'settled': false,
-          'targets': [
-            {'name': 'gcal', 'state': 'initiated', 'connect_url': 'https://portal.test/oauth/gcal'},
-          ],
-        },
-        'connectors.operation.status' => {
-          'op_id': 'op_1',
-          'settled': ++op > 1,
-          'targets': [
-            {'name': 'gcal', 'state': op > 1 ? 'connected' : 'initiated'},
-          ],
-        },
-        _ => null,
-      },
-    );
-    final opened = <Object?>[];
-    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('plugins.flutter.io/url_launcher'), (call) async {
-      opened.add((call.arguments as Map)['url']);
-      return true;
-    });
-    addTearDown(
-      () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('plugins.flutter.io/url_launcher'), null),
-    );
-    await t.pumpWidget(const App());
-    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
-    await t.pumpAndSettle();
-    await t.tap(find.text('Connectors'));
-    await t.pumpAndSettle();
-    expect(find.text('me@example.com'), findsOneWidget);
-
-    await t.tap(find.byType(CupertinoSwitch));
-    await t.pumpAndSettle();
-    expect(calls.where((c) => c.$1 == 'connectors.policy.set').single.$2, {
-      'change': {'type': 'connector', 'connector': 'gmail', 'enabled': false},
-      'expected_revision': '01JB0000000000000000000000',
-    });
-
-    await t.tap(find.text('Connect'));
-    await t.pump();
-    await t.pump();
-    expect(opened, ['https://portal.test/oauth/gcal']);
-    await t.pump(const Duration(seconds: 2));
-    await t.pump(const Duration(seconds: 2));
-    await t.pumpAndSettle();
-    expect(find.text('Google Calendar is connected.'), findsOneWidget);
-    expect(find.text('Connect'), findsNothing); // listed as connected now
   });
 }

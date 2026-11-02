@@ -383,18 +383,5 @@
   "imageAttach": "Joindre au message",
   "imageAgain": "Recommencer",
   "imageSave": "Enregistrer…",
-  "imageFailed": "Le serveur n’a pas pu créer l’image.",
-  "connectors": "Connecteurs",
-  "connectorsUnavailable": "Les connecteurs ne sont pas disponibles sur ce serveur.",
-  "connectorsConnected": "Connectés",
-  "connectorsFooter": "Éteint, le bot ne s’en sert plus, sans le déconnecter.",
-  "connectorsMore": "Autres services",
-  "connectorConnect": "Connecter",
-  "connectorConnected": "{name} est connecté.",
-  "connectorNotConnected": "La connexion n’a pas abouti.",
-  "connectorAccounts": "Comptes",
-  "connectorRemove": "Déconnecter",
-  "connectorReconnect": "Reconnecter ou ajouter un compte",
-  "connectorActions": "Ce que le bot peut faire",
-  "connectorActionsFooter": "✎ écrit, ⚠ supprime ou agit sans retour possible."
+  "imageFailed": "Le serveur n’a pas pu créer l’image."
 }
