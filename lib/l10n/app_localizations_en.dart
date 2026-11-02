@@ -1388,4 +1388,39 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accentGold => 'Gold';
+
+  @override
+  String get welcomeDay => 'Hello';
+
+  @override
+  String get welcomeEvening => 'Good evening';
+
+  @override
+  String get suggestRoutines => 'Sum up my scheduled jobs’ results';
+
+  @override
+  String get suggestSchedule => 'Schedule a job every morning at 8: ';
+
+  @override
+  String get suggestKanban => 'Give me a status of my kanban';
+
+  @override
+  String get suggestWeb => 'Search the web and sum up: ';
+
+  @override
+  String get welcomeNow => 'RIGHT NOW';
+
+  @override
+  String welcomeSubagents(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n subagents at work',
+      one: '1 subagent at work',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get welcomeRoutines => 'Scheduled jobs’ results';
 }

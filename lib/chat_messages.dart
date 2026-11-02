@@ -2,6 +2,82 @@ part of 'chat_page.dart';
 
 /// How a conversation shows: messages, tool calls, approvals and the cards a reply brings.
 extension _Messages on _ChatPageState {
+  /// Under an empty chat's headline: a few things to ask, which fill the composer, and what runs now
+  /// (subagents at work, the scheduled jobs' results), a tap away.
+  Widget _welcome(ColorScheme c) {
+    Widget chip(String text, {IconData? icon, required VoidCallback onTap}) => Hover(
+      radius: 18,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            border: Border.all(color: c.outline.withValues(alpha: .35)),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[Icon(icon, size: 15, color: c.primary), const SizedBox(width: 7)],
+              Flexible(
+                child: Text(text, style: TextStyle(fontSize: 14, color: c.onSurfaceVariant)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    void suggest(String text) {
+      input.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+      focus.requestFocus();
+    }
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 560),
+      child: Column(
+        children: [
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final s in [l.suggestRoutines, l.suggestSchedule, l.suggestKanban, l.suggestWeb]) chip(s, onTap: () => suggest(s)),
+            ],
+          ),
+          ValueListenableBuilder(
+            valueListenable: subagents,
+            builder: (context, all, _) {
+              final working = all.values.where(subagentRunning).length;
+              if (working == 0 && bot == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 24),
+                child: Column(
+                  children: [
+                    Text(l.welcomeNow, style: TextStyle(fontSize: 12, color: c.outline)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (working > 0)
+                          chip(l.welcomeSubagents(working), icon: CupertinoIcons.sparkles, onTap: () => openPage(const AgentsPage())),
+                        if (bot case final b?) chip(l.welcomeRoutines, icon: CupertinoIcons.clock, onTap: () => select(b)),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _message(ColorScheme c, Msg m, bool last) {
     const body = TextStyle(fontSize: 17, height: 1.45);
     if (m.user) {

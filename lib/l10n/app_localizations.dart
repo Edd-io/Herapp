@@ -2485,6 +2485,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Gold'**
   String get accentGold;
+
+  /// No description provided for @welcomeDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Hello'**
+  String get welcomeDay;
+
+  /// No description provided for @welcomeEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Good evening'**
+  String get welcomeEvening;
+
+  /// No description provided for @suggestRoutines.
+  ///
+  /// In en, this message translates to:
+  /// **'Sum up my scheduled jobs’ results'**
+  String get suggestRoutines;
+
+  /// No description provided for @suggestSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule a job every morning at 8: '**
+  String get suggestSchedule;
+
+  /// No description provided for @suggestKanban.
+  ///
+  /// In en, this message translates to:
+  /// **'Give me a status of my kanban'**
+  String get suggestKanban;
+
+  /// No description provided for @suggestWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Search the web and sum up: '**
+  String get suggestWeb;
+
+  /// No description provided for @welcomeNow.
+  ///
+  /// In en, this message translates to:
+  /// **'RIGHT NOW'**
+  String get welcomeNow;
+
+  /// No description provided for @welcomeSubagents.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, =1{1 subagent at work} other{{n} subagents at work}}'**
+  String welcomeSubagents(int n);
+
+  /// No description provided for @welcomeRoutines.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled jobs’ results'**
+  String get welcomeRoutines;
 }
 
 class _AppLocalizationsDelegate

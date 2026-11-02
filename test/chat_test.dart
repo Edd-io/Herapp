@@ -992,4 +992,22 @@ void main() {
     expect(y('Fresh idea'), lessThan(y('Older')));
     expect(y('Older'), lessThan(y('Old plan')));
   });
+
+  testWidgets('an empty chat suggests what to ask, and shows what runs now', (t) async {
+    late void Function(String, Map) push;
+    final calls = fakeServer((method, params, emit) {
+      if (method == 'session.list') push = emit;
+      return null;
+    });
+    await t.pumpWidget(const App());
+    await t.pump(const Duration(milliseconds: 100));
+    await t.tap(find.text('Give me a status of my kanban'));
+    await t.pump();
+    expect(t.widget<EditableText>(find.byType(EditableText).last).controller.text, 'Give me a status of my kanban');
+    expect(calls.where((c) => c.$1 == 'prompt.submit'), isEmpty); // filled in, not sent
+
+    push('subagent.start', {'subagent_id': 'a1', 'goal': 'Read the docs', 'task_count': 1, 'task_index': 0});
+    await t.pump(const Duration(milliseconds: 100));
+    expect(find.text('1 subagent at work'), findsOneWidget);
+  });
 }

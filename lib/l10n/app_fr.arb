@@ -397,5 +397,14 @@
   "accentGreen": "Vert",
   "accentOrange": "Orange",
   "accentPink": "Rose",
-  "accentGold": "Or"
+  "accentGold": "Or",
+  "welcomeDay": "Bonjour",
+  "welcomeEvening": "Bonsoir",
+  "suggestRoutines": "Résume les résultats de mes tâches planifiées",
+  "suggestSchedule": "Programme une tâche chaque matin à 8 h : ",
+  "suggestKanban": "Fais le point sur mon kanban",
+  "suggestWeb": "Cherche sur le web et résume : ",
+  "welcomeNow": "EN CE MOMENT",
+  "welcomeSubagents": "{n, plural, =1{1 sous-agent au travail} other{{n} sous-agents au travail}}",
+  "welcomeRoutines": "Résultats des tâches planifiées"
 }

@@ -1291,61 +1291,74 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               child: chat.loading
                   ? const Center(child: CupertinoActivityIndicator())
                   : chat.msgs.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              AppLocalizations.of(context).emptyHeadline,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, color: c.onSurface),
-                            ),
-                            const SizedBox(height: 16),
-                            Hover(
-                              radius: 20,
-                              child: GestureDetector(
-                                onTap: pickModel,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Flexible(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              chat.model.isEmpty ? AppLocalizations.of(context).model : modelName(chat.model),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
+                  // scrolls when it doesn't fit, as with a phone's keyboard up
+                  ? LayoutBuilder(
+                      builder: (context, box) => SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minHeight: box.maxHeight),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  DateTime.now().hour >= 5 && DateTime.now().hour < 18 ? l.welcomeDay : l.welcomeEvening,
+                                  style: TextStyle(fontSize: 15, color: c.outline),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  AppLocalizations.of(context).emptyHeadline,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, color: c.onSurface),
+                                ),
+                                const SizedBox(height: 16),
+                                Hover(
+                                  radius: 20,
+                                  child: GestureDetector(
+                                    onTap: pickModel,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Flexible(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  chat.model.isEmpty ? AppLocalizations.of(context).model : modelName(chat.model),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: c.onSurface),
+                                                ),
+                                                if ([
+                                                      providerOf(chat.model),
+                                                      if (chat.effort.isNotEmpty && thinks(chat.model))
+                                                        effortText(AppLocalizations.of(context), chat.effort),
+                                                    ].where((t) => t.isNotEmpty).join(' · ')
+                                                    case final p when p.isNotEmpty)
+                                                  Text(
+                                                    p,
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: TextStyle(fontSize: 12, color: c.outline),
+                                                  ),
+                                              ],
                                             ),
-                                            if ([
-                                                  providerOf(chat.model),
-                                                  if (chat.effort.isNotEmpty && thinks(chat.model))
-                                                    effortText(AppLocalizations.of(context), chat.effort),
-                                                ].where((t) => t.isNotEmpty).join(' · ')
-                                                case final p when p.isNotEmpty)
-                                              Text(
-                                                p,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(fontSize: 12, color: c.outline),
-                                              ),
-                                          ],
-                                        ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Icon(CupertinoIcons.chevron_down, size: 13, color: c.outline),
+                                        ],
                                       ),
-                                      const SizedBox(width: 8),
-                                      Icon(CupertinoIcons.chevron_down, size: 13, color: c.outline),
-                                    ],
+                                    ),
                                   ),
                                 ),
-                              ),
+                                const SizedBox(height: 32),
+                                _welcome(c),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     )

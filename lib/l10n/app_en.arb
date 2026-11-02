@@ -687,5 +687,15 @@
   "accentGreen": "Green",
   "accentOrange": "Orange",
   "accentPink": "Pink",
-  "accentGold": "Gold"
+  "accentGold": "Gold",
+  "welcomeDay": "Hello",
+  "welcomeEvening": "Good evening",
+  "suggestRoutines": "Sum up my scheduled jobs’ results",
+  "suggestSchedule": "Schedule a job every morning at 8: ",
+  "suggestKanban": "Give me a status of my kanban",
+  "suggestWeb": "Search the web and sum up: ",
+  "welcomeNow": "RIGHT NOW",
+  "welcomeSubagents": "{n, plural, =1{1 subagent at work} other{{n} subagents at work}}",
+  "@welcomeSubagents": {"placeholders": {"n": {"type": "int"}}},
+  "welcomeRoutines": "Scheduled jobs’ results"
 }
