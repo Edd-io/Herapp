@@ -103,6 +103,12 @@ void main() {
     expect(calls.where((c) => c.$1 == 'prompt.submit').single.$2, {'session_id': 'rt', 'text': 'Salut'});
     // the ring shows the server's context usage
     expect(t.widget<CircularProgressIndicator>(find.byType(CircularProgressIndicator)).value, closeTo(.42, .001));
+    await t.enterText(find.byType(EditableText).last, 'Next');
+    await t.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsNothing); // faded away while typing
+    await t.enterText(find.byType(EditableText).last, '');
+    await t.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
     await t.tap(find.byIcon(CupertinoIcons.arrow_2_circlepath).last); // the reply's; the first is the message's
     await t.pump(const Duration(seconds: 10));

@@ -1401,44 +1401,50 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   Widget _composer(ColorScheme c) {
     final hasText = input.text.trim().isNotEmpty || pending.isNotEmpty;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (slashes.isNotEmpty) _slashList(c),
-        if (editing case final m? when !streaming && chat.msgs.contains(m))
-          Padding(
-            padding: const EdgeInsets.fromLTRB(28, 6, 16, 0),
-            child: Row(
-              children: [
-                Icon(CupertinoIcons.pencil, size: 16, color: c.outline),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(AppLocalizations.of(context).editingMessage, style: TextStyle(fontSize: 13, color: c.outline)),
-                ),
-                GestureDetector(
-                  onTap: cancelEdit,
-                  child: Icon(CupertinoIcons.xmark_circle_fill, size: 18, color: c.outline),
-                ),
-              ],
-            ),
-          ),
-        if (pending.isNotEmpty)
-          SizedBox(
-            height: 76,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-              children: [
-                for (final f in pending)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _Attachment(f, onRemove: () => setState(() => pending.remove(f))),
+    // the banner, attachments and skills above the field slide in rather than jump
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      alignment: Alignment.bottomCenter,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (slashes.isNotEmpty) _slashList(c),
+          if (editing case final m? when !streaming && chat.msgs.contains(m))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 6, 16, 0),
+              child: Row(
+                children: [
+                  Icon(CupertinoIcons.pencil, size: 16, color: c.outline),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(AppLocalizations.of(context).editingMessage, style: TextStyle(fontSize: 13, color: c.outline)),
                   ),
-              ],
+                  GestureDetector(
+                    onTap: cancelEdit,
+                    child: Icon(CupertinoIcons.xmark_circle_fill, size: 18, color: c.outline),
+                  ),
+                ],
+              ),
             ),
-          ),
-        _composerRow(c, hasText),
-      ],
+          if (pending.isNotEmpty)
+            SizedBox(
+              height: 76,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                children: [
+                  for (final f in pending)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _Attachment(f, onRemove: () => setState(() => pending.remove(f))),
+                    ),
+                ],
+              ),
+            ),
+          _composerRow(c, hasText),
+        ],
+      ),
     );
   }
 
@@ -1503,27 +1509,35 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.only(left: 16, right: 4),
-              decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
-              child: LayoutBuilder(
-                builder: (context, box) {
+            child: ListenableBuilder(
+              listenable: focus,
+              builder: (context, child) => AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                padding: const EdgeInsets.only(left: 16, right: 4),
+                decoration: BoxDecoration(
+                  color: c.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: focus.hasFocus ? c.primary.withValues(alpha: .45) : Colors.transparent,
+                    strokeAlign: BorderSide.strokeAlignOutside, // no layout shift
+                  ),
+                ),
+                child: child,
+              ),
+              child: Builder(
+                builder: (context) {
                   final style = TextStyle(fontSize: 17, color: c.onSurface);
-                  // multi-line once the text no longer fits on one line beside the ring and the send button
-                  final showRing = chat.msgs.isNotEmpty; // nothing to measure before the first message
-                  final multiline = (TextPainter(
-                    text: TextSpan(text: input.text, style: style),
-                    textDirection: Directionality.of(context),
-                    textScaler: MediaQuery.textScalerOf(context),
-                    maxLines: 1,
-                  )..layout(maxWidth: box.maxWidth - (showRing ? 8 + 20 + 12 : 0) - 36)).didExceedMaxLines;
-                  final ring = _ContextRing(
-                    chat.context ?? contextUse([for (final m in chat.msgs) m.text, input.text].join()),
-                    cost: chat.cost,
-                  );
+                  // the ring fades away while typing; nothing to measure before the first message
+                  final showRing = chat.msgs.isNotEmpty && input.text.isEmpty;
                   final sendBtn = AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
-                    transitionBuilder: (child, a) => ScaleTransition(scale: a, child: child),
+                    switchInCurve: Curves.easeOutBack,
+                    switchOutCurve: Curves.easeIn,
+                    transitionBuilder: (child, a) => FadeTransition(
+                      opacity: a,
+                      child: ScaleTransition(scale: a, child: child),
+                    ),
                     child: !hasText && !streaming
                         ? const SizedBox(height: 44)
                         : Hover(
@@ -1576,24 +1590,26 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                           ),
                         ),
                       ),
-                      if (!showRing)
-                        sendBtn
-                      else if (multiline)
-                        // ring stacked above the send button
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Padding(padding: const EdgeInsets.only(top: 10, bottom: 6), child: ring),
-                              sendBtn,
-                            ],
-                          ),
-                        )
-                      else ...[
-                        Padding(padding: const EdgeInsets.only(left: 8, right: 12, bottom: 12), child: ring),
-                        sendBtn,
-                      ],
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOut,
+                        switchOutCurve: Curves.easeIn,
+                        transitionBuilder: (child, a) => FadeTransition(
+                          opacity: a,
+                          child: SizeTransition(sizeFactor: a, axis: Axis.horizontal, axisAlignment: -1, child: child),
+                        ),
+                        child: showRing
+                            ? Padding(
+                                key: const ValueKey('ring'),
+                                padding: const EdgeInsets.only(left: 8, right: 12, bottom: 12),
+                                child: _ContextRing(
+                                  chat.context ?? contextUse([for (final m in chat.msgs) m.text].join()),
+                                  cost: chat.cost,
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      sendBtn,
                     ],
                   );
                 },
