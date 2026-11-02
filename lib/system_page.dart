@@ -18,7 +18,7 @@ class SystemPage extends StatefulWidget {
 }
 
 class _SystemPageState extends State<SystemPage> {
-  Map? status, update; // `/api/status`, `/api/hermes/update/check`
+  Map? status, update, stats; // `/api/status`, `/api/hermes/update/check`, `/api/system/stats`
   Object? error;
   bool updating = false;
 
@@ -47,6 +47,12 @@ class _SystemPageState extends State<SystemPage> {
       debugPrint('System: $e');
       if (mounted) setState(() => error = e);
       return;
+    }
+    try {
+      final m = await call('GET', '/api/system/stats');
+      if (mounted) setState(() => stats = m);
+    } catch (e) {
+      debugPrint('Stats: $e');
     }
     try {
       final u = await call('GET', '/api/hermes/update/check', {if (force) 'force': 'true'});
@@ -166,7 +172,22 @@ class _SystemPageState extends State<SystemPage> {
       ),
     );
 
-    final s = status, u = update;
+    final s = status, u = update, m = stats;
+    final number = NumberFormat.decimalPattern('${Localizations.localeOf(context)}')..maximumFractionDigits = 1;
+    Color level(num percent) => percent >= 90
+        ? const Color(0xFFD93025)
+        : percent >= 75
+        ? bad
+        : good;
+    // memory or disk: used of total, in GB
+    Widget space(String title, Object? v) => switch (v) {
+      {'total': final num total, 'used': final num used, 'percent': final num percent} => row(
+        title,
+        l.systemSpace(number.format(used / 1e9), number.format(total / 1e9), percent.round()),
+        dot: level(percent),
+      ),
+      _ => const SizedBox.shrink(),
+    };
     final platforms = s?['components'] is Map ? (s!['components'] as Map)['platforms'] : null;
     final gatewayState = '${s?['gateway_state'] ?? (s?['gateway_running'] == true ? 'running' : 'stopped')}';
     final released = DateTime.tryParse('${s?['release_date']}');
@@ -209,6 +230,21 @@ class _SystemPageState extends State<SystemPage> {
                       row(l.systemPlatforms, l.systemConnected(n, total), dot: n == total ? good : bad),
                     if (s['active_sessions'] case final int n) row(l.systemSessions, '$n'),
                   ]),
+                  if (m != null)
+                    section(l.systemMachine, [
+                      if (m['cpu_percent'] case final num cpu)
+                        row(
+                          l.systemCpu,
+                          [
+                            '${cpu.round()} %',
+                            if (m['load_avg'] case [final num one, ...]) l.systemLoad(number.format(one), '${m['cpu_count'] ?? '?'}'),
+                          ].join(' · '),
+                          dot: level(cpu),
+                        ),
+                      space(l.systemMemory, m['memory']),
+                      space(l.systemDisk, m['disk']),
+                      if (m['uptime_seconds'] case final int up) row(l.systemUptime, l.systemUptimeValue(up ~/ 86400, up % 86400 ~/ 3600)),
+                    ]),
                   if (u != null)
                     section(
                       l.systemUpdate,

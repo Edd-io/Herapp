@@ -1511,6 +1511,14 @@ void main() {
             'platforms': {'configured': 2, 'connected': 1},
           },
         },
+        '/api/system/stats' => {
+          'cpu_percent': 12.4,
+          'load_avg': [0.5, 0.4, 0.3],
+          'cpu_count': 8,
+          'memory': {'total': 16e9, 'used': 6.2e9, 'available': 9.8e9, 'percent': 38.8},
+          'disk': {'total': 500e9, 'used': 460e9, 'free': 40e9, 'percent': 92.0},
+          'uptime_seconds': 3 * 86400 + 4 * 3600 + 120,
+        },
         '/api/hermes/update/check' when updated => {'update_available': false, 'behind': 0, 'can_apply': true},
         '/api/hermes/update/check' => {
           'update_available': true,
@@ -1535,9 +1543,15 @@ void main() {
     expect(find.text('All good'), findsOneWidget);
     expect(find.text('1 of 2 connected'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
+    expect(find.text('12 % · load 0.5 on 8 cores'), findsOneWidget);
+    expect(find.text('6.2 of 16 GB · 39 %'), findsOneWidget);
+    expect(find.text('460 of 500 GB · 92 %'), findsOneWidget);
+    expect(find.text('3d 4h'), findsOneWidget);
     expect(find.text('12 changes'), findsOneWidget);
     expect(find.text('Faster replies'), findsOneWidget);
 
+    await t.ensureVisible(find.text('Update now'));
+    await t.pumpAndSettle();
     await t.tap(find.text('Update now'));
     await t.pumpAndSettle();
     await t.tap(find.text('Update now').last); // confirmed
@@ -1550,6 +1564,8 @@ void main() {
     expect(find.text('Update done.'), findsOneWidget);
     expect(find.text('Hermes is up to date.'), findsOneWidget);
 
+    await t.ensureVisible(find.text('Restart the gateway'));
+    await t.pumpAndSettle();
     await t.tap(find.text('Restart the gateway'));
     await t.pumpAndSettle();
     await t.tap(find.text('Restart the gateway').last);

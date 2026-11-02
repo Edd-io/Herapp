@@ -567,5 +567,16 @@
   "screenRetry": "Retry",
   "screenType": "Type on the screen",
   "screenFailed": "Failed: {error}",
-  "@screenFailed": {"placeholders": {"error": {"type": "String"}}}
+  "@screenFailed": {"placeholders": {"error": {"type": "String"}}},
+  "systemMachine": "Machine",
+  "systemCpu": "Processor",
+  "systemMemory": "Memory",
+  "systemDisk": "Disk",
+  "systemUptime": "Up for",
+  "systemLoad": "load {load} on {cores} cores",
+  "@systemLoad": {"placeholders": {"load": {"type": "String"}, "cores": {"type": "String"}}},
+  "systemSpace": "{used} of {total} GB · {percent} %",
+  "@systemSpace": {"placeholders": {"used": {"type": "String"}, "total": {"type": "String"}, "percent": {"type": "int"}}},
+  "systemUptimeValue": "{days}d {hours}h",
+  "@systemUptimeValue": {"placeholders": {"days": {"type": "int"}, "hours": {"type": "int"}}}
 }

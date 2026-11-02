@@ -1010,4 +1010,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String screenFailed(String error) {
     return 'Failed: $error';
   }
+
+  @override
+  String get systemMachine => 'Machine';
+
+  @override
+  String get systemCpu => 'Processor';
+
+  @override
+  String get systemMemory => 'Memory';
+
+  @override
+  String get systemDisk => 'Disk';
+
+  @override
+  String get systemUptime => 'Up for';
+
+  @override
+  String systemLoad(String load, String cores) {
+    return 'load $load on $cores cores';
+  }
+
+  @override
+  String systemSpace(String used, String total, int percent) {
+    return '$used of $total GB · $percent %';
+  }
+
+  @override
+  String systemUptimeValue(int days, int hours) {
+    return '${days}d ${hours}h';
+  }
 }

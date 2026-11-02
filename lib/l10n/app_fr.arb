@@ -292,5 +292,13 @@
   "screenLost": "Connexion à l'écran perdue.",
   "screenRetry": "Réessayer",
   "screenType": "Taper sur l'écran",
-  "screenFailed": "Échec : {error}"
+  "screenFailed": "Échec : {error}",
+  "systemMachine": "Machine",
+  "systemCpu": "Processeur",
+  "systemMemory": "Mémoire",
+  "systemDisk": "Disque",
+  "systemUptime": "Allumée depuis",
+  "systemLoad": "charge {load} sur {cores} cœurs",
+  "systemSpace": "{used} sur {total} Go · {percent} %",
+  "systemUptimeValue": "{days} j {hours} h"
 }

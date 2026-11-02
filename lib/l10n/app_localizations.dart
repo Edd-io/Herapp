@@ -1855,6 +1855,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed: {error}'**
   String screenFailed(String error);
+
+  /// No description provided for @systemMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Machine'**
+  String get systemMachine;
+
+  /// No description provided for @systemCpu.
+  ///
+  /// In en, this message translates to:
+  /// **'Processor'**
+  String get systemCpu;
+
+  /// No description provided for @systemMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory'**
+  String get systemMemory;
+
+  /// No description provided for @systemDisk.
+  ///
+  /// In en, this message translates to:
+  /// **'Disk'**
+  String get systemDisk;
+
+  /// No description provided for @systemUptime.
+  ///
+  /// In en, this message translates to:
+  /// **'Up for'**
+  String get systemUptime;
+
+  /// No description provided for @systemLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'load {load} on {cores} cores'**
+  String systemLoad(String load, String cores);
+
+  /// No description provided for @systemSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} of {total} GB · {percent} %'**
+  String systemSpace(String used, String total, int percent);
+
+  /// No description provided for @systemUptimeValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{days}d {hours}h'**
+  String systemUptimeValue(int days, int hours);
 }
 
 class _AppLocalizationsDelegate
