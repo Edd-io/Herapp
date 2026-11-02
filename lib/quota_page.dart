@@ -38,6 +38,12 @@ class _QuotaPageState extends State<QuotaPage> {
 
   Future<void> load() async {
     loadUsage();
+    await loadQuotas();
+  }
+
+  /// The server answers from its cache and fills it in the background: a cold one (just restarted) has
+  /// nothing yet, so a quota missing is asked for again once, [again] seconds later.
+  Future<void> loadQuotas({int again = 3}) async {
     try {
       final r = await serverOptions();
       if (!mounted) return;
@@ -46,6 +52,10 @@ class _QuotaPageState extends State<QuotaPage> {
         failed = r == null;
         error = null;
       });
+      if (again > 0 && (r?.quotas.any((q) => q.windows.isEmpty && !q.limited) ?? false)) {
+        await Future<void>.delayed(Duration(seconds: again));
+        if (mounted) await loadQuotas(again: 0);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

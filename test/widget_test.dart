@@ -651,6 +651,7 @@ void main() {
   testWidgets('quota page opens from the menu', (t) async {
     fakeServer((_, _, _) => null);
     addTearDown(() => fetchModels = hermesModels);
+    var calls = 0;
     fetchModels = (base, {user, password}) async => (
       models: <Model>[],
       current: '',
@@ -658,7 +659,8 @@ void main() {
         (
           provider: 'Claude',
           account: '',
-          windows: [(label: 'Weekly', used: 42.0, resetsAt: DateTime.now().add(const Duration(hours: 5)))],
+          // a server just restarted has no usage the first time
+          windows: [if (calls++ > 0) (label: 'Weekly', used: 42.0, resetsAt: DateTime.now().add(const Duration(hours: 5)))],
           limited: false,
           limitedUntil: null,
         ),
@@ -668,7 +670,11 @@ void main() {
     await t.pumpWidget(const App());
     await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
     await t.pumpAndSettle();
+    calls = 0; // the chat asked for the models already
     await t.tap(find.text('Quotas'));
+    await t.pumpAndSettle();
+    expect(find.text('Weekly'), findsNothing);
+    await t.pump(const Duration(seconds: 3));
     await t.pumpAndSettle();
     expect(find.text('Weekly'), findsOneWidget);
     expect(find.text('42%'), findsOneWidget);
