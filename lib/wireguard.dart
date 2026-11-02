@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 // Go library built by hook/build.dart (asset package:herapp/wireguard.dart).
@@ -52,11 +52,22 @@ class Vpn extends ChangeNotifier {
   bool unsupported = false; // native library missing on this platform
   String? error;
   Future<void> _queue = Future.value();
+  AppLifecycleListener? _life;
+  var _paused = false;
 
   Future<void> load() async {
     config = await _store.read(key: 'wg_config');
     name = await _store.read(key: 'wg_name') ?? '';
     enabled = config != null && await _store.read(key: 'wg_enabled') == '1';
+    // a phone tears down a backgrounded app's sockets (the proxy's listener, WireGuard's UDP) while the
+    // tunnel still reads as connected: back in front, it starts afresh
+    _life ??= AppLifecycleListener(
+      onPause: () => _paused = true,
+      onResume: () {
+        if (_paused && enabled) apply();
+        _paused = false;
+      },
+    );
     if (enabled) {
       HttpOverrides.global = _Proxy(null); // blocked right away, not after the first frame's requests
       apply();
