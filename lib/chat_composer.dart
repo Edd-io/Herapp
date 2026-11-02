@@ -268,20 +268,28 @@ extension _Composer on _ChatPageState {
                     child: SizedBox(width: 36, height: 36, child: Icon(CupertinoIcons.add, size: 22, color: c.onSurface)),
                   ),
                 ),
-                // the welcome screen has its own model picker
-                if (chat.msgs.isNotEmpty)
-                  Flexible(child: _toolChip(c, chat.model.isEmpty ? l.model : modelName(chat.model), onTap: streaming ? null : pickModel)),
-                if (desktop) ...[
-                  Flexible(child: _folderButton(c, streaming || chat.shell.busy)),
-                  // what the bot changed there (no folder picked: the server's default one)
-                  _toolChip(
-                    c,
-                    l.gitTitle,
-                    icon: CupertinoIcons.arrow_branch,
-                    onTap: () => show(GitPage(path: chat.folder, here: chat.folderHere)),
+                // the chips take what room is left, shrinking first; the ring and send keep the right edge
+                Expanded(
+                  child: Row(
+                    children: [
+                      // the welcome screen has its own model picker
+                      if (chat.msgs.isNotEmpty)
+                        Flexible(
+                          child: _toolChip(c, chat.model.isEmpty ? l.model : modelName(chat.model), onTap: streaming ? null : pickModel),
+                        ),
+                      if (desktop) ...[
+                        Flexible(child: _folderButton(c, streaming || chat.shell.busy)),
+                        // what the bot changed there (no folder picked: the server's default one)
+                        _toolChip(
+                          c,
+                          l.gitTitle,
+                          icon: CupertinoIcons.arrow_branch,
+                          onTap: () => show(GitPage(path: chat.folder, here: chat.folderHere)),
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-                const Spacer(),
+                ),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 220),
                   switchInCurve: Curves.easeOut,
