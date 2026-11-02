@@ -74,7 +74,8 @@ class App extends StatelessWidget {
       // A window has no safe area: an inset of its own keeps the content off its edges, through every SafeArea.
       builder: (context, child) {
         if (!(Platform.isMacOS || Platform.isWindows || Platform.isLinux)) return AppLock(child: ConnectionBanner(child: child!));
-        const edges = EdgeInsets.fromLTRB(4, 12, 12, 16);
+        // the Mac window draws under its title bar: the content starts below the traffic lights
+        final edges = EdgeInsets.fromLTRB(4, Platform.isMacOS ? 30 : 12, 12, 16);
         return AppLock(
           child: MediaQuery(
             data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(.9), padding: edges, viewPadding: edges),

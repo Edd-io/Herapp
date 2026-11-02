@@ -190,6 +190,8 @@ void main() {
     await t.enterText(find.widgetWithText(TextField, '0 7 * * *'), 'every 2h');
     final form = find.descendant(of: find.byType(CronEditPage), matching: find.byType(Scrollable)).first;
     await t.scrollUntilVisible(find.byIcon(CupertinoIcons.chevron_up_chevron_down), 200, scrollable: form);
+    await t.drag(form, const Offset(0, -150)); // clear of the bottom edge
+    await t.pumpAndSettle();
     await t.tap(find.byIcon(CupertinoIcons.chevron_up_chevron_down));
     await t.pumpAndSettle();
     await t.tap(find.text('Discord'));

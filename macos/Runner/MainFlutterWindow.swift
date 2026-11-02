@@ -11,6 +11,10 @@ class MainFlutterWindow: NSWindow {
     let windowFrame = self.frame
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
+    // one surface up to the traffic lights, as Notes or Messages: no title bar strip above the app
+    self.styleMask.insert(.fullSizeContentView)
+    self.titlebarAppearsTransparent = true
+    self.titleVisibility = .hidden
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     quickAsk = FlutterMethodChannel(name: "herapp/quick", binaryMessenger: flutterViewController.engine.binaryMessenger)
