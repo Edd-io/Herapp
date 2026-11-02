@@ -13,6 +13,7 @@ import 'l10n/app_localizations.dart';
 import 'model_sheet.dart';
 import 'quota_page.dart';
 import 'settings.dart';
+import 'subagent_page.dart';
 
 /// Appended to a quiet agent's prompt: Hermes delivers nothing when a run answers `[SILENT]`.
 const quietRule = '\n\nIf nothing is worth reporting, reply with exactly [SILENT].';
@@ -186,7 +187,7 @@ class _AgentsPageState extends State<AgentsPage> {
                   child: _AgentCard(j, onTap: () => open(j)),
                 ),
               if (board case final b?) _Workers(b),
-              ValueListenableBuilder(valueListenable: subagents, builder: (_, all, _) => _Subagents(all.values)),
+              ValueListenableBuilder(valueListenable: subagents, builder: (_, all, _) => _Subagents(all)),
               if (scripts.isNotEmpty)
                 CupertinoListSection.insetGrouped(
                   backgroundColor: c.surface,
@@ -297,72 +298,29 @@ class _Workers extends StatelessWidget {
 }
 
 /// The subagents the chats handed work to: the ones running, then those that ended in the last minutes.
+/// One opens to steer or stop it.
 class _Subagents extends StatelessWidget {
   const _Subagents(this.all);
-  final Iterable<Subagent> all;
+  final Map<String, Subagent> all;
 
   @override
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context);
-    final small = TextStyle(fontSize: 13, color: c.outline);
     final now = DateTime.now();
     final shown = [
-      for (final a in all)
-        if (a.ended == null || now.difference(a.ended!) < const Duration(minutes: 10)) a,
-    ]..sort((a, b) => (a.ended == null ? 0 : 1).compareTo(b.ended == null ? 0 : 1));
+      for (final MapEntry(key: id, value: a) in all.entries)
+        if (a.ended == null || now.difference(a.ended!) < const Duration(minutes: 10)) (id, a),
+    ]..sort((a, b) => (a.$2.ended == null ? 0 : 1).compareTo(b.$2.ended == null ? 0 : 1));
     if (shown.isEmpty) return const SizedBox.shrink();
     return CupertinoListSection.insetGrouped(
       backgroundColor: c.surface,
       decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
       separatorColor: c.outline.withValues(alpha: .2),
-      header: Text(l.subagents.toUpperCase(), style: small),
+      header: Text(l.subagents.toUpperCase(), style: TextStyle(fontSize: 13, color: c.outline)),
       children: [
-        for (final a in shown)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  a.goal,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.onSurface),
-                ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    switch (a) {
-                      _ when subagentRunning(a) => Icon(
-                        CupertinoIcons.circle_fill,
-                        size: 8,
-                        color: CupertinoColors.systemGreen.resolveFrom(context),
-                      ),
-                      _ when a.status == 'completed' => Icon(CupertinoIcons.checkmark, size: 13, color: c.outline),
-                      _ => const Icon(CupertinoIcons.xmark, size: 13, color: CupertinoColors.systemRed),
-                    },
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        switch (a) {
-                          _ when subagentRunning(a) => [
-                            l.workerSince(durationText(l, now.difference(a.since))),
-                            if (a.tool.isNotEmpty) a.tool,
-                          ].join(' · '),
-                          _ when a.status == 'completed' => l.subagentDone,
-                          _ => l.subagentFailed,
-                        },
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: small,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        for (final (id, a) in shown)
+          SubagentRow(a, onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => SubagentPage(id)))),
       ],
     );
   }

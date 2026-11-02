@@ -1286,4 +1286,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String chatActionFailed(String message) {
     return 'That didn’t work.\n$message';
   }
+
+  @override
+  String get subagentSteerHint => 'A word to steer this subagent';
+
+  @override
+  String get subagentSteered =>
+      'Sent: it reads it after the tool it is running.';
+
+  @override
+  String get subagentSteerRefused => 'It no longer takes directions.';
 }

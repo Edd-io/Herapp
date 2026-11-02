@@ -308,6 +308,49 @@ void main() {
     expect(find.text('Finished'), findsOneWidget);
   });
 
+  testWidgets('a running subagent shows what it does, takes a direction and stops', (t) async {
+    t.platformDispatcher.accessibilityFeaturesTestValue = FakeAccessibilityFeatures(disableAnimations: true); // still characters
+    addTearDown(t.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    late void Function(String, Map) push;
+    final calls = fakeServer((method, params, emit) {
+      if (method == 'session.list') push = emit;
+      return switch (method) {
+        'subagent.tail' => {'available': true, 'text': 'Reading README.md'},
+        'subagent.steer' => {'status': 'queued'},
+        'subagent.interrupt' => {'found': true},
+        _ => null,
+      };
+    });
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async => '[]';
+    await t.pumpWidget(const App());
+    await t.pump(const Duration(milliseconds: 100));
+    push('subagent.start', {'subagent_id': 'a1', 'goal': 'Read the docs', 'task_count': 1, 'task_index': 0});
+    await t.pump(const Duration(milliseconds: 100));
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Agents'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Read the docs'));
+    await t.pumpAndSettle();
+    expect(find.text('Reading README.md'), findsOneWidget);
+
+    await t.enterText(find.byType(CupertinoTextField), 'Skip the changelog');
+    await t.tap(find.byTooltip('Send'));
+    await t.pumpAndSettle();
+    expect(calls.where((c) => c.$1 == 'subagent.steer').single.$2, {'session_id': 'rt', 'subagent_id': 'a1', 'text': 'Skip the changelog'});
+    expect(find.textContaining('Sent'), findsOneWidget);
+
+    await t.tap(find.text('Stop'));
+    await t.pump();
+    expect(calls.where((c) => c.$1 == 'subagent.interrupt').single.$2, {'session_id': 'rt', 'subagent_id': 'a1'});
+    push('subagent.complete', {'subagent_id': 'a1', 'goal': 'Read the docs', 'task_count': 1, 'task_index': 0, 'status': 'interrupted'});
+    await t.pump(const Duration(milliseconds: 100));
+    await t.pump(const Duration(seconds: 5)); // the snack bar goes
+    expect(find.text('Stop'), findsNothing); // ended: nothing left to steer
+    expect(find.byType(CupertinoTextField), findsNothing);
+  });
+
   testWidgets('a kanban card in review is answered and approved', (t) async {
     fakeServer((_, _, _) => null);
     addTearDown(() => callApi = hermesApi);

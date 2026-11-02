@@ -2299,6 +2299,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That didn’t work.\n{message}'**
   String chatActionFailed(String message);
+
+  /// No description provided for @subagentSteerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A word to steer this subagent'**
+  String get subagentSteerHint;
+
+  /// No description provided for @subagentSteered.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent: it reads it after the tool it is running.'**
+  String get subagentSteered;
+
+  /// No description provided for @subagentSteerRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'It no longer takes directions.'**
+  String get subagentSteerRefused;
 }
 
 class _AppLocalizationsDelegate

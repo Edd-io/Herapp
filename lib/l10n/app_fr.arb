@@ -366,5 +366,8 @@
   "chatsArchived": "Archivées",
   "chatUnarchive": "Désarchiver",
   "archivedNone": "Aucune conversation archivée.",
-  "chatActionFailed": "Impossible.\n{message}"
+  "chatActionFailed": "Impossible.\n{message}",
+  "subagentSteerHint": "Une consigne pour ce sous-agent",
+  "subagentSteered": "Consigne transmise : il la lira après son outil en cours.",
+  "subagentSteerRefused": "Il n’accepte plus de consigne."
 }

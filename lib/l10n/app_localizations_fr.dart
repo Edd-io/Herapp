@@ -1306,4 +1306,14 @@ class AppLocalizationsFr extends AppLocalizations {
   String chatActionFailed(String message) {
     return 'Impossible.\n$message';
   }
+
+  @override
+  String get subagentSteerHint => 'Une consigne pour ce sous-agent';
+
+  @override
+  String get subagentSteered =>
+      'Consigne transmise : il la lira après son outil en cours.';
+
+  @override
+  String get subagentSteerRefused => 'Il n’accepte plus de consigne.';
 }

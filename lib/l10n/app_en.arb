@@ -655,5 +655,8 @@
   "chatUnarchive": "Unarchive",
   "archivedNone": "No archived chats.",
   "chatActionFailed": "That didn’t work.\n{message}",
-  "@chatActionFailed": {"placeholders": {"message": {"type": "String"}}}
+  "@chatActionFailed": {"placeholders": {"message": {"type": "String"}}},
+  "subagentSteerHint": "A word to steer this subagent",
+  "subagentSteered": "Sent: it reads it after the tool it is running.",
+  "subagentSteerRefused": "It no longer takes directions."
 }

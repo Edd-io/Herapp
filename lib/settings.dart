@@ -301,8 +301,20 @@ Future<Gateway?> gateway() async {
   }();
 }
 
-/// A child agent a chat handed work to (`delegate_task`); [session] is the chat's runtime session.
-typedef Subagent = ({String goal, String session, String status, String tool, DateTime since, DateTime? ended});
+/// A child agent a chat handed work to (`delegate_task`); [session] is the chat's runtime session, [parent] the
+/// subagent that started it ('' for the chat itself). [id] is the server's, '' from an older one (then it can't be steered).
+typedef Subagent = ({
+  String id,
+  String parent,
+  int depth,
+  String goal,
+  String session,
+  String status,
+  String tool,
+  String summary,
+  DateTime since,
+  DateTime? ended,
+});
 
 /// The subagents of the chats on this connection, by id: they report on their chat's session, and an
 /// asynchronous one keeps working after the reply that started it.
@@ -321,6 +333,10 @@ void trackSubagent(String type, String session, Map p) {
   subagents.value = {
     ...subagents.value,
     id: (
+      id: '${p['subagent_id'] ?? ''}',
+      parent: '${p['parent_id'] ?? was?.parent ?? ''}',
+      depth: p['depth'] is int ? p['depth'] as int : was?.depth ?? 0,
+      summary: '${p['summary'] ?? was?.summary ?? ''}'.trim(),
       goal: '${p['goal'] ?? was?.goal ?? ''}'.trim(),
       session: session,
       status: status,
