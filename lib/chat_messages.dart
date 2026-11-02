@@ -717,7 +717,7 @@ class _Markdown extends StatelessWidget {
       },
       styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
         p: style,
-        a: style.copyWith(decoration: TextDecoration.underline, color: settings.accent == 0 ? null : Theme.of(context).colorScheme.primary),
+        a: style.copyWith(decoration: TextDecoration.underline, color: accentText(Theme.of(context).colorScheme)),
         h1: style.copyWith(fontSize: style.fontSize! * 1.4, fontWeight: FontWeight.w700),
         h2: style.copyWith(fontSize: style.fontSize! * 1.25, fontWeight: FontWeight.w700),
         h3: style.copyWith(fontSize: style.fontSize! * 1.1, fontWeight: FontWeight.w600),

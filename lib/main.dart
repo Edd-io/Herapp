@@ -64,7 +64,7 @@ class App extends StatelessWidget {
           surfaceContainerHighest: Color(0xFFF4F4F4),
           surfaceContainerLow: Color(0xFFF9F9F9),
           onSurfaceVariant: Color(0xFF5D5D5D),
-          outline: Color(0xFF8F8F8F),
+          outline: Color(0xFF6E6E6E), // 4.5:1 at least on every light surface, for the small grey text
           primary: Color(0xFF0D0D0D),
           onPrimary: Colors.white,
         ),

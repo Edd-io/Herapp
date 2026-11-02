@@ -17,6 +17,15 @@ import 'wireguard.dart';
 
 final settings = Settings();
 
+/// WCAG contrast ratio between [a] and [b] (1 to 21; text needs 4.5).
+double contrast(Color a, Color b) {
+  final [hi, lo] = [a.computeLuminance(), b.computeLuminance()]..sort((x, y) => y.compareTo(x));
+  return (hi + .05) / (lo + .05);
+}
+
+/// The accent as a text color (links), when it reads on [c]'s background; null keeps the text's own.
+Color? accentText(ColorScheme c) => settings.accent != 0 && contrast(c.primary, c.surface) >= 4.5 ? c.primary : null;
+
 /// The accent colors to pick from, neutral first.
 const accents = [0, 0xFF5E5CE6, 0xFF0A84FF, 0xFF30B0C7, 0xFF34C759, 0xFFFF9F0A, 0xFFFF375F, 0xFFC9A227];
 

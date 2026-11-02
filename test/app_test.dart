@@ -47,6 +47,21 @@ void main() {
     expect(settings.accent, 0xFFC9A227);
   });
 
+  testWidgets('every text color reads on every surface, in both themes', (t) async {
+    await t.pumpWidget(const App());
+    final app = t.widget<MaterialApp>(find.byType(MaterialApp));
+    for (final c in [app.theme!.colorScheme, app.darkTheme!.colorScheme]) {
+      for (final text in [c.onSurface, c.onSurfaceVariant, c.outline]) {
+        for (final ground in [c.surface, c.surfaceContainerHighest, c.surfaceContainerLow]) {
+          expect(contrast(text, ground), greaterThanOrEqualTo(4.5), reason: '$text on $ground (${c.brightness})');
+        }
+      }
+    }
+    settings.accent = 0xFFC9A227; // gold: too light for links on white
+    expect(accentText(app.theme!.colorScheme.copyWith(primary: const Color(0xFFC9A227))), isNull);
+    expect(accentText(app.darkTheme!.colorScheme.copyWith(primary: const Color(0xFFC9A227))), const Color(0xFFC9A227));
+  });
+
   testWidgets('UI follows the French locale', (t) async {
     t.platformDispatcher.localesTestValue = const [Locale('fr')];
     addTearDown(t.platformDispatcher.clearLocalesTestValue);
