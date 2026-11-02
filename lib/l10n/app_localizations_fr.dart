@@ -1060,4 +1060,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String systemUptimeValue(int days, int hours) {
     return '$days j $hours h';
   }
+
+  @override
+  String get cronRunAgain => 'Relancer';
+
+  @override
+  String get cronFailed => 'Échec';
+
+  @override
+  String get cronSolveCaptcha => 'Le résoudre sur l\'écran du bot';
 }

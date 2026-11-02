@@ -731,11 +731,11 @@ void main() {
         return path == '/api/cron/jobs' ? '{"id":"j2"}' : '{}';
       }
       if (path.endsWith('/runs')) {
-        return '{"runs":[{"id":"cron_j1_1","source":"cron","title":"Morning digest","started_at":1793520000},'
+        return '{"runs":[{"id":"cron_j1_1","source":"cron","title":"Morning digest","started_at":1793520000,"end_reason":"cron_incomplete_no_output"},'
             '{"id":"cron_output:j1:x","source":"cron_output","title":"OK","preview":"3 new mails","started_at":1793430000}]}';
       }
       if (path == '/api/sessions/cron_j1_1/messages') {
-        return '{"messages":[{"role":"user","content":"Summarize the night"},{"role":"assistant","content":"All quiet overnight."}]}';
+        return '{"messages":[{"role":"user","content":"Summarize the night"},{"role":"assistant","content":"Blocked by a CAPTCHA on the mail site."}]}';
       }
       if (path.endsWith('blueprints')) return '{"blueprints":[]}';
       if (path == '/api/files/read' && query?['path'] == '/home/alice/.hermes/cron/output/j1/x.md') {
@@ -765,9 +765,16 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Morning digest'));
     await t.pumpAndSettle();
-    expect(find.text('All quiet overnight.'), findsOneWidget);
+    expect(find.text('Blocked by a CAPTCHA on the mail site.'), findsOneWidget);
+    expect(find.text("Solve it on the bot's screen"), findsOneWidget);
     await t.tap(find.byIcon(CupertinoIcons.chevron_back));
     await t.pumpAndSettle();
+    expect(find.textContaining('Failed'), findsOneWidget); // the agent run, not the script's
+    await t.tap(find.text('Run again'));
+    await t.pump(const Duration(seconds: 2));
+    await t.pumpAndSettle();
+    expect(sent.map((x) => (x.$1, x.$2)), [('POST', '/api/cron/jobs/j1/trigger')]);
+    sent.clear();
     await t.tap(find.byIcon(CupertinoIcons.chevron_back));
     await t.pumpAndSettle();
 

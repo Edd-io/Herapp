@@ -578,5 +578,8 @@
   "systemSpace": "{used} of {total} GB · {percent} %",
   "@systemSpace": {"placeholders": {"used": {"type": "String"}, "total": {"type": "String"}, "percent": {"type": "int"}}},
   "systemUptimeValue": "{days}d {hours}h",
-  "@systemUptimeValue": {"placeholders": {"days": {"type": "int"}, "hours": {"type": "int"}}}
+  "@systemUptimeValue": {"placeholders": {"days": {"type": "int"}, "hours": {"type": "int"}}},
+  "cronRunAgain": "Run again",
+  "cronFailed": "Failed",
+  "cronSolveCaptcha": "Solve it on the bot's screen"
 }

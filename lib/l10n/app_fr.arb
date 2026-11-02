@@ -300,5 +300,8 @@
   "systemUptime": "Allumée depuis",
   "systemLoad": "charge {load} sur {cores} cœurs",
   "systemSpace": "{used} sur {total} Go · {percent} %",
-  "systemUptimeValue": "{days} j {hours} h"
+  "systemUptimeValue": "{days} j {hours} h",
+  "cronRunAgain": "Relancer",
+  "cronFailed": "Échec",
+  "cronSolveCaptcha": "Le résoudre sur l'écran du bot"
 }

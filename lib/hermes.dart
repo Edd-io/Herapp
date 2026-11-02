@@ -704,7 +704,7 @@ Board mergeBoards(Iterable<Board> boards) {
 }
 
 /// One past run of a cron job; [session] runs (agent ones) have a transcript, the others only [preview].
-typedef CronRun = ({String id, String title, String preview, DateTime? at, bool active, bool session});
+typedef CronRun = ({String id, String title, String preview, DateTime? at, bool active, bool session, bool failed});
 
 /// Where a script run's whole output lies on the server (the runs list only gives 180 characters of it),
 /// null for a run with no output file.
@@ -730,8 +730,15 @@ List<CronRun> parseCronRuns(String body) => [
         at: r['started_at'] is num ? DateTime.fromMillisecondsSinceEpoch(((r['started_at'] as num) * 1000).round()) : null,
         active: r['is_active'] == true,
         session: r['source'] != 'cron_output',
+        // a script run's title opens on its status; an agent run that ended otherwise than complete
+        failed:
+            RegExp(r'^(FAILED|CANCELLED|MISSED)\b').hasMatch('${r['title'] ?? ''}') ||
+            (r['end_reason'] is String && r['end_reason'] != 'cron_complete'),
       ),
 ];
+
+/// Whether [text] says the bot was stopped by a CAPTCHA (or a "prove you're human" check).
+bool mentionsCaptcha(String text) => RegExp(r'captcha|turnstile|not a robot|pas un robot', caseSensitive: false).hasMatch(text);
 
 /// An item of Hermes' vault, metadata only: the server never sends a password back.
 typedef VaultItem = ({String id, String kind, String label, String origin, String identifier, bool otp, String backend});

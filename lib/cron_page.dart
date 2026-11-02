@@ -10,6 +10,7 @@ import 'hermes.dart';
 import 'l10n/app_localizations.dart';
 import 'model_sheet.dart';
 import 'quota_page.dart';
+import 'screen_page.dart';
 import 'settings.dart';
 
 /// A script-only job's row: its schedule and state, with run now and a pause switch.
@@ -406,6 +407,7 @@ class CronRunsPage extends StatefulWidget {
 class _CronRunsPageState extends State<CronRunsPage> {
   List<CronRun>? runs;
   Object? error;
+  var starting = false;
 
   @override
   void initState() {
@@ -423,6 +425,25 @@ class _CronRunsPageState extends State<CronRunsPage> {
     }
   }
 
+  /// Runs the job now, e.g. once a CAPTCHA that stopped it is solved, then shows the new run.
+  Future<void> runAgain() async {
+    final l = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => starting = true);
+    try {
+      await serverApi('POST', '/api/cron/jobs/${Uri.encodeComponent(widget.job.id)}/trigger');
+      messenger.showSnackBar(SnackBar(content: Text(l.cronStarted(widget.job.name))));
+    } on TimeoutException {
+      messenger.showSnackBar(SnackBar(content: Text(l.cronStarted(widget.job.name)))); // a run outlasts the request
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(l.cronActionFailed(e is HttpException ? e.message : '$e'))));
+    }
+    await Future<void>.delayed(const Duration(seconds: 2)); // the run's session shows up once started
+    if (!mounted) return;
+    await load();
+    if (mounted) setState(() => starting = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
@@ -432,6 +453,7 @@ class _CronRunsPageState extends State<CronRunsPage> {
     final list = runs;
     return PageFrame(
       title: l.cronRuns,
+      action: TextButton(onPressed: starting ? null : runAgain, child: Text(l.cronRunAgain)),
       child: switch ((list, error)) {
         (_, final Object e) => Center(
           child: Padding(
@@ -463,8 +485,8 @@ class _CronRunsPageState extends State<CronRunsPage> {
                       child: CupertinoListTile(
                         padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
                         title: Text(
-                          [if (r.at != null) format.format(r.at!), if (r.active) l.cronRunning].join(' · '),
-                          style: TextStyle(fontSize: 16, color: c.onSurface),
+                          [if (r.at != null) format.format(r.at!), if (r.active) l.cronRunning, if (r.failed) l.cronFailed].join(' · '),
+                          style: TextStyle(fontSize: 16, color: r.failed ? const Color(0xFFD93025) : c.onSurface),
                         ),
                         subtitle: Text(runText(r, ' — '), maxLines: 2, overflow: TextOverflow.ellipsis, style: small),
                         trailing: Icon(CupertinoIcons.chevron_forward, size: 18, color: c.outline),
@@ -539,7 +561,21 @@ class _CronRunPageState extends State<_CronRunPage> {
           ? const Center(child: CupertinoActivityIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 48),
-              child: SelectableText(text!, style: TextStyle(fontSize: 16, height: 1.45, color: c.onSurface)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // stopped by a CAPTCHA: its page is still open on the bot's screen, to solve before running it again
+                  if (mentionsCaptcha(text!))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: CupertinoButton.filled(
+                        onPressed: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => const ScreenPage())),
+                        child: Text(AppLocalizations.of(context).cronSolveCaptcha),
+                      ),
+                    ),
+                  SelectableText(text!, style: TextStyle(fontSize: 16, height: 1.45, color: c.onSurface)),
+                ],
+              ),
             ),
     );
   }

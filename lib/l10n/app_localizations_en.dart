@@ -1040,4 +1040,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String systemUptimeValue(int days, int hours) {
     return '${days}d ${hours}h';
   }
+
+  @override
+  String get cronRunAgain => 'Run again';
+
+  @override
+  String get cronFailed => 'Failed';
+
+  @override
+  String get cronSolveCaptcha => 'Solve it on the bot\'s screen';
 }

@@ -1903,6 +1903,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{days}d {hours}h'**
   String systemUptimeValue(int days, int hours);
+
+  /// No description provided for @cronRunAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Run again'**
+  String get cronRunAgain;
+
+  /// No description provided for @cronFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get cronFailed;
+
+  /// No description provided for @cronSolveCaptcha.
+  ///
+  /// In en, this message translates to:
+  /// **'Solve it on the bot\'s screen'**
+  String get cronSolveCaptcha;
 }
 
 class _AppLocalizationsDelegate
