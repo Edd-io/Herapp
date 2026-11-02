@@ -324,6 +324,7 @@ class _Subagents extends StatelessWidget {
             depth: depth,
             onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => SubagentPage(id))),
           ),
+        const _SubagentModel(),
         CupertinoListTile(
           title: Text(l.spawnTrees, style: TextStyle(fontSize: 16, color: c.onSurface)),
           leading: Icon(CupertinoIcons.tree, size: 20, color: c.onSurfaceVariant),
@@ -333,6 +334,71 @@ class _Subagents extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The model and effort subagents run with (`delegation.*` in the server's config); none = the chat's own.
+class _SubagentModel extends StatefulWidget {
+  const _SubagentModel();
+
+  @override
+  State<_SubagentModel> createState() => _SubagentModelState();
+}
+
+class _SubagentModelState extends State<_SubagentModel> {
+  var model = '', effort = '';
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      if (jsonDecode(await serverApi('GET', '/api/config') ?? '{}') case {'delegation': final Map d} when mounted) {
+        final (p, m) = ('${d['provider'] ?? ''}'.trim(), '${d['model'] ?? ''}'.trim());
+        setState(() {
+          model = p.isEmpty || m.isEmpty ? m : '$p/$m';
+          effort = '${d['reasoning_effort'] ?? ''}'.trim();
+        });
+      }
+    } catch (e) {
+      debugPrint('Subagent model: $e');
+    }
+  }
+
+  /// Saves [changes] to the delegation block; the shown values go back to the server's on a failure.
+  Future<void> save(Map<String, String> changes) async {
+    final messenger = ScaffoldMessenger.of(context), l = AppLocalizations.of(context);
+    try {
+      await serverApi(
+        'PUT',
+        '/api/config',
+        body: {
+          'config': {'delegation': changes},
+        },
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(l.toolsFailed(e is HttpException ? e.message : '$e'))));
+      load();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ModelTile(
+    model: model,
+    effort: effort,
+    none: AppLocalizations.of(context).subagentModelInherit,
+    onModel: (id) {
+      final slash = id.indexOf('/');
+      setState(() => model = id);
+      save({'provider': slash < 0 ? '' : id.substring(0, slash), 'model': slash < 0 ? id : modelName(id)});
+    },
+    onEffort: (e) {
+      setState(() => effort = e);
+      save({'reasoning_effort': e});
+    },
+  );
 }
 
 class _AgentCard extends StatelessWidget {

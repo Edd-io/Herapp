@@ -423,5 +423,6 @@
   "backgroundRunning": "En arrière-plan : {task}",
   "backgroundLabel": "arrière-plan",
   "backgroundDone": "Tâche en arrière-plan terminée dans « {chat} »",
-  "backgroundOpen": "Ouvrir"
+  "backgroundOpen": "Ouvrir",
+  "subagentModelInherit": "Comme la conversation"
 }

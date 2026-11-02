@@ -717,5 +717,6 @@
   "backgroundLabel": "background",
   "backgroundDone": "Background task done in “{chat}”",
   "@backgroundDone": {"placeholders": {"chat": {"type": "String"}}},
-  "backgroundOpen": "Open"
+  "backgroundOpen": "Open",
+  "subagentModelInherit": "Same as the chat"
 }

@@ -310,6 +310,44 @@ void main() {
     expect(find.text('Finished'), findsOneWidget);
   });
 
+  testWidgets('subagents run on the chat\'s model unless the agents page picks one', (t) async {
+    stillStripes(t);
+    fakeServer((_, _, _) => null);
+    addTearDown(() => callApi = hermesApi);
+    addTearDown(() => fetchModels = hermesModels);
+    fetchModels = (base, {user, password}) async => (
+      models: <Model>[(provider: 'OpenRouter', name: 'openai/gpt-5', id: 'openrouter/openai/gpt-5', reasoning: true)],
+      current: 'openrouter/openai/gpt-5',
+      quotas: <Quota>[],
+    );
+    final sent = <(String, String, Object?)>[];
+    callApi = (base, method, path, {query, body, user, password}) async {
+      if (method != 'GET') sent.add((method, path, body));
+      return switch (path) {
+        '/api/config' => '{"delegation":{"model":"","provider":"","reasoning_effort":""}}',
+        _ => '[]',
+      };
+    };
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Agents'));
+    await t.pumpAndSettle();
+    expect(find.text('Same as the chat'), findsOneWidget);
+
+    await t.tap(find.text('Same as the chat'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('openai/gpt-5').last); // the server's current model, first in the sheet
+    await t.pumpAndSettle();
+    expect((sent.single.$1, sent.single.$2), ('PUT', '/api/config'));
+    expect(sent.single.$3, {
+      'config': {
+        'delegation': {'provider': 'openrouter', 'model': 'openai/gpt-5'},
+      },
+    });
+    expect(find.text('Same as the chat'), findsNothing);
+  });
+
   testWidgets('subagents show as a tree, each run is saved once over, and past runs open as trees', (t) async {
     t.platformDispatcher.accessibilityFeaturesTestValue = FakeAccessibilityFeatures(disableAnimations: true); // still characters
     addTearDown(t.platformDispatcher.clearAccessibilityFeaturesTestValue);

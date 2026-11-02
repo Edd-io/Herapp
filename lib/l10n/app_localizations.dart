@@ -2635,6 +2635,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open'**
   String get backgroundOpen;
+
+  /// No description provided for @subagentModelInherit.
+  ///
+  /// In en, this message translates to:
+  /// **'Same as the chat'**
+  String get subagentModelInherit;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

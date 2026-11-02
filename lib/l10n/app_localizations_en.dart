@@ -1417,4 +1417,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backgroundOpen => 'Open';
+
+  @override
+  String get subagentModelInherit => 'Same as the chat';
 }

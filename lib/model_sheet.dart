@@ -467,8 +467,9 @@ Map<String, Object?> jobModelUpdates(String id) =>
 
 /// A list row with a job's model and effort; a tap opens [showModelSheet], the server's default included.
 class ModelTile extends StatefulWidget {
-  const ModelTile({super.key, required this.model, required this.effort, required this.onModel, required this.onEffort});
+  const ModelTile({super.key, required this.model, required this.effort, required this.onModel, required this.onEffort, this.none});
   final String model, effort;
+  final String? none; // what no model means, the server's default unless told
   final ValueChanged<String> onModel, onEffort;
 
   @override
@@ -507,7 +508,7 @@ class _ModelTileState extends State<ModelTile> {
         title: Text(l.model, style: TextStyle(fontSize: 16, color: c.onSurface)),
         additionalInfo: Text(
           [
-            widget.model.isEmpty ? l.cronServerDefault : modelName(widget.model),
+            widget.model.isEmpty ? widget.none ?? l.cronServerDefault : modelName(widget.model),
             if (widget.effort.isNotEmpty) effortText(l, widget.effort),
           ].join(' · '),
           style: TextStyle(fontSize: 13, color: c.outline),

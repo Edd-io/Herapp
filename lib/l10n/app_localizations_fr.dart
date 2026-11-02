@@ -1421,4 +1421,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get backgroundOpen => 'Ouvrir';
+
+  @override
+  String get subagentModelInherit => 'Comme la conversation';
 }
