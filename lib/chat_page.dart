@@ -521,6 +521,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l.backgroundDone(c.title)),
+          persist: false, // an action would keep it up until dismissed
           action: SnackBarAction(label: l.backgroundOpen, onPressed: () => select(c)),
         ),
       );
