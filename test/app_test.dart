@@ -35,8 +35,16 @@ void main() {
     expect(settings.theme, ThemeMode.dark);
     expect(t.widget<MaterialApp>(find.byType(MaterialApp)).themeMode, ThemeMode.dark);
 
+    await t.ensureVisible(find.byTooltip('Gold'));
+    await t.tap(find.byTooltip('Gold'));
+    await t.pumpAndSettle();
+    final theme = t.widget<MaterialApp>(find.byType(MaterialApp)).darkTheme!.colorScheme;
+    expect(theme.primary, const Color(0xFFC9A227)); // the send button, filled buttons, links
+    expect(theme.onPrimary, Colors.black); // readable on a light accent
+
     await settings.load();
     expect(settings.theme, ThemeMode.dark);
+    expect(settings.accent, 0xFFC9A227);
   });
 
   testWidgets('UI follows the French locale', (t) async {

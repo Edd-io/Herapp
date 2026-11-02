@@ -2431,6 +2431,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Older'**
   String get chatsOlder;
+
+  /// No description provided for @accent.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent color'**
+  String get accent;
+
+  /// No description provided for @accentNeutral.
+  ///
+  /// In en, this message translates to:
+  /// **'Neutral'**
+  String get accentNeutral;
+
+  /// No description provided for @accentIndigo.
+  ///
+  /// In en, this message translates to:
+  /// **'Indigo'**
+  String get accentIndigo;
+
+  /// No description provided for @accentBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get accentBlue;
+
+  /// No description provided for @accentTeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Teal'**
+  String get accentTeal;
+
+  /// No description provided for @accentGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get accentGreen;
+
+  /// No description provided for @accentOrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Orange'**
+  String get accentOrange;
+
+  /// No description provided for @accentPink.
+  ///
+  /// In en, this message translates to:
+  /// **'Pink'**
+  String get accentPink;
+
+  /// No description provided for @accentGold.
+  ///
+  /// In en, this message translates to:
+  /// **'Gold'**
+  String get accentGold;
 }
 
 class _AppLocalizationsDelegate

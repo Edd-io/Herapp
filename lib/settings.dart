@@ -17,6 +17,9 @@ import 'wireguard.dart';
 
 final settings = Settings();
 
+/// The accent colors to pick from, neutral first.
+const accents = [0, 0xFF5E5CE6, 0xFF0A84FF, 0xFF30B0C7, 0xFF34C759, 0xFFFF9F0A, 0xFFFF375F, 0xFFC9A227];
+
 /// Persisted settings, read synchronously after [load].
 class Settings extends ChangeNotifier {
   late SharedPreferences _p;
@@ -29,6 +32,10 @@ class Settings extends ChangeNotifier {
 
   ThemeMode get theme => ThemeMode.values[_p.getInt('theme') ?? 0];
   set theme(ThemeMode v) => _save(_p.setInt('theme', v.index));
+
+  /// The accent color (send button, selection, links) as ARGB; 0 = the neutral black and white.
+  int get accent => _p.getInt('accent') ?? 0;
+  set accent(int v) => _save(_p.setInt('accent', v));
 
   /// Language code of the app's texts, '' to follow the device.
   String get language => _p.getString('language') ?? '';
@@ -711,6 +718,64 @@ class _SettingsSheetState extends State<SettingsSheet> {
                             child: Text(l, style: TextStyle(fontSize: 15, color: c.onSurface)),
                           ),
                       },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l.accent, style: TextStyle(fontSize: 13, color: c.outline)),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 10,
+                          children: [
+                            for (final (i, v) in accents.indexed)
+                              Hover(
+                                radius: 999,
+                                label: [
+                                  l.accentNeutral,
+                                  l.accentIndigo,
+                                  l.accentBlue,
+                                  l.accentTeal,
+                                  l.accentGreen,
+                                  l.accentOrange,
+                                  l.accentPink,
+                                  l.accentGold,
+                                ][i],
+                                child: GestureDetector(
+                                  onTap: () => settings.accent = v,
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: settings.accent == v ? c.onSurface : Colors.transparent, width: 2),
+                                    ),
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: v == 0 ? null : Color(v),
+                                        // neutral: the black and white it keeps
+                                        gradient: v == 0
+                                            ? const LinearGradient(
+                                                colors: [Colors.black, Colors.black, Colors.white, Colors.white],
+                                                stops: [0, .5, .5, 1],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              )
+                                            : null,
+                                        border: Border.all(color: c.outline.withValues(alpha: .4)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ]),

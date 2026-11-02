@@ -388,5 +388,14 @@
   "chatsYesterday": "Hier",
   "chatsWeek": "7 derniers jours",
   "chatsMonth": "30 derniers jours",
-  "chatsOlder": "Plus ancien"
+  "chatsOlder": "Plus ancien",
+  "accent": "Couleur d’accent",
+  "accentNeutral": "Neutre",
+  "accentIndigo": "Indigo",
+  "accentBlue": "Bleu",
+  "accentTeal": "Turquoise",
+  "accentGreen": "Vert",
+  "accentOrange": "Orange",
+  "accentPink": "Rose",
+  "accentGold": "Or"
 }

@@ -1361,4 +1361,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatsOlder => 'Older';
+
+  @override
+  String get accent => 'Accent color';
+
+  @override
+  String get accentNeutral => 'Neutral';
+
+  @override
+  String get accentIndigo => 'Indigo';
+
+  @override
+  String get accentBlue => 'Blue';
+
+  @override
+  String get accentTeal => 'Teal';
+
+  @override
+  String get accentGreen => 'Green';
+
+  @override
+  String get accentOrange => 'Orange';
+
+  @override
+  String get accentPink => 'Pink';
+
+  @override
+  String get accentGold => 'Gold';
 }

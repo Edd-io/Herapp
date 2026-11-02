@@ -27,13 +27,24 @@ Future<void> main() async {
 class App extends StatelessWidget {
   const App({super.key});
 
-  static ThemeData _theme(ColorScheme c) => ThemeData(
-    colorScheme: c,
-    scaffoldBackgroundColor: c.surface,
-    splashFactory: NoSplash.splashFactory,
-    highlightColor: Colors.transparent,
-    textSelectionTheme: TextSelectionThemeData(cursorColor: c.onSurface),
-  );
+  static ThemeData _theme(ColorScheme c) {
+    // the accent takes the neutral primary's place, with readable text on it
+    if (settings.accent case final a when a != 0) {
+      final accent = Color(a);
+      // black or white, whichever reads better on it (WCAG contrast: luminance above ~0.18 favors black)
+      c = c.copyWith(primary: accent, onPrimary: accent.computeLuminance() > .18 ? Colors.black : Colors.white);
+    }
+    return ThemeData(
+      colorScheme: c,
+      scaffoldBackgroundColor: c.surface,
+      splashFactory: NoSplash.splashFactory,
+      highlightColor: Colors.transparent,
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: settings.accent == 0 ? c.onSurface : c.primary,
+        selectionColor: settings.accent == 0 ? null : c.primary.withValues(alpha: .3),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(

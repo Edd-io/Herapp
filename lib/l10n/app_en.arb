@@ -678,5 +678,14 @@
   "chatsYesterday": "Yesterday",
   "chatsWeek": "Previous 7 days",
   "chatsMonth": "Previous 30 days",
-  "chatsOlder": "Older"
+  "chatsOlder": "Older",
+  "accent": "Accent color",
+  "accentNeutral": "Neutral",
+  "accentIndigo": "Indigo",
+  "accentBlue": "Blue",
+  "accentTeal": "Teal",
+  "accentGreen": "Green",
+  "accentOrange": "Orange",
+  "accentPink": "Pink",
+  "accentGold": "Gold"
 }

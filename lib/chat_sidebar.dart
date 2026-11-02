@@ -45,7 +45,11 @@ extension _Sidebar on _ChatPageState {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
             decoration: BoxDecoration(
-              color: selected ? c.surfaceContainerHighest : Colors.transparent,
+              color: !selected
+                  ? Colors.transparent
+                  : settings.accent == 0
+                  ? c.surfaceContainerHighest
+                  : c.primary.withValues(alpha: .18),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
