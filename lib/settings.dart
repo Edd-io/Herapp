@@ -26,6 +26,12 @@ double contrast(Color a, Color b) {
 /// The accent as a text color (links), when it reads on [c]'s background; null keeps the text's own.
 Color? accentText(ColorScheme c) => settings.accent != 0 && contrast(c.primary, c.surface) >= 4.5 ? c.primary : null;
 
+/// A segmented control's thumb: the accent when one is picked, else the plain surface.
+Color segmentThumb(ColorScheme c) => settings.accent == 0 ? c.surface : c.primary;
+
+/// A segment's label, readable on [segmentThumb] when it's the [selected] one.
+Color segmentText(ColorScheme c, bool selected) => selected && settings.accent != 0 ? c.onPrimary : c.onSurface;
+
 /// The accent colors to pick from, neutral first.
 const accents = [0, 0xFF5E5CE6, 0xFF0A84FF, 0xFF30B0C7, 0xFF34C759, 0xFFFF9F0A, 0xFFFF375F, 0xFFC9A227];
 
@@ -713,7 +719,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                     padding: const EdgeInsets.all(12),
                     child: CupertinoSlidingSegmentedControl<ThemeMode>(
                       groupValue: settings.theme,
-                      thumbColor: c.surface,
+                      thumbColor: segmentThumb(c),
                       backgroundColor: c.surfaceContainerLow,
                       onValueChanged: (v) => settings.theme = v!,
                       children: {
@@ -724,7 +730,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                         ])
                           m: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Text(l, style: TextStyle(fontSize: 15, color: c.onSurface)),
+                            child: Text(l, style: TextStyle(fontSize: 15, color: segmentText(c, m == settings.theme))),
                           ),
                       },
                     ),
@@ -794,7 +800,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                     padding: const EdgeInsets.all(12),
                     child: CupertinoSlidingSegmentedControl<String>(
                       groupValue: settings.language,
-                      thumbColor: c.surface,
+                      thumbColor: segmentThumb(c),
                       backgroundColor: c.surfaceContainerLow,
                       onValueChanged: (v) => settings.language = v!,
                       children: {
@@ -802,7 +808,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                         for (final (code, name) in [('', l.themeSystem), ('en', 'English'), ('fr', 'Français')])
                           code: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Text(name, style: TextStyle(fontSize: 15, color: c.onSurface)),
+                            child: Text(name, style: TextStyle(fontSize: 15, color: segmentText(c, code == settings.language))),
                           ),
                       },
                     ),

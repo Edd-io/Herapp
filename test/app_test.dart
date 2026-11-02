@@ -40,10 +40,12 @@ void main() {
     await t.tap(find.byTooltip('Gold'));
     await t.pumpAndSettle();
     final theme = t.widget<MaterialApp>(find.byType(MaterialApp)).darkTheme!.colorScheme;
-    expect(theme.primary, const Color(0xFFC9A227)); // the send button, filled buttons, links
-    expect(theme.onPrimary, Colors.black); // readable on a light accent
+    // the send button, filled buttons, links: gold deepened until white text reads on it
+    expect(theme.primary, isNot(const Color(0xFFC9A227)));
+    expect(theme.onPrimary, Colors.white);
+    expect(contrast(Colors.white, theme.primary), greaterThanOrEqualTo(4.5));
     final cupertino = CupertinoTheme.of(t.element(find.byType(CupertinoSwitch).first));
-    expect((cupertino.applyThemeToAll, cupertino.primaryColor), (true, const Color(0xFFC9A227))); // switches on, in the accent
+    expect((cupertino.applyThemeToAll, cupertino.primaryColor), (true, theme.primary)); // switches on, in the accent
 
     await settings.load();
     expect(settings.theme, ThemeMode.dark);

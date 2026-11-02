@@ -504,7 +504,7 @@ class _FoldersState extends State<_Folders> {
                   width: double.infinity,
                   child: CupertinoSlidingSegmentedControl<bool>(
                     groupValue: here,
-                    thumbColor: c.surface,
+                    thumbColor: segmentThumb(c),
                     backgroundColor: c.surfaceContainerHighest,
                     onValueChanged: (v) {
                       setState(() => here = v!);
@@ -514,7 +514,7 @@ class _FoldersState extends State<_Folders> {
                       for (final (v, name) in [(true, l.folderHere), (false, l.folderServer)])
                         v: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Text(name, style: TextStyle(fontSize: 15, color: c.onSurface)),
+                          child: Text(name, style: TextStyle(fontSize: 15, color: segmentText(c, v == here))),
                         ),
                     },
                   ),

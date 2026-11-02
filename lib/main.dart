@@ -31,9 +31,12 @@ class App extends StatelessWidget {
   static ThemeData _theme(ColorScheme c) {
     // the accent takes the neutral primary's place, with readable text on it
     if (settings.accent case final a when a != 0) {
-      final accent = Color(a);
-      // black or white, whichever reads better on it (WCAG contrast: luminance above ~0.18 favors black)
-      c = c.copyWith(primary: accent, onPrimary: accent.computeLuminance() > .18 ? Colors.black : Colors.white);
+      // deepened until white text reads on it (WCAG 4.5:1), which a light accent's black text did poorly
+      var accent = Color(a);
+      for (var t = .05; contrast(Colors.white, accent) < 4.5 && t < 1; t += .05) {
+        accent = Color.lerp(Color(a), Colors.black, t)!;
+      }
+      c = c.copyWith(primary: accent, onPrimary: Colors.white);
     }
     return ThemeData(
       colorScheme: c,

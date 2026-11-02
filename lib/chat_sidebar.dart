@@ -49,7 +49,7 @@ extension _Sidebar on _ChatPageState {
                   ? Colors.transparent
                   : settings.accent == 0
                   ? c.surfaceContainerHighest
-                  : c.primary.withValues(alpha: .18),
+                  : c.primary.withValues(alpha: .3),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -162,15 +162,22 @@ extension _Sidebar on _ChatPageState {
                         onTap: newChat,
                         child: Container(
                           height: 36,
-                          decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+                          decoration: BoxDecoration(
+                            color: settings.accent == 0 ? c.surfaceContainerHighest : c.primary,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(CupertinoIcons.square_pencil, size: 17, color: c.onSurface),
+                              Icon(CupertinoIcons.square_pencil, size: 17, color: settings.accent == 0 ? c.onSurface : c.onPrimary),
                               const SizedBox(width: 10),
                               Text(
                                 l.newChat,
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.onSurface),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: settings.accent == 0 ? c.onSurface : c.onPrimary,
+                                ),
                               ),
                             ],
                           ),
