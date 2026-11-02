@@ -1052,4 +1052,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get screenOpen => 'Bot screen · take over';
+
+  @override
+  String get tools => 'Skills & MCP';
+
+  @override
+  String get toolsMcp => 'MCP servers';
+
+  @override
+  String get toolsSkills => 'Skills';
+
+  @override
+  String get toolsSearch => 'Search skills';
+
+  @override
+  String get toolsNone => 'No skill matches.';
+
+  @override
+  String get toolsNextChats =>
+      'A change applies to the chats started after it.';
+
+  @override
+  String get toolsMcpTest => 'Test the connection';
+
+  @override
+  String toolsMcpOk(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tools',
+      one: '1 tool',
+    );
+    return 'Connected · $_temp0';
+  }
+
+  @override
+  String get toolsMcpFailed => 'Connection failed';
+
+  @override
+  String toolsFailed(String error) {
+    return 'Not changed: $error';
+  }
 }

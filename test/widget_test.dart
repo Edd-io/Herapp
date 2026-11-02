@@ -1537,6 +1537,62 @@ void main() {
     expect(calls.where((c) => c.$1 == 'session.list' && c.$2['title'] == 'Bot Chat'), isNotEmpty);
   });
 
+  testWidgets('skills and MCP servers switch on and off, a server is tested', (t) async {
+    fakeServer((_, _, _) => null);
+    addTearDown(() => callApi = hermesApi);
+    final sent = <(String, String, Object?)>[];
+    callApi = (base, method, path, {query, body, user, password}) async {
+      if (method != 'GET') sent.add((method, path, body));
+      return jsonEncode(switch (path) {
+        '/api/mcp/servers' => {
+          'servers': [
+            {'name': 'github', 'transport': 'http', 'url': 'https://mcp.github.test', 'enabled': true, 'source': 'config'},
+          ],
+        },
+        '/api/skills' => [
+          {'name': 'bookstack', 'description': 'Homelab wiki', 'category': 'docs', 'enabled': true},
+          {'name': 'github-pr', 'description': 'Open pull requests', 'category': 'dev', 'enabled': false},
+        ],
+        '/api/mcp/servers/github/test' => {
+          'ok': true,
+          'tools': [
+            {'name': 'a'},
+            {'name': 'b'},
+          ],
+        },
+        _ => {'ok': true},
+      });
+    };
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Skills & MCP'));
+    await t.pumpAndSettle();
+    expect(find.text('MCP SERVERS'), findsOneWidget);
+    expect(find.text('https://mcp.github.test'), findsOneWidget);
+    expect(find.text('DEV'), findsOneWidget);
+
+    await t.tap(find.byIcon(CupertinoIcons.bolt_horizontal));
+    await t.pumpAndSettle();
+    expect(find.text('Connected · 2 tools'), findsOneWidget);
+
+    await t.tap(find.byType(CupertinoSwitch).first); // the server off
+    await t.pumpAndSettle();
+    await t.tap(find.byType(CupertinoSwitch).at(1)); // github-pr on (dev, the first category)
+    await t.pumpAndSettle();
+    expect([for (final (m, p, b) in sent) '$m $p ${jsonEncode(b)}'], [
+      'POST /api/mcp/servers/github/test null',
+      'PUT /api/mcp/servers/github/enabled {"enabled":false}',
+      'PUT /api/skills/toggle {"name":"github-pr","enabled":true}',
+    ]);
+    expect(t.widget<CupertinoSwitch>(find.byType(CupertinoSwitch).at(1)).value, isTrue);
+
+    await t.enterText(find.byType(CupertinoSearchTextField), 'wiki');
+    await t.pumpAndSettle();
+    expect(find.text('bookstack'), findsOneWidget);
+    expect(find.text('github-pr'), findsNothing);
+  });
+
   testWidgets('the system page shows the server, updates it and restarts its gateway', (t) async {
     fakeServer((_, _, _) => null);
     addTearDown(() => callApi = hermesApi);

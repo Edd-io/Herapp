@@ -1072,4 +1072,45 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get screenOpen => 'Écran du bot · prendre la main';
+
+  @override
+  String get tools => 'Skills et MCP';
+
+  @override
+  String get toolsMcp => 'Serveurs MCP';
+
+  @override
+  String get toolsSkills => 'Skills';
+
+  @override
+  String get toolsSearch => 'Chercher un skill';
+
+  @override
+  String get toolsNone => 'Aucun skill ne correspond.';
+
+  @override
+  String get toolsNextChats =>
+      'Un changement vaut pour les chats lancés après.';
+
+  @override
+  String get toolsMcpTest => 'Tester la connexion';
+
+  @override
+  String toolsMcpOk(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count outils',
+      one: '1 outil',
+    );
+    return 'Connecté · $_temp0';
+  }
+
+  @override
+  String get toolsMcpFailed => 'Connexion impossible';
+
+  @override
+  String toolsFailed(String error) {
+    return 'Non modifié : $error';
+  }
 }

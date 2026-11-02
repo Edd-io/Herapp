@@ -582,5 +582,17 @@
   "cronRunAgain": "Run again",
   "cronFailed": "Failed",
   "cronSolveCaptcha": "Solve it on the bot's screen",
-  "screenOpen": "Bot screen · take over"
+  "screenOpen": "Bot screen · take over",
+  "tools": "Skills & MCP",
+  "toolsMcp": "MCP servers",
+  "toolsSkills": "Skills",
+  "toolsSearch": "Search skills",
+  "toolsNone": "No skill matches.",
+  "toolsNextChats": "A change applies to the chats started after it.",
+  "toolsMcpTest": "Test the connection",
+  "toolsMcpOk": "Connected · {count, plural, =1{1 tool} other{{count} tools}}",
+  "@toolsMcpOk": {"placeholders": {"count": {"type": "int"}}},
+  "toolsMcpFailed": "Connection failed",
+  "toolsFailed": "Not changed: {error}",
+  "@toolsFailed": {"placeholders": {"error": {"type": "String"}}}
 }

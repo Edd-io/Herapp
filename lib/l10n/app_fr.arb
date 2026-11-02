@@ -304,5 +304,15 @@
   "cronRunAgain": "Relancer",
   "cronFailed": "Échec",
   "cronSolveCaptcha": "Le résoudre sur l'écran du bot",
-  "screenOpen": "Écran du bot · prendre la main"
+  "screenOpen": "Écran du bot · prendre la main",
+  "tools": "Skills et MCP",
+  "toolsMcp": "Serveurs MCP",
+  "toolsSkills": "Skills",
+  "toolsSearch": "Chercher un skill",
+  "toolsNone": "Aucun skill ne correspond.",
+  "toolsNextChats": "Un changement vaut pour les chats lancés après.",
+  "toolsMcpTest": "Tester la connexion",
+  "toolsMcpOk": "Connecté · {count, plural, =1{1 outil} other{{count} outils}}",
+  "toolsMcpFailed": "Connexion impossible",
+  "toolsFailed": "Non modifié : {error}"
 }

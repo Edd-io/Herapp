@@ -1927,6 +1927,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bot screen · take over'**
   String get screenOpen;
+
+  /// No description provided for @tools.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills & MCP'**
+  String get tools;
+
+  /// No description provided for @toolsMcp.
+  ///
+  /// In en, this message translates to:
+  /// **'MCP servers'**
+  String get toolsMcp;
+
+  /// No description provided for @toolsSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills'**
+  String get toolsSkills;
+
+  /// No description provided for @toolsSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search skills'**
+  String get toolsSearch;
+
+  /// No description provided for @toolsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No skill matches.'**
+  String get toolsNone;
+
+  /// No description provided for @toolsNextChats.
+  ///
+  /// In en, this message translates to:
+  /// **'A change applies to the chats started after it.'**
+  String get toolsNextChats;
+
+  /// No description provided for @toolsMcpTest.
+  ///
+  /// In en, this message translates to:
+  /// **'Test the connection'**
+  String get toolsMcpTest;
+
+  /// No description provided for @toolsMcpOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected · {count, plural, =1{1 tool} other{{count} tools}}'**
+  String toolsMcpOk(int count);
+
+  /// No description provided for @toolsMcpFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed'**
+  String get toolsMcpFailed;
+
+  /// No description provided for @toolsFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Not changed: {error}'**
+  String toolsFailed(String error);
 }
 
 class _AppLocalizationsDelegate
