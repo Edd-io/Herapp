@@ -1,4 +1,5 @@
 import AppIntents
+import BackgroundTasks
 import Flutter
 import UIKit
 import UserNotifications
@@ -48,6 +49,16 @@ final class QuickAsk {
         result(nil)
       case "notify":
         Notifier.shared.post(call.arguments as? [String: Any])
+        result(nil)
+      case "replyStart", "replyStatus":
+        let a = call.arguments as? [String: Any] ?? [:]
+        let (title, subtitle) = (a["title"] as? String ?? "Herapp", a["subtitle"] as? String ?? "")
+        if call.method == "replyStart" { ReplyTask.shared.start(title: title, subtitle: subtitle) } else {
+          ReplyTask.shared.update(title: title, subtitle: subtitle)
+        }
+        result(nil)
+      case "replyEnd":
+        ReplyTask.shared.end()
         result(nil)
       default: result(FlutterMethodNotImplemented)
       }
@@ -180,5 +191,60 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     a.userInfo = chat
     _ = Handoff.shared.received(a)
     done()
+  }
+}
+
+/// A reply being written, kept running while the app is in the background (iOS 26): the system shows its title,
+/// status and progress as a Live Activity until it's done, or until the user stops it there.
+final class ReplyTask {
+  static let shared = ReplyTask()
+  private var task: AnyObject? // the running BGContinuedProcessingTask
+  private var over = false // ended before the system started it
+  private var ticker: Timer?
+
+  func start(title: String, subtitle: String) {
+    guard #available(iOS 26, *) else { return }
+    end()
+    over = false
+    let id = "com.edd-io.herapp.reply.\(UUID().uuidString.prefix(8))"
+    _ = BGTaskScheduler.shared.register(forTaskWithIdentifier: id, using: .main) { [weak self] t in
+      guard let self, let t = t as? BGContinuedProcessingTask else { return }
+      if self.over { return t.setTaskCompleted(success: true) }
+      t.progress.totalUnitCount = 1000
+      t.expirationHandler = { [weak self] in
+        self?.ticker?.invalidate()
+        self?.task = nil
+        t.setTaskCompleted(success: false)
+      }
+      self.task = t
+      // a task that seems stalled is ended by the system: while the reply runs, its progress creeps on,
+      // a tenth of what's left every few seconds (the server tells nothing of how far a reply is)
+      self.ticker = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in self?.advance() }
+    }
+    let request = BGContinuedProcessingTaskRequest(identifier: id, title: title, subtitle: subtitle)
+    request.strategy = .fail // now or never: a reply queued for later would be over
+    do { try BGTaskScheduler.shared.submit(request) } catch { NSLog("Reply task: \(error)") }
+  }
+
+  func update(title: String, subtitle: String) {
+    guard #available(iOS 26, *), let t = task as? BGContinuedProcessingTask else { return }
+    t.updateTitle(title, subtitle: subtitle)
+    advance()
+  }
+
+  func end() {
+    over = true
+    ticker?.invalidate()
+    ticker = nil
+    guard #available(iOS 26, *), let t = task as? BGContinuedProcessingTask else { return }
+    task = nil
+    t.progress.completedUnitCount = t.progress.totalUnitCount
+    t.setTaskCompleted(success: true)
+  }
+
+  private func advance() {
+    guard #available(iOS 26, *), let t = task as? BGContinuedProcessingTask else { return }
+    let p = t.progress
+    p.completedUnitCount += max(1, (p.totalUnitCount * 95 / 100 - p.completedUnitCount) / 10)
   }
 }

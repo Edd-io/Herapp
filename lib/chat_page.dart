@@ -112,6 +112,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   AppLifecycleState life = AppLifecycleState.resumed; // out of sight, a reply done is told by a notification
   bool notifyAsked = false; // this launch asked the system whether it may notify
   final comparing = <Msg>{}; // replies whose other model is still answering
+  String? told; // what the Live Activity of a running reply says, see [tellProgress]
   bool atBottom = true;
   int seen = 0; // the open chat's messages when the user scrolled up from its end, to count the new ones
   String query = '';
@@ -634,11 +635,31 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   });
 
   /// What the running turn does, for the header.
-  String status(AppLocalizations l) => switch (phase) {
+  String status(AppLocalizations l, [Chat? of]) => switch ((of ?? chat).phase) {
     '' => l.statusThinking,
     'writing' => l.statusWriting,
     final tool => l.statusTool(tool),
   };
+
+  /// On an iPhone (iOS 26), a reply being written goes on in the background: the system keeps the app running
+  /// and shows the reply's progress as a Live Activity, on the Lock Screen and in the Dynamic Island, until it's done.
+  /// [told] is the status last shown there, null while no reply runs.
+  void tellProgress() {
+    if (!Platform.isIOS) return;
+    const quick = MethodChannel('herapp/quick');
+    final running = [...chats, ?bot].where((c) => c.streaming).toList();
+    if (running.isEmpty) {
+      if (told != null) quick.invokeMethod<void>('replyEnd').catchError((Object _) {});
+      told = null;
+      return;
+    }
+    final c = running.contains(chat) ? chat : running.first;
+    final l = AppLocalizations.of(context), now = status(l, c);
+    if (now == told) return;
+    final title = c.title.trim().isEmpty ? 'Herapp' : c.title;
+    quick.invokeMethod<void>(told == null ? 'replyStart' : 'replyStatus', {'title': title, 'subtitle': now}).catchError((Object _) {});
+    told = now;
+  }
 
   /// Offers the server's skills while a `/name` is typed at the start of the message.
   void complete() {
@@ -1308,6 +1329,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     super.setState(fn);
     paneRefresh.value++;
     handOff();
+    tellProgress();
   }
 
   void toBottom({bool jump = false}) => WidgetsBinding.instance.addPostFrameCallback((_) {

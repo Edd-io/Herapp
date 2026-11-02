@@ -90,6 +90,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.edd-io.herapp.reply.*</string>
+	</array>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>com.edd-io.herapp.chat</string>
