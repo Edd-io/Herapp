@@ -144,31 +144,16 @@ class _ModelSheetState extends State<ModelSheet> {
                           ),
                         ],
                       ),
-                      SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          activeTrackColor: c.primary,
-                          inactiveTrackColor: c.surfaceContainerHighest,
-                          thumbColor: c.primary,
-                          activeTickMarkColor: c.onPrimary.withValues(alpha: .5),
-                          inactiveTickMarkColor: c.outline.withValues(alpha: .5),
-                          overlayColor: c.primary.withValues(alpha: .1),
-                          trackHeight: 6,
-                          // ignore: deprecated_member_use, the rounded bar rather than the gapped one
-                          year2023: true,
-                        ),
-                        child: Slider(
-                          value: efforts.indexOf(effort).clamp(0, efforts.length - 1).toDouble(),
-                          max: efforts.length - 1.0,
-                          divisions: efforts.length - 1,
-                          onChanged: (v) {
-                            final e = efforts[v.round()];
-                            if (e == effort) return;
-                            settings.haptic();
-                            setState(() => effort = e);
-                            widget.onEffort(e);
-                          },
-                        ),
+                      const SizedBox(height: 10),
+                      _EffortBar(
+                        effort: effort,
+                        onChanged: (e) {
+                          settings.haptic();
+                          setState(() => effort = e);
+                          widget.onEffort(e);
+                        },
                       ),
+                      const SizedBox(height: 6),
                       // the ends of the bar
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -265,6 +250,131 @@ class _ModelSheetState extends State<ModelSheet> {
       ),
     );
   }
+}
+
+/// The reasoning effort as a thick bar filled to the level picked, tapped or dragged; its stripes run faster,
+/// and show more, the harder Hermes thinks (still when the system asks for less motion).
+class _EffortBar extends StatefulWidget {
+  const _EffortBar({required this.effort, required this.onChanged});
+  final String effort;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_EffortBar> createState() => _EffortBarState();
+}
+
+class _EffortBarState extends State<_EffortBar> with SingleTickerProviderStateMixin {
+  final phase = ValueNotifier(0.0); // how far the stripes have run, in pixels
+  late final ticker = createTicker(tick);
+  var last = Duration.zero;
+
+  int get level => efforts.indexOf(widget.effort).clamp(0, efforts.length - 1);
+
+  void tick(Duration now) {
+    phase.value += (now - last).inMicroseconds / 1e6 * (8 + level * 14);
+    last = now;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      ticker.stop();
+    } else if (!ticker.isActive) {
+      last = Duration.zero;
+      ticker.start();
+    }
+  }
+
+  @override
+  void dispose() {
+    ticker.dispose();
+    phase.dispose();
+    super.dispose();
+  }
+
+  void pick(int i) {
+    final e = efforts[i.clamp(0, efforts.length - 1)];
+    if (e != widget.effort) widget.onChanged(e);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context);
+    return Semantics(
+      slider: true,
+      label: l.effort,
+      value: effortText(l, widget.effort),
+      increasedValue: effortText(l, efforts[(level + 1).clamp(0, efforts.length - 1)]),
+      decreasedValue: effortText(l, efforts[(level - 1).clamp(0, efforts.length - 1)]),
+      onIncrease: () => pick(level + 1),
+      onDecrease: () => pick(level - 1),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          const h = 34.0;
+          final w = box.maxWidth;
+          int at(Offset p) => ((p.dx - h / 2) / (w - h) * (efforts.length - 1)).round();
+          return MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              key: const ValueKey('effort'),
+              behavior: HitTestBehavior.opaque,
+              onTapDown: (d) => pick(at(d.localPosition)),
+              onHorizontalDragUpdate: (d) => pick(at(d.localPosition)),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(end: level / (efforts.length - 1)),
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                builder: (context, fill, _) => CustomPaint(
+                  size: Size(w, h),
+                  painter: _EffortPainter(fill: fill, level: level, phase: phase, colors: c),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _EffortPainter extends CustomPainter {
+  _EffortPainter({required this.fill, required this.level, required this.phase, required this.colors}) : super(repaint: phase);
+  final double fill; // 0 (auto) to 1 (max), animated between levels
+  final int level;
+  final ValueNotifier<double> phase;
+  final ColorScheme colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final h = size.height, r = Radius.circular(h / 2);
+    final steps = efforts.length - 1;
+    canvas.drawRRect(RRect.fromRectAndRadius(Offset.zero & size, r), Paint()..color = colors.surfaceContainerHighest);
+    // a dot for each level, under the fill
+    for (var i = 0; i <= steps; i++) {
+      canvas.drawCircle(Offset(h / 2 + (size.width - h) * i / steps, h / 2), 2.5, Paint()..color = colors.outline.withValues(alpha: .45));
+    }
+    final bar = RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, h + (size.width - h) * fill, h), r);
+    canvas
+      ..save()
+      ..clipRRect(bar)
+      ..drawRRect(bar, Paint()..color = colors.primary);
+    // diagonal stripes running right
+    const gap = 16.0;
+    final stripe = Paint()
+      ..color = colors.onPrimary.withValues(alpha: .07 + level * .035)
+      ..strokeWidth = 7;
+    for (var x = phase.value % gap - h - gap; x < bar.width + gap; x += gap) {
+      canvas.drawLine(Offset(x, h), Offset(x + h, 0), stripe);
+    }
+    canvas.restore();
+    // the knob, at the fill's end
+    canvas.drawCircle(Offset(bar.width - h / 2, h / 2), h / 2 - 5, Paint()..color = colors.onPrimary);
+  }
+
+  @override
+  bool shouldRepaint(_EffortPainter old) => old.fill != fill || old.level != level || old.colors != colors;
 }
 
 class _ModelRow extends StatelessWidget {

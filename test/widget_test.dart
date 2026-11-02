@@ -78,6 +78,18 @@ Object? replies(String method, Map params, void Function(String, Map) emit) {
   return null;
 }
 
+/// Asks for less motion, which stills the effort bar's stripes: running, they never let a test settle.
+void stillStripes(WidgetTester t) {
+  t.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
+  addTearDown(t.platformDispatcher.clearAccessibilityFeaturesTestValue);
+}
+
+/// Taps [effort]'s place on the effort bar.
+Future<void> tapEffort(WidgetTester t, String effort) async {
+  final bar = t.getRect(find.byKey(const ValueKey('effort')));
+  await t.tapAt(Offset(bar.left + 17 + (bar.width - 34) * efforts.indexOf(effort) / (efforts.length - 1), bar.center.dy));
+}
+
 void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -583,6 +595,7 @@ void main() {
   });
 
   testWidgets('server models can be picked while the chat is empty', (t) async {
+    stillStripes(t);
     final calls = fakeServer(replies);
     addTearDown(() => fetchModels = hermesModels);
     fetchModels = (base, {user, password}) async => (
@@ -616,7 +629,7 @@ void main() {
     expect(find.text('openai/gpt-5'), findsNWidgets(2)); // the pill, and the sheet's recent ones
     expect(find.text('claude-sonnet-5-5'), findsNothing);
     expect(find.text('plain'), findsNothing);
-    t.widget<Slider>(find.byType(Slider)).onChanged!(efforts.indexOf('high').toDouble()); // the effort bar
+    await tapEffort(t, 'high');
     await t.pumpAndSettle();
     expect(settings.effort, 'high');
     await t.tap(find.text('openai/gpt-5').last);
@@ -809,6 +822,7 @@ void main() {
   });
 
   testWidgets('picker explains a missing server', (t) async {
+    stillStripes(t);
     await t.pumpWidget(const App());
     await t.tap(find.text('Model'));
     await t.pumpAndSettle();
@@ -1215,9 +1229,10 @@ void main() {
     await t.scrollUntilVisible(find.text('Model'), -200, scrollable: page);
     await t.drag(page, const Offset(0, 150)); // clear of the header
     await t.pumpAndSettle();
+    stillStripes(t);
     await t.tap(find.text('Model'));
     await t.pumpAndSettle();
-    t.widget<Slider>(find.byType(Slider)).onChanged!(efforts.indexOf('high').toDouble()); // the effort bar
+    await tapEffort(t, 'high');
     await t.pumpAndSettle();
     expect(sent.last.$3, {
       'updates': {'reasoning_effort': 'high'},
