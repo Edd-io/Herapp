@@ -747,5 +747,7 @@
   "notificationsInfo": "A reply or background task done while Herapp is out of sight tells you.",
   "compare": "Compare with another model",
   "compareClose": "Close the comparison",
-  "compareNoModels": "No other model to compare with"
+  "compareNoModels": "No other model to compare with",
+  "serverRefused": "Hermes refused: {message}",
+  "@serverRefused": {"placeholders": {"message": {"type": "String"}}}
 }

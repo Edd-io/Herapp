@@ -509,6 +509,11 @@ double? contextOf(Object? usage) => switch (usage) {
 /// An event, or a server→client request when [id] is set (its answer goes back through [Gateway.reply]).
 typedef GatewayEvent = ({String type, String session, Map payload, Object? id});
 
+/// What the gateway answered with a JSON-RPC error: it was reached, and refused or failed the call.
+class RpcError extends HttpException {
+  const RpcError(super.message);
+}
+
 /// JSON-RPC connection to the dashboard's `/api/ws`, the gateway Hermes' own web and desktop chats use.
 class Gateway {
   Gateway(Stream<dynamic> frames, this._send, this._close) {
@@ -556,7 +561,7 @@ class Gateway {
     final c = _pending[id] = Completer<Map>();
     _send(jsonEncode({'jsonrpc': '2.0', 'id': id, 'method': method, 'params': params}));
     final r = await c.future.timeout(timeout, onTimeout: () => throw HttpException('$method timed out'));
-    if (r['error'] case final Map e) throw HttpException('${e['message'] ?? 'Hermes error'}');
+    if (r['error'] case final Map e) throw RpcError('${e['message'] ?? 'Hermes error'}');
     return r['result'] is Map ? r['result'] as Map : const {};
   }
 

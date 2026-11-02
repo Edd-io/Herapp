@@ -2791,6 +2791,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No other model to compare with'**
   String get compareNoModels;
+
+  /// No description provided for @serverRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'Hermes refused: {message}'**
+  String serverRefused(String message);
 }
 
 class _AppLocalizationsDelegate

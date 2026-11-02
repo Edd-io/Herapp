@@ -448,5 +448,6 @@
   "notificationsInfo": "Une réponse ou une tâche finie pendant que Herapp n’est pas à l’écran te prévient.",
   "compare": "Comparer avec un autre modèle",
   "compareClose": "Fermer la comparaison",
-  "compareNoModels": "Aucun autre modèle à comparer"
+  "compareNoModels": "Aucun autre modèle à comparer",
+  "serverRefused": "Hermes a refusé : {message}"
 }

@@ -1599,4 +1599,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get compareNoModels => 'Aucun autre modèle à comparer';
+
+  @override
+  String serverRefused(String message) {
+    return 'Hermes a refusé : $message';
+  }
 }

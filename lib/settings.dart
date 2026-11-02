@@ -479,6 +479,7 @@ String serverErrorText(AppLocalizations l, Object? e) => switch (e) {
   null => l.serverNotSet,
   // Hermes updated on disk but not restarted: it refuses to list models
   HttpException(:final message) when message.startsWith('Restart required') => l.serverRestart,
+  RpcError(:final message) => l.serverRefused(message), // reached: it said no
   HttpException(:final message) => l.serverLoadFailed(message),
   _ => l.serverLoadFailed('$e'),
 };
