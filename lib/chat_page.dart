@@ -1254,7 +1254,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'Hermes',
+                                'Herapp',
                                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: c.onSurface),
                               ),
                               const SizedBox(width: 6),

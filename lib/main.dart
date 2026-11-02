@@ -39,7 +39,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: settings,
     builder: (context, _) => MaterialApp(
-      title: 'Hermes',
+      title: 'Herapp',
       debugShowCheckedModeBanner: false,
       themeMode: settings.theme,
       locale: settings.language.isEmpty ? null : Locale(settings.language),

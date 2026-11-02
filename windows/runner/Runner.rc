@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.edd-io" "\0"
-            VALUE "FileDescription", "herapp" "\0"
+            VALUE "FileDescription", "Herapp" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "herapp" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.edd-io. All rights reserved." "\0"
             VALUE "OriginalFilename", "herapp.exe" "\0"
-            VALUE "ProductName", "herapp" "\0"
+            VALUE "ProductName", "Herapp" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
