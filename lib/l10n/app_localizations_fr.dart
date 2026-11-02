@@ -26,6 +26,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get queued => 'En attente · touche pour modifier';
 
   @override
+  String get editingMessage => 'Modification du message · renvoyé à sa place';
+
+  @override
   String get memoryUpdated => 'Mémoire mise à jour';
 
   @override

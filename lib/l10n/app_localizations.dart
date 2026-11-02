@@ -128,6 +128,12 @@ abstract class AppLocalizations {
   /// **'Queued · tap to edit'**
   String get queued;
 
+  /// No description provided for @editingMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing message · sent in its place'**
+  String get editingMessage;
+
   /// No description provided for @memoryUpdated.
   ///
   /// In en, this message translates to:

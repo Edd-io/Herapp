@@ -71,6 +71,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   final models = ValueNotifier<Models>((list: const [], loading: false, error: null));
   late final drawer = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
   Msg? fresh; // latest user message, animated on arrival
+  Msg? editing; // a sent message the composer rewrites, to send in its place
   bool atBottom = true;
   String query = '';
   List<Found> found = []; // conversations whose messages match [query]
@@ -321,6 +322,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     settings.haptic();
     input.clear();
     final m = Msg(true, text, null, [...pending]);
+    if (editing case final old? when !streaming && chat.msgs.contains(old)) {
+      setState(() {
+        pending.clear();
+        editing = null;
+      });
+      return resend(old, m);
+    }
+    editing = null;
     final later = streaming; // Hermes is still answering: it goes once the reply is done
     setState(() {
       pending.clear();
@@ -570,11 +579,35 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     setState(() => m.ask = null);
   }
 
-  void regenerate() {
+  void regenerate() => resend(chat.msgs.lastWhere((m) => m.user));
+
+  /// Sends the chat again from the user message [asked], or from [edited] in its place; what followed is dropped.
+  void resend(Msg asked, [Msg? edited]) {
     stop();
-    setState(() => chat.msgs.removeLast());
+    setState(() {
+      chat.msgs.removeRange(chat.msgs.indexOf(asked) + (edited == null ? 1 : 0), chat.msgs.length);
+      if (edited != null) chat.msgs.add(fresh = edited);
+    });
     respond(again: true);
   }
+
+  /// Puts the sent message [m] back in the composer, to rewrite and send in its place.
+  void edit(Msg m) {
+    setState(() {
+      editing = m;
+      input.text = m.text;
+      pending
+        ..clear()
+        ..addAll(m.files);
+    });
+    focus.requestFocus();
+  }
+
+  void cancelEdit() => setState(() {
+    editing = null;
+    input.clear();
+    pending.clear();
+  });
 
   void newChat() {
     if (chat.msgs.isNotEmpty) chats.insert(0, chat = Chat());
@@ -1067,10 +1100,11 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     const body = TextStyle(fontSize: 17, height: 1.45);
     if (m.user) {
       if (cronDelivery(m.text) case final d?) return _routine(c, d);
-      final bubble = Align(
+      final actions = !streaming && !queue.contains(m); // a turn running, or the message waiting, can't be redone yet
+      final text = Align(
         alignment: Alignment.centerRight,
         child: Container(
-          margin: const EdgeInsets.only(left: 64, top: 12, bottom: 12),
+          margin: EdgeInsets.only(left: 64, top: 12, bottom: actions ? 2 : 12),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(22)),
           child: m.files.isEmpty
@@ -1088,6 +1122,29 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                 ),
         ),
       );
+      final bubble = !actions
+          ? text
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                text,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _IconBtn(
+                      small: true,
+                      onTap: () => edit(m),
+                      child: Icon(CupertinoIcons.pencil, size: 18, color: c.onSurfaceVariant),
+                    ),
+                    _IconBtn(
+                      small: true,
+                      onTap: () => resend(m),
+                      child: Icon(CupertinoIcons.arrow_2_circlepath, size: 18, color: c.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ],
+            );
       if (!identical(m, fresh)) return bubble;
       return TweenAnimationBuilder<double>(
         key: ObjectKey(m),
@@ -1314,6 +1371,23 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       mainAxisSize: MainAxisSize.min,
       children: [
         if (slashes.isNotEmpty) _slashList(c),
+        if (editing case final m? when !streaming && chat.msgs.contains(m))
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 6, 16, 0),
+            child: Row(
+              children: [
+                Icon(CupertinoIcons.pencil, size: 16, color: c.outline),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(AppLocalizations.of(context).editingMessage, style: TextStyle(fontSize: 13, color: c.outline)),
+                ),
+                GestureDetector(
+                  onTap: cancelEdit,
+                  child: Icon(CupertinoIcons.xmark_circle_fill, size: 18, color: c.outline),
+                ),
+              ],
+            ),
+          ),
         if (pending.isNotEmpty)
           SizedBox(
             height: 76,

@@ -4,6 +4,7 @@
   "statusTool": "Utilise {tool}…",
   "composerQueueHint": "Message suivant",
   "queued": "En attente · touche pour modifier",
+  "editingMessage": "Modification du message · renvoyé à sa place",
   "memoryUpdated": "Mémoire mise à jour",
   "routineResult": "Routine · {job}",
   "system": "Système",

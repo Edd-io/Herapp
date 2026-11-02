@@ -104,11 +104,61 @@ void main() {
     // the ring shows the server's context usage
     expect(t.widget<CircularProgressIndicator>(find.byType(CircularProgressIndicator)).value, closeTo(.42, .001));
 
-    await t.tap(find.byIcon(CupertinoIcons.arrow_2_circlepath));
+    await t.tap(find.byIcon(CupertinoIcons.arrow_2_circlepath).last); // the reply's; the first is the message's
     await t.pump(const Duration(seconds: 10));
     expect(calls.where((c) => c.$1 == 'prompt.submit').last.$2, containsPair('truncate_before_user_ordinal', 0));
     expect(find.textContaining('Hello there'), findsOneWidget); // replaced, not appended
     expect(calls.where((c) => c.$1 == 'session.create'), hasLength(1));
+  });
+
+  testWidgets('a sent message is rewritten or sent again in its place', (t) async {
+    final calls = fakeServer(replies);
+    await t.pumpWidget(const App());
+    Future<void> sendText(String text) async {
+      await t.enterText(find.byType(EditableText).last, text);
+      await t.pumpAndSettle();
+      await t.tap(find.byIcon(CupertinoIcons.arrow_up));
+      await t.pump(const Duration(seconds: 1));
+      await t.pump(const Duration(seconds: 1));
+    }
+
+    await sendText('One');
+    await sendText('Two');
+    expect(find.textContaining('Hello there'), findsNWidgets(2));
+    expect(find.byIcon(CupertinoIcons.pencil), findsNWidgets(2));
+
+    // the first message, rewritten: the conversation goes on from it, without what followed
+    await t.tap(find.byIcon(CupertinoIcons.pencil).first);
+    await t.pumpAndSettle();
+    expect(t.widget<EditableText>(find.byType(EditableText).last).controller.text, 'One');
+    expect(find.text('Editing message · sent in its place'), findsOneWidget);
+    await sendText('Uno');
+    expect(calls.where((c) => c.$1 == 'prompt.submit').last.$2, {
+      'session_id': 'rt',
+      'text': 'Uno',
+      'truncate_before_user_ordinal': 0,
+      'confirm_truncate': true,
+    });
+    expect(find.text('One'), findsNothing);
+    expect(find.text('Two'), findsNothing);
+    expect(find.textContaining('Hello there'), findsOneWidget);
+    expect(find.text('Editing message · sent in its place'), findsNothing);
+
+    // sent again as is
+    await t.tap(find.byIcon(CupertinoIcons.arrow_2_circlepath).first);
+    await t.pump(const Duration(seconds: 1));
+    await t.pump(const Duration(seconds: 1));
+    expect(calls.where((c) => c.$1 == 'prompt.submit').last.$2, containsPair('text', 'Uno'));
+    expect(calls.where((c) => c.$1 == 'prompt.submit').last.$2, containsPair('truncate_before_user_ordinal', 0));
+    expect(find.textContaining('Hello there'), findsOneWidget);
+
+    // an edit can be dropped
+    await t.tap(find.byIcon(CupertinoIcons.pencil));
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(CupertinoIcons.xmark_circle_fill));
+    await t.pumpAndSettle();
+    expect(t.widget<EditableText>(find.byType(EditableText).last).controller.text, isEmpty);
+    await t.pump(const Duration(seconds: 10));
   });
 
   testWidgets('Enter sends, Shift+Enter keeps typing', (t) async {
