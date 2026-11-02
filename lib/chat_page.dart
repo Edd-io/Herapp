@@ -19,6 +19,7 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'agents_page.dart';
+import 'cron_page.dart';
 import 'git_page.dart';
 import 'hermes.dart';
 import 'kanban_page.dart';
@@ -45,6 +46,7 @@ class Chat {
   late String effort = stored.isEmpty ? settings.effort : ''; // a reopened chat keeps the effort it ran with
   String stored; // server session id, '' until the first message creates it
   String name; // server title
+  bool pinned = false; // kept at the top of the menu, on every device
   bool loaded; // transcript fetched (always for a chat started here)
   bool loading = false;
   double? context; // share of the context window the server reports, null until known
@@ -148,6 +150,12 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       final g = await gateway();
       if (g == null) return;
       final rows = parseSessions(await g.call('session.list', {'limit': 50}));
+      // only the REST list tells which are pinned, those older than the 50 too
+      final pins = await serverApi(
+        'GET',
+        '/api/sessions',
+        query: {'limit': '100', 'archived': 'exclude', 'order': 'recent'},
+      ).then((b) => pinnedSessions(b ?? ''), onError: (Object _) => const <String, String>{});
       // hidden from the list, the Bot Chat is found by its name (an older server ignores the title and lists all)
       final canonical = switch (await g.call('session.list', {'title': 'Bot Chat'}).catchError((Object _) => const {})) {
         {'sessions': [{'title': 'Bot Chat'} && final Map s, ...]} => '${s['resolved_id'] ?? s['id']}',
@@ -161,7 +169,12 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         bot = canonical.isEmpty ? null : known[canonical] ?? Chat(stored: canonical, name: 'Bot Chat');
         chats = [
           ...chats.where((c) => c.stored.isEmpty),
-          for (final r in rows) (known[r.id]?..name = r.title) ?? Chat(stored: r.id, name: r.title),
+          for (final r in [
+            ...rows,
+            for (final MapEntry(:key, :value) in pins.entries)
+              if (!rows.any((r) => r.id == key)) (id: key, title: value),
+          ])
+            ((known[r.id]?..name = r.title) ?? Chat(stored: r.id, name: r.title))..pinned = pins.containsKey(r.id),
           // the server's list is the truth; only the open chat, or one still answering, stays if it's missing from it
           for (final c in {...chats, chat})
             if (c.stored.isNotEmpty && !identical(c, bot) && (identical(c, chat) || c.streaming) && !rows.any((r) => r.id == c.stored)) c,
@@ -879,6 +892,75 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.deleteFailed(e is HttpException ? e.message : '$e'))));
       }
       return false;
+    }
+  }
+
+  /// Pins [c] at the top of the menu, or unpins it.
+  Future<void> pin(Chat c, bool on) async {
+    final id = Uri.encodeComponent(c.stored);
+    try {
+      // the server takes a change only against the session's current revision
+      final snap = jsonDecode(await serverApi('GET', '/api/sessions/$id/mutation-snapshot') ?? '{}') as Map;
+      await serverApi(
+        'PATCH',
+        '/api/sessions/$id',
+        body: {
+          'request_id': 'herapp-${DateTime.now().microsecondsSinceEpoch}',
+          'expected_revision': snap['runtime_revision'] ?? 0,
+          'pinned': on,
+        },
+      );
+      setState(() => c.pinned = on);
+    } catch (e) {
+      failed(e);
+    }
+  }
+
+  /// Archives [c] (or brings it back): out of the menu, kept on the server with its messages.
+  Future<bool> archive(String stored, {bool on = true}) async {
+    try {
+      final g = await gateway();
+      if (g == null) throw const HttpException('no server');
+      await g.call('session.archive', {'session_id': stored, 'archived': on});
+      return true;
+    } catch (e) {
+      failed(e);
+      return false;
+    }
+  }
+
+  void failed(Object e) {
+    debugPrint('Chat: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.chatActionFailed(e is HttpException ? e.message : '$e'))));
+    }
+  }
+
+  /// What can be done to [c] from the menu: pin, archive, delete.
+  Future<void> chatMenu(Chat c) async {
+    final action = await showChoices<String>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+        actions: [
+          CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'pin'), child: Text(c.pinned ? l.chatUnpin : l.chatPin)),
+          CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, 'archive'), child: Text(l.chatArchive)),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(context, 'delete'),
+            child: Text(l.deleteChat),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(context), child: Text(l.cancel)),
+      ),
+    );
+    switch (action) {
+      case 'pin':
+        await pin(c, !c.pinned);
+      case 'archive' when await archive(c.stored):
+        deleted(c);
+      case 'delete' when await confirmDelete(c):
+        deleted(c);
     }
   }
 

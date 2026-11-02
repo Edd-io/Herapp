@@ -24,11 +24,13 @@ extension _Sidebar on _ChatPageState {
   Widget _sidebar(ColorScheme c) {
     final q = query.toLowerCase();
     final listed = chats.where((ch) => ch.title.isNotEmpty && ch.title.toLowerCase().contains(q));
-    Widget tile(String label, {IconData? icon, bool selected = false, required VoidCallback onTap}) => Padding(
+    Widget tile(String label, {IconData? icon, bool selected = false, required VoidCallback onTap, VoidCallback? onMenu}) => Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Hover(
         child: GestureDetector(
           onTap: onTap,
+          onLongPress: onMenu,
+          onSecondaryTap: onMenu,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
             decoration: BoxDecoration(
@@ -50,6 +52,39 @@ extension _Sidebar on _ChatPageState {
             ),
           ),
         ),
+      ),
+    );
+    Widget heading(String text) => Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
+      ),
+    );
+    // swipe left to delete, right to archive, as in iOS lists; held (or right-clicked) for the menu
+    Widget listedTile(Chat ch) => Dismissible(
+      key: ObjectKey(ch),
+      direction: ch.stored.isEmpty ? DismissDirection.endToStart : DismissDirection.horizontal,
+      confirmDismiss: (d) => d == DismissDirection.endToStart ? confirmDelete(ch) : archive(ch.stored),
+      onDismissed: (_) => deleted(ch),
+      background: Container(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 24),
+        color: CupertinoColors.systemIndigo.darkColor,
+        child: const Icon(CupertinoIcons.archivebox, color: CupertinoColors.white, size: 20),
+      ),
+      secondaryBackground: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        color: const Color(0xFF9E1B1B), // darker than systemRed
+        child: const Icon(CupertinoIcons.trash, color: CupertinoColors.white, size: 20),
+      ),
+      child: tile(
+        ch.title,
+        icon: ch.pinned ? CupertinoIcons.pin : null,
+        selected: identical(ch, chat),
+        onTap: () => select(ch),
+        onMenu: ch.stored.isEmpty ? null : () => chatMenu(ch),
       ),
     );
     return ColoredBox(
@@ -97,30 +132,15 @@ extension _Sidebar on _ChatPageState {
                   tile(AppLocalizations.of(context).newChat, icon: CupertinoIcons.square_pencil, onTap: newChat),
                   for (final (label, icon, page) in pages(AppLocalizations.of(context)))
                     tile(label, icon: icon, onTap: () => openPage(page)),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
-                    child: Text(
-                      AppLocalizations.of(context).chats,
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.outline),
-                    ),
-                  ),
+                  if (listed.any((ch) => ch.pinned)) ...[
+                    heading(l.chatsPinned),
+                    for (final ch in listed.where((ch) => ch.pinned)) listedTile(ch),
+                  ],
+                  heading(l.chats),
                   if (bot case final b? when b.name.toLowerCase().contains(q))
                     tile(b.name, icon: CupertinoIcons.bubble_left_bubble_right, selected: identical(b, chat), onTap: () => select(b)),
-                  for (final ch in listed)
-                    // swipe left to delete, as in iOS lists
-                    Dismissible(
-                      key: ObjectKey(ch),
-                      direction: DismissDirection.endToStart,
-                      confirmDismiss: (_) => confirmDelete(ch),
-                      onDismissed: (_) => deleted(ch),
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 24),
-                        color: const Color(0xFF9E1B1B), // darker than systemRed
-                        child: const Icon(CupertinoIcons.trash, color: CupertinoColors.white, size: 20),
-                      ),
-                      child: tile(ch.title, selected: identical(ch, chat), onTap: () => select(ch)),
-                    ),
+                  for (final ch in listed.where((ch) => !ch.pinned)) listedTile(ch),
+                  if (q.isEmpty) tile(l.chatsArchived, icon: CupertinoIcons.archivebox, onTap: () => show(_Archived(this))),
                   if (found.where((f) => query.trim().length >= 2 && !listed.any((ch) => ch.stored == f.id)).toList() case final more
                       when more.isNotEmpty) ...[
                     Padding(
@@ -177,6 +197,86 @@ extension _Sidebar on _ChatPageState {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The archived conversations: one opens, or comes back to the menu.
+class _Archived extends StatefulWidget {
+  const _Archived(this.page);
+  final _ChatPageState page;
+
+  @override
+  State<_Archived> createState() => _ArchivedState();
+}
+
+class _ArchivedState extends State<_Archived> {
+  List<Session>? rows;
+  Object? error;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final body = await serverApi('GET', '/api/sessions', query: {'archived': 'only', 'limit': '100', 'order': 'recent'});
+      if (mounted) setState(() => rows = parseSessions(jsonDecode(body ?? '{}') as Map));
+    } catch (e) {
+      if (mounted) setState(() => error = e);
+    }
+  }
+
+  Future<void> unarchive(Session s) async {
+    if (!await widget.page.archive(s.id, on: false)) return;
+    setState(() => rows!.remove(s));
+    widget.page.loadSessions();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context);
+    return PageFrame(
+      title: l.chatsArchived,
+      child: switch (rows) {
+        null when error != null => Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            serverErrorText(l, error),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: c.outline),
+          ),
+        ),
+        null => const Center(child: CupertinoActivityIndicator()),
+        [] => Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            l.archivedNone,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: c.outline),
+          ),
+        ),
+        final rows => ListView(
+          children: [
+            for (final s in rows)
+              CupertinoListTile(
+                title: Text(s.title, style: TextStyle(fontSize: 16, color: c.onSurface)),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  widget.page.openFound((id: s.id, title: s.title, snippet: ''));
+                },
+                trailing: CupertinoButton(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  onPressed: () => unarchive(s),
+                  child: Text(l.chatUnarchive, style: const TextStyle(fontSize: 15)),
+                ),
+              ),
+          ],
+        ),
+      },
     );
   }
 }

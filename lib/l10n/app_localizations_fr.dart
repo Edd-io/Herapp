@@ -1280,4 +1280,30 @@ class AppLocalizationsFr extends AppLocalizations {
   String usageLastUsed(String time) {
     return 'il y a $time';
   }
+
+  @override
+  String get chatPin => 'Épingler';
+
+  @override
+  String get chatUnpin => 'Désépingler';
+
+  @override
+  String get chatArchive => 'Archiver';
+
+  @override
+  String get chatsPinned => 'Épinglées';
+
+  @override
+  String get chatsArchived => 'Archivées';
+
+  @override
+  String get chatUnarchive => 'Désarchiver';
+
+  @override
+  String get archivedNone => 'Aucune conversation archivée.';
+
+  @override
+  String chatActionFailed(String message) {
+    return 'Impossible.\n$message';
+  }
 }

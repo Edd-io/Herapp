@@ -646,5 +646,14 @@
   "usageInSessions": "{n, plural, =1{1 chat} other{{n} chats}}",
   "@usageInSessions": {"placeholders": {"n": {"type": "int"}}},
   "usageLastUsed": "{time} ago",
-  "@usageLastUsed": {"placeholders": {"time": {"type": "String"}}}
+  "@usageLastUsed": {"placeholders": {"time": {"type": "String"}}},
+  "chatPin": "Pin",
+  "chatUnpin": "Unpin",
+  "chatArchive": "Archive",
+  "chatsPinned": "Pinned",
+  "chatsArchived": "Archived",
+  "chatUnarchive": "Unarchive",
+  "archivedNone": "No archived chats.",
+  "chatActionFailed": "That didn’t work.\n{message}",
+  "@chatActionFailed": {"placeholders": {"message": {"type": "String"}}}
 }

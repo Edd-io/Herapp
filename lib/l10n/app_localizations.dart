@@ -2251,6 +2251,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{time} ago'**
   String usageLastUsed(String time);
+
+  /// No description provided for @chatPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get chatPin;
+
+  /// No description provided for @chatUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get chatUnpin;
+
+  /// No description provided for @chatArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get chatArchive;
+
+  /// No description provided for @chatsPinned.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned'**
+  String get chatsPinned;
+
+  /// No description provided for @chatsArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get chatsArchived;
+
+  /// No description provided for @chatUnarchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Unarchive'**
+  String get chatUnarchive;
+
+  /// No description provided for @archivedNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No archived chats.'**
+  String get archivedNone;
+
+  /// No description provided for @chatActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That didn’t work.\n{message}'**
+  String chatActionFailed(String message);
 }
 
 class _AppLocalizationsDelegate

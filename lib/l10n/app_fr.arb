@@ -358,5 +358,13 @@
   "a11yHide": "Masquer",
   "usageCalls": "{n, plural, =1{1 appel} other{{n} appels}}",
   "usageInSessions": "{n, plural, =1{1 conversation} other{{n} conversations}}",
-  "usageLastUsed": "il y a {time}"
+  "usageLastUsed": "il y a {time}",
+  "chatPin": "Épingler",
+  "chatUnpin": "Désépingler",
+  "chatArchive": "Archiver",
+  "chatsPinned": "Épinglées",
+  "chatsArchived": "Archivées",
+  "chatUnarchive": "Désarchiver",
+  "archivedNone": "Aucune conversation archivée.",
+  "chatActionFailed": "Impossible.\n{message}"
 }

@@ -588,6 +588,15 @@ List<Session> parseSessions(Map result) => [
       (id: s['id'] as String, title: '${(s['title'] ?? '') == '' ? s['preview'] ?? '' : s['title']}'.trim()),
 ];
 
+/// The pinned conversations of a REST `/api/sessions` page, by id, with their titles.
+Map<String, String> pinnedSessions(String body) => {
+  for (final s in switch (_json(body)) {
+    {'sessions': final List rows} => rows.whereType<Map>(),
+    _ => const <Map>[],
+  })
+    if (s['pinned'] == true && s['id'] is String) s['id'] as String: '${(s['title'] ?? '') == '' ? s['preview'] ?? '' : s['title']}'.trim(),
+};
+
 /// The user and assistant turns of a transcript; tool rows go to the reply that follows them.
 List<Msg> transcript(Object? messages) {
   final out = <Msg>[];

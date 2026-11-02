@@ -588,6 +588,72 @@ void main() {
     expect(find.text('Trip to Lyon'), findsNothing);
   });
 
+  testWidgets('a chat is pinned from its menu, archived by swiping right, and comes back from Archived', (t) async {
+    final rows = [
+      {'id': 's8', 'title': 'Groceries'},
+      {'id': 's9', 'title': 'Trip to Lyon'},
+    ];
+    final archived = <Map>[];
+    final calls = fakeServer((method, params, emit) {
+      if (method == 'session.archive') {
+        final row = [...rows, ...archived].firstWhere((r) => r['id'] == params['session_id']);
+        (params['archived'] == true ? rows : archived).remove(row);
+        (params['archived'] == true ? archived : rows).add(row);
+      }
+      return method == 'session.list' ? {'sessions': rows} : null;
+    });
+    final patches = <(String, Object?)>[];
+    var pinned = false;
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async {
+      if (method == 'PATCH') {
+        patches.add((path, jsonEncode(body)));
+        pinned = (body as Map)['pinned'] as bool;
+      }
+      return jsonEncode(switch (path) {
+        '/api/sessions' when query?['archived'] == 'only' => {'sessions': archived},
+        '/api/sessions' => {
+          'sessions': [
+            for (final r in rows) {...r, 'pinned': pinned && r['id'] == 's8'},
+          ],
+        },
+        '/api/sessions/s8/mutation-snapshot' => {'exists': true, 'runtime_revision': 3},
+        _ => {'ok': true},
+      });
+    };
+    t.view.physicalSize = const Size(2400, 4200); // a tall phone: the whole menu in view
+    addTearDown(t.view.reset);
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    expect(find.text('Pinned'), findsNothing);
+
+    await t.longPress(find.text('Groceries'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Pin'));
+    await t.pumpAndSettle();
+    expect(patches.single.$1, '/api/sessions/s8');
+    expect(jsonDecode(patches.single.$2 as String), allOf(containsPair('pinned', true), containsPair('expected_revision', 3)));
+    expect(find.text('Pinned'), findsOneWidget);
+    expect(t.getTopLeft(find.text('Groceries')).dy, lessThan(t.getTopLeft(find.text('Chats')).dy)); // above the others
+
+    await t.drag(find.text('Trip to Lyon'), const Offset(300, 0));
+    await t.pumpAndSettle();
+    expect(calls.where((c) => c.$1 == 'session.archive').single.$2, {'session_id': 's9', 'archived': true});
+    expect(find.text('Trip to Lyon'), findsNothing);
+
+    await t.tap(find.text('Archived'));
+    await t.pumpAndSettle();
+    expect(find.text('Trip to Lyon'), findsOneWidget);
+    await t.tap(find.text('Unarchive'));
+    await t.pumpAndSettle();
+    expect(calls.where((c) => c.$1 == 'session.archive').last.$2, {'session_id': 's9', 'archived': false});
+    expect(find.text('Trip to Lyon'), findsNothing); // gone from Archived
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.text('Trip to Lyon'), findsOneWidget); // back in the menu
+  });
+
   testWidgets('server models can be picked while the chat is empty', (t) async {
     stillStripes(t);
     final calls = fakeServer(replies);
