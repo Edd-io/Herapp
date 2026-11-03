@@ -484,7 +484,8 @@ String serverErrorText(AppLocalizations l, Object? e) => switch (e) {
   _ => l.serverLoadFailed('$e'),
 };
 
-/// A strip above the app while the server doesn't answer, to try again (restarting the tunnel when on).
+/// A strip above the app while the tunnel connects, or while the server doesn't answer, to try again
+/// (restarting the tunnel when on).
 class ConnectionBanner extends StatefulWidget {
   const ConnectionBanner({super.key, required this.child});
   final Widget child;
@@ -503,16 +504,18 @@ class _ConnectionBannerState extends State<ConnectionBanner> {
   }
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder(
-    valueListenable: online,
-    builder: (context, up, child) {
-      if (up) return child!;
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([online, vpn]),
+    builder: (context, child) {
+      // the tunnel coming up first: until then the server can't answer anyway
+      if (!vpn.connecting && online.value) return child!;
       final l = AppLocalizations.of(context);
       const white = TextStyle(fontSize: 14, color: Colors.white);
+      const spinner = Padding(padding: EdgeInsets.all(10), child: CupertinoActivityIndicator(color: Colors.white));
       return Column(
         children: [
           Material(
-            color: CupertinoColors.systemOrange.darkColor,
+            color: vpn.connecting ? CupertinoColors.systemBlue.darkColor : CupertinoColors.systemOrange.darkColor,
             child: SafeArea(
               bottom: false,
               child: Padding(
@@ -521,14 +524,20 @@ class _ConnectionBannerState extends State<ConnectionBanner> {
                   liveRegion: true,
                   child: Row(
                     children: [
-                      const Icon(CupertinoIcons.wifi_exclamationmark, size: 18, color: Colors.white),
+                      Icon(vpn.connecting ? CupertinoIcons.lock_shield : CupertinoIcons.wifi_exclamationmark, size: 18, color: Colors.white),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(vpn.enabled ? l.linkDownVpn : l.linkDown, style: white)),
-                      trying
-                          ? const Padding(
-                              padding: EdgeInsets.all(10),
-                              child: CupertinoActivityIndicator(color: Colors.white),
-                            )
+                      Expanded(
+                        child: Text(
+                          vpn.connecting
+                              ? l.vpnConnectingBanner
+                              : vpn.enabled
+                              ? l.linkDownVpn
+                              : l.linkDown,
+                          style: white,
+                        ),
+                      ),
+                      vpn.connecting || trying
+                          ? spinner
                           : CupertinoButton(
                               padding: const EdgeInsets.symmetric(horizontal: 10),
                               minimumSize: const Size(0, 36),

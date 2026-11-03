@@ -1192,6 +1192,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get linkDownVpn => 'Le serveur ne répond pas par le VPN';
 
   @override
+  String get vpnConnectingBanner => 'Connexion au VPN…';
+
+  @override
   String get linkRetry => 'Réessayer';
 
   @override

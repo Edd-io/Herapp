@@ -74,6 +74,9 @@ class Vpn extends ChangeNotifier {
     }
   }
 
+  /// On, and neither up nor failed yet: the tunnel is being (re)started.
+  bool get connecting => enabled && !running && !unsupported && error == null;
+
   /// Completes once pending tunnel changes are applied (connected, failed or off).
   Future<void> get ready => _queue;
 

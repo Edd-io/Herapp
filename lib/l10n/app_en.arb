@@ -620,6 +620,7 @@
   "voiceUnavailable": "Dictation isn't available: allow the microphone and speech recognition in the system settings.",
   "linkDown": "The server isn’t answering",
   "linkDownVpn": "The server isn’t answering through the VPN",
+  "vpnConnectingBanner": "Connecting to the VPN…",
   "linkRetry": "Try again",
   "linkRestartVpn": "Restart VPN",
   "a11yMenu": "Menu",

@@ -335,6 +335,7 @@
   "voiceUnavailable": "Dictée indisponible : autorise le micro et la reconnaissance vocale dans les réglages du système.",
   "linkDown": "Le serveur ne répond pas",
   "linkDownVpn": "Le serveur ne répond pas par le VPN",
+  "vpnConnectingBanner": "Connexion au VPN…",
   "linkRetry": "Réessayer",
   "linkRestartVpn": "Relancer le VPN",
   "a11yMenu": "Menu",

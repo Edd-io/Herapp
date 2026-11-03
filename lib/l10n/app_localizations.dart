@@ -2108,6 +2108,12 @@ abstract class AppLocalizations {
   /// **'The server isn’t answering through the VPN'**
   String get linkDownVpn;
 
+  /// No description provided for @vpnConnectingBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to the VPN…'**
+  String get vpnConnectingBanner;
+
   /// No description provided for @linkRetry.
   ///
   /// In en, this message translates to:
