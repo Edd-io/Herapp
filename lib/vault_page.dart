@@ -134,11 +134,14 @@ class _VaultPageState extends State<VaultPage> {
                             ),
                             child: CupertinoListTile(
                               padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                              leading: Icon(switch (i.kind) {
-                                'payment' => CupertinoIcons.creditcard,
-                                'address' => CupertinoIcons.house,
-                                _ => CupertinoIcons.person_crop_circle,
-                              }, color: c.onSurfaceVariant),
+                              leading: SiteIcon(
+                                i.origin,
+                                fallback: Icon(switch (i.kind) {
+                                  'payment' => CupertinoIcons.creditcard,
+                                  'address' => CupertinoIcons.house,
+                                  _ => CupertinoIcons.person_crop_circle,
+                                }, color: c.onSurfaceVariant),
+                              ),
                               title: Text(i.label, style: TextStyle(fontSize: 16, color: c.onSurface)),
                               subtitle: Text(
                                 [
@@ -286,24 +289,38 @@ class _VaultAddPageState extends State<VaultAddPage> {
               onPressed: complete ? save : null,
               child: Text(l.cronSave, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
             ),
-      child: AutofillGroup(
-        child: ListView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.only(bottom: 48),
-          children: [
-            section([
-              field(l.vaultLabel, label, hint: l.vaultLabelHint),
-              field(l.vaultSite, site, hint: 'github.com', keyboard: TextInputType.url, autofill: const [AutofillHints.url]),
-            ]),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-              child: CupertinoSlidingSegmentedControl<String>(
-                groupValue: idType,
-                onValueChanged: (v) => setState(() => idType = v ?? idType),
-                children: {'email': Text(l.vaultEmail), 'phone': Text(l.vaultPhone), 'username': Text(l.vaultUsername)},
+      child: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.only(bottom: 48),
+        children: [
+          section([
+            field(l.vaultLabel, label, hint: l.vaultLabelHint),
+            field(
+              l.vaultSite,
+              site,
+              hint: 'github.com',
+              keyboard: TextInputType.url,
+              autofill: const [AutofillHints.url],
+              trailing: Padding(
+                padding: const EdgeInsets.only(left: 8, right: 12),
+                child: SiteIcon(vaultOrigin(site.text), fallback: Icon(CupertinoIcons.globe, color: c.outline)),
               ),
             ),
-            section([
+          ]),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            child: CupertinoSlidingSegmentedControl<String>(
+              groupValue: idType,
+              onValueChanged: (v) => setState(() => idType = v ?? idType),
+              children: {'email': Text(l.vaultEmail), 'phone': Text(l.vaultPhone), 'username': Text(l.vaultUsername)},
+            ),
+          ),
+          // only the login in the group: the 2FA key is obscured too, and two obscured fields in one
+          // group read to iOS as a new account's password + confirmation, so it offers to create one
+          AutofillGroup(
+            // the form only stores the password for Hermes: leaving it isn't a login for iOS to offer to save
+            onDisposeAction: AutofillContextAction.cancel,
+            child: section([
               field(
                 switch (idType) {
                   'phone' => l.vaultPhone,
@@ -316,21 +333,38 @@ class _VaultAddPageState extends State<VaultAddPage> {
                   'email' => TextInputType.emailAddress,
                   _ => TextInputType.text,
                 },
-                autofill: [
-                  switch (idType) {
-                    'phone' => AutofillHints.telephoneNumber,
-                    'email' => AutofillHints.email,
-                    _ => AutofillHints.username,
-                  },
-                ],
+                // username even for an email or phone: it's what pairs the login with the password for AutoFill
+                autofill: const [AutofillHints.username],
               ),
               field(l.vaultPassword, password, secret: true, autofill: const [AutofillHints.password], trailing: eye),
             ]),
-            section([
-              field(l.vaultOtp, otp, hint: l.vaultOtpHint, secret: true, autofill: const [AutofillHints.oneTimeCode]),
-            ], footer: l.vaultOtpFooter),
-          ],
-        ),
+          ),
+          section([field(l.vaultOtp, otp, hint: l.vaultOtpHint, secret: true)], footer: l.vaultOtpFooter),
+        ],
+      ),
+    );
+  }
+}
+
+/// The site's own icon, fetched from the site itself (nothing is asked of a third-party icon
+/// service): its apple-touch-icon, else its favicon.ico, else [fallback].
+class SiteIcon extends StatelessWidget {
+  const SiteIcon(this.origin, {super.key, required this.fallback});
+
+  final String origin;
+  final Widget fallback;
+
+  @override
+  Widget build(BuildContext context) {
+    final host = Uri.tryParse(origin)?.host ?? '';
+    if (!host.contains('.')) return fallback;
+    Widget image(String file, Widget orElse) =>
+        Image.network('https://$host/$file', width: 28, height: 28, fit: BoxFit.contain, errorBuilder: (_, _, _) => orElse);
+    return SizedBox.square(
+      dimension: 28,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: image('apple-touch-icon.png', image('favicon.ico', Center(child: fallback))),
       ),
     );
   }
