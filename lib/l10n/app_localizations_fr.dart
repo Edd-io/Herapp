@@ -1071,6 +1071,16 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cronSolveCaptcha => 'Le résoudre sur l\'écran du bot';
 
   @override
+  String get screenFull => 'Plein écran';
+
+  @override
+  String get screenExitFull => 'Quitter le plein écran';
+
+  @override
+  String get screenTouchHelp =>
+      'Toucher : clic · glisser : défiler · appui long puis glisser : faire glisser · deux doigts : zoomer';
+
+  @override
   String get screenOpen => 'Écran du bot · prendre la main';
 
   @override

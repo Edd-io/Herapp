@@ -19,12 +19,15 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     quickAsk = FlutterMethodChannel(name: "herapp/quick", binaryMessenger: flutterViewController.engine.binaryMessenger)
-    quickAsk?.setMethodCallHandler { call, result in
+    quickAsk?.setMethodCallHandler { [weak self] call, result in
       switch call.method {
       case "handoff":
         Handoff.shared.offer(call.arguments as? [String: Any])
         result(nil)
       case "continued": result(Handoff.shared.take { quickAsk?.invokeMethod("continue", arguments: $0) })
+      case "fullScreen":
+        if let self, styleMask.contains(.fullScreen) != (call.arguments as? Bool ?? false) { toggleFullScreen(nil) }
+        result(nil)
       case "notifyAllow":
         Notifier.shared.allow()
         result(nil)

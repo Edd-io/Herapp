@@ -1051,6 +1051,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cronSolveCaptcha => 'Solve it on the bot\'s screen';
 
   @override
+  String get screenFull => 'Full screen';
+
+  @override
+  String get screenExitFull => 'Exit full screen';
+
+  @override
+  String get screenTouchHelp =>
+      'Tap: click · drag: scroll · long press then drag: drag · two fingers: zoom';
+
+  @override
   String get screenOpen => 'Bot screen · take over';
 
   @override

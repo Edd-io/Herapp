@@ -1922,6 +1922,24 @@ abstract class AppLocalizations {
   /// **'Solve it on the bot\'s screen'**
   String get cronSolveCaptcha;
 
+  /// No description provided for @screenFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Full screen'**
+  String get screenFull;
+
+  /// No description provided for @screenExitFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit full screen'**
+  String get screenExitFull;
+
+  /// No description provided for @screenTouchHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap: click · drag: scroll · long press then drag: drag · two fingers: zoom'**
+  String get screenTouchHelp;
+
   /// No description provided for @screenOpen.
   ///
   /// In en, this message translates to:
