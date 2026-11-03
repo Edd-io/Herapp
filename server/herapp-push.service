@@ -1,0 +1,12 @@
+[Unit]
+Description=Herapp push: notifies the app when a Hermes cron job finishes
+After=network-online.target
+ConditionPathExists=%h/.config/herapp-push/service-account.json
+
+[Service]
+ExecStart=/usr/bin/python3 %h/.local/bin/herapp-push.py
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

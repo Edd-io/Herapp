@@ -1,9 +1,12 @@
 import 'dart:io';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'chat_page.dart';
+import 'firebase_options.dart';
 import 'l10n/app_localizations.dart';
 import 'lock.dart';
 import 'settings.dart';
@@ -23,6 +26,35 @@ Future<void> main() async {
   await settings.load();
   await vpn.load();
   runApp(const App());
+  if (Platform.isIOS || Platform.isAndroid) setupPush();
+}
+
+/// Asks for notification permission and returns this device's FCM token, or null if refused.
+Future<String?> setupPush() async {
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    final m = FirebaseMessaging.instance;
+    final s = await m.requestPermission();
+    if (s.authorizationStatus == AuthorizationStatus.denied) return null;
+    // cron results also show while the app is open
+    await m.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
+    // FCM gives no token before iOS has handed over the APNs one
+    if (Platform.isIOS) {
+      for (var i = 0; i < 20 && await m.getAPNSToken() == null; i++) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+    }
+    // register()'s installation id fails with invalid-request on iOS, the deprecated token works
+    // ignore: deprecated_member_use
+    final token = await m.getToken();
+    debugPrint('FCM token: $token');
+    // the server's cron watcher (server/herapp-push.py) sends to this topic
+    await m.subscribeToTopic('herapp-crons');
+    return token;
+  } catch (e) {
+    debugPrint('push setup failed: $e');
+    return null;
+  }
 }
 
 class App extends StatelessWidget {

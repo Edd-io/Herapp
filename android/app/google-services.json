@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "911328281942",
+    "project_id": "herapp-d36c6",
+    "storage_bucket": "herapp-d36c6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:911328281942:android:b0bc1ea823853b75c902f7",
+        "android_client_info": {
+          "package_name": "com.edd_io.herapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2q3jA1BjSIQlOidE56fEiYaIEmCyLi1k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

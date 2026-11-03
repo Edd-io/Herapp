@@ -206,7 +206,7 @@ final class ReplyTask {
     guard #available(iOS 26, *) else { return }
     end()
     over = false
-    let id = "com.edd-io.herapp.reply.\(UUID().uuidString.prefix(8))"
+    let id = "fr.mvsoftware.herapp.reply.\(UUID().uuidString.prefix(8))"
     _ = BGTaskScheduler.shared.register(forTaskWithIdentifier: id, using: .main) { [weak self] t in
       guard let self, let t = t as? BGContinuedProcessingTask else { return }
       if self.over { return t.setTaskCompleted(success: true) }
