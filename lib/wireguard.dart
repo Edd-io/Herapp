@@ -51,6 +51,7 @@ class Vpn extends ChangeNotifier {
   bool running = false;
   bool unsupported = false; // native library missing on this platform
   String? error;
+  var tried = false; // a request went through this tunnel (the handshake only happens then), answered or not
   Future<void> _queue = Future.value();
   AppLifecycleListener? _life;
   var _paused = false;
@@ -74,8 +75,15 @@ class Vpn extends ChangeNotifier {
     }
   }
 
-  /// On, and neither up nor failed yet: the tunnel is being (re)started.
-  bool get connecting => enabled && !running && !unsupported && error == null;
+  /// On, and neither through to the server nor failed yet: the tunnel is being (re)started.
+  bool get connecting => enabled && !tried && !unsupported && error == null;
+
+  /// A request through the tunnel reached the server or gave up.
+  void reached() {
+    if (tried || !running) return;
+    tried = true;
+    notifyListeners();
+  }
 
   /// Completes once pending tunnel changes are applied (connected, failed or off).
   Future<void> get ready => _queue;
@@ -111,6 +119,7 @@ class Vpn extends ChangeNotifier {
   /// (Re)starts or stops the tunnel according to the current state, one operation at a time.
   Future<void> apply() => _queue = _queue.then((_) async {
     running = false;
+    tried = false;
     unsupported = false;
     error = null;
     HttpOverrides.global = enabled ? _Proxy(null) : null; // block while connecting

@@ -267,6 +267,7 @@ Future<T> _watch<T>(Future<T> call) async {
 }
 
 void _reached(bool ok) {
+  vpn.reached();
   online.value = ok;
   if (ok) {
     _again?.cancel();
@@ -497,6 +498,24 @@ class ConnectionBanner extends StatefulWidget {
 class _ConnectionBannerState extends State<ConnectionBanner> {
   var trying = false;
 
+  @override
+  void initState() {
+    super.initState();
+    vpn.addListener(knock);
+    knock(); // started before the app's first frame
+  }
+
+  @override
+  void dispose() {
+    vpn.removeListener(knock);
+    super.dispose();
+  }
+
+  /// A tunnel just up hasn't met the server yet: one request makes its handshake, and ends "connecting".
+  void knock() {
+    if (vpn.running && !vpn.tried) checkServer();
+  }
+
   Future<void> retry() async {
     setState(() => trying = true);
     await reconnect();
@@ -511,7 +530,10 @@ class _ConnectionBannerState extends State<ConnectionBanner> {
       if (!vpn.connecting && online.value) return child!;
       final l = AppLocalizations.of(context);
       const white = TextStyle(fontSize: 14, color: Colors.white);
-      const spinner = Padding(padding: EdgeInsets.all(10), child: CupertinoActivityIndicator(color: Colors.white));
+      const spinner = Padding(
+        padding: EdgeInsets.all(10),
+        child: CupertinoActivityIndicator(color: Colors.white),
+      );
       return Column(
         children: [
           Material(
@@ -524,7 +546,11 @@ class _ConnectionBannerState extends State<ConnectionBanner> {
                   liveRegion: true,
                   child: Row(
                     children: [
-                      Icon(vpn.connecting ? CupertinoIcons.lock_shield : CupertinoIcons.wifi_exclamationmark, size: 18, color: Colors.white),
+                      Icon(
+                        vpn.connecting ? CupertinoIcons.lock_shield : CupertinoIcons.wifi_exclamationmark,
+                        size: 18,
+                        color: Colors.white,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
