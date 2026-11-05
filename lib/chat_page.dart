@@ -124,6 +124,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   final paneRefresh = ValueNotifier(0);
   List<Slash> slashes = []; // skills matching the `/` being typed
   String slashFor = '';
+  late final Timer noticesTimer; // counts the unread notices
   bool get streaming => chat.streaming;
   List<Msg> get queue => chat.queue;
   String get phase => chat.phase;
@@ -161,6 +162,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     openedNotice.addListener(openNotice);
     openNotice(); // a push tapped while the app was closed
     discussedNotice.addListener(discussNotice);
+    noticesTimer = Timer.periodic(const Duration(minutes: 1), (_) => countNotices());
   }
 
   /// Opens the notifications on the notice a tapped push named.
@@ -174,6 +176,9 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     WidgetsBinding.instance.ensureVisualUpdate(); // an idle app draws no frame on its own
   }
 
+  /// Counts the notices not read yet: the menu, always out on a wide window, would otherwise count only at launch.
+  void countNotices() => fetchNotices().then(countUnread, onError: (Object e) => debugPrint('Notices: $e'));
+
   /// Starts a new chat on the notice picked to discuss, its text written in for the question to follow.
   void discussNotice() {
     final n = discussedNotice.value;
@@ -185,7 +190,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   /// Lists the server's stored conversations in the sidebar, after the chats not saved there yet.
   Future<void> loadSessions() async {
-    fetchNotices().then(countUnread, onError: (Object e) => debugPrint('Notices: $e'));
+    countNotices();
     try {
       final g = await gateway();
       if (g == null) return;
@@ -398,6 +403,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     WidgetsBinding.instance.removeObserver(this);
     openedNotice.removeListener(openNotice);
     discussedNotice.removeListener(discussNotice);
+    noticesTimer.cancel();
     for (final c in chats) {
       c.sub?.cancel();
       c.shell.stop();
@@ -426,7 +432,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
     life = s;
-    if (s == AppLifecycleState.resumed) takeShared();
+    if (s == AppLifecycleState.resumed) {
+      takeShared();
+      countNotices();
+    }
   }
 
   /// Tells, through the system, that [c] answered [text] while the app is out of sight; a tap opens [c].
