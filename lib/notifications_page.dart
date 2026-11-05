@@ -16,6 +16,35 @@ final openedNotice = ValueNotifier<String?>(null);
 /// The notice picked to discuss, for the chat page to start a chat on.
 final discussedNotice = ValueNotifier<Notice?>(null);
 
+/// How many notices came after the newest the Notifications page showed.
+final unreadNotices = ValueNotifier(0);
+
+/// The push watcher's notices, newest first; none while it sent nothing yet.
+Future<List<Notice>> fetchNotices() async {
+  // the file sits in the server's Hermes home, which the cron jobs tell
+  final home = parseCronJobs(await serverApi('GET', '/api/cron/jobs') ?? '').map((j) => '${j.raw['hermes_home'] ?? ''}');
+  final path = home.where((h) => h.isNotEmpty).firstOrNull;
+  if (path == null) return [];
+  try {
+    final file = jsonDecode(await serverApi('GET', '/api/files/read', query: {'path': noticesPath(path)}) ?? '{}') as Map;
+    if (file['data_url'] case final String url) return parseNotices(utf8.decode(UriData.parse(url).contentAsBytes(), allowMalformed: true));
+  } on HttpException catch (e) {
+    if (!e.message.toLowerCase().contains('not found')) rethrow; // nothing sent yet
+  }
+  return [];
+}
+
+/// Counts the notices of [list] sent after the newest one shown, all of them once [seen]. The first count takes
+/// those already there as seen, not to greet with hundreds.
+void countUnread(List<Notice> list, {bool seen = false}) {
+  final newest = list.map((n) => n.at).nonNulls.fold<DateTime?>(null, (a, b) => a == null || b.isAfter(a) ? b : a);
+  if (seen || settings.noticesSeen == null) {
+    settings.noticesSeen = newest ?? settings.noticesSeen ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }
+  final since = settings.noticesSeen!;
+  unreadNotices.value = list.where((n) => n.at?.isAfter(since) ?? false).length;
+}
+
 /// The notices the server's push watcher sent, newest first: cron answers, script outputs (the dispatcher's
 /// pushes, blocks and CI), failures. Read from a file on the server: no model, no token.
 class NotificationsPage extends StatefulWidget {
@@ -42,20 +71,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> load() async {
     try {
-      // the file sits in the server's Hermes home, which the cron jobs tell
-      final home = parseCronJobs(await serverApi('GET', '/api/cron/jobs') ?? '').map((j) => '${j.raw['hermes_home'] ?? ''}');
-      final path = home.where((h) => h.isNotEmpty).firstOrNull;
-      var list = <Notice>[];
-      if (path != null) {
-        try {
-          final file = jsonDecode(await serverApi('GET', '/api/files/read', query: {'path': noticesPath(path)}) ?? '{}') as Map;
-          if (file['data_url'] case final String url) {
-            list = parseNotices(utf8.decode(UriData.parse(url).contentAsBytes(), allowMalformed: true));
-          }
-        } on HttpException catch (e) {
-          if (!e.message.toLowerCase().contains('not found')) rethrow; // nothing sent yet
-        }
-      }
+      final list = await fetchNotices();
+      countUnread(list, seen: true);
       if (mounted) {
         setState(() {
           notices = list;

@@ -33,6 +33,7 @@ extension _Sidebar on _ChatPageState {
       IconData? icon,
       bool selected = false,
       bool busy = false, // the bot answers there
+      int count = 0, // unread, in a pill
       required VoidCallback onTap,
       VoidCallback? onMenu,
     }) => Padding(
@@ -64,6 +65,19 @@ extension _Sidebar on _ChatPageState {
                   ),
                 ),
                 if (busy) ...[const SizedBox(width: 8), _PulseDot(CupertinoColors.systemGreen.resolveFrom(context), size: 8)],
+                if (count > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    constraints: const BoxConstraints(minWidth: 22),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(color: c.primary, borderRadius: BorderRadius.circular(11)),
+                    child: Text(
+                      count > 99 ? '99+' : '$count',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.onPrimary),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -231,13 +245,24 @@ extension _Sidebar on _ChatPageState {
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                     child: Divider(height: 1, thickness: .5, color: c.outline.withValues(alpha: .3)),
                   ),
+                  if (l.notifications.toLowerCase().contains(q))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: ValueListenableBuilder(
+                        valueListenable: unreadNotices,
+                        builder: (context, unread, _) => tile(
+                          l.notifications,
+                          icon: CupertinoIcons.bell,
+                          count: unread,
+                          onTap: () => openPage(const NotificationsPage()),
+                        ),
+                      ),
+                    ),
                   if (listed.any((ch) => ch.pinned)) ...[
                     heading(l.chatsPinned),
                     for (final ch in listed.where((ch) => ch.pinned)) listedTile(ch),
                   ],
                   heading(l.chats),
-                  if (l.notifications.toLowerCase().contains(q))
-                    tile(l.notifications, icon: CupertinoIcons.bell, onTap: () => openPage(const NotificationsPage())),
                   for (final (i, ch) in recent.indexed) ...[
                     if (i == 0 || group(ch) != group(recent[i - 1])) dayHeading(group(ch)),
                     listedTile(ch),

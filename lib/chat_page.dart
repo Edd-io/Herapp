@@ -185,6 +185,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   /// Lists the server's stored conversations in the sidebar, after the chats not saved there yet.
   Future<void> loadSessions() async {
+    fetchNotices().then(countUnread, onError: (Object e) => debugPrint('Notices: $e'));
     try {
       final g = await gateway();
       if (g == null) return;

@@ -9,6 +9,7 @@ import 'package:herapp/cron_page.dart';
 import 'package:herapp/hermes.dart';
 import 'package:herapp/main.dart';
 import 'package:herapp/notifications_page.dart';
+import 'package:herapp/settings.dart';
 
 import 'support.dart';
 
@@ -874,7 +875,7 @@ void main() {
       addTearDown(() => callApi = hermesApi);
       serve(notices);
       await openFromMenu(t);
-      expect(reads, ['/h/herapp/notifications.json']);
+      expect(reads.toSet(), {'/h/herapp/notifications.json'}); // the menu reads it too, for its count
       final pushed = find.text('🚀 t_1: 1 commit pushed to main.');
       expect(pushed, findsOneWidget);
       expect(find.textContaining('Échec : Dispatcher'), findsOneWidget);
@@ -897,6 +898,30 @@ void main() {
       final seeded = 'About this notification, “Dispatcher”:\n\n🚀 t_1: 1 commit pushed to main.\n\n';
       expect(find.byWidgetPredicate((w) => w is EditableText && w.controller.text == seeded), findsOneWidget); // not sent
       expect(discussedNotice.value, isNull);
+    });
+
+    testWidgets('the menu counts the notices come since the page was last open, and the page reads them', (t) async {
+      addTearDown(() => callApi = hermesApi);
+      settings.noticesSeen = DateTime.parse('2026-11-05T21:17:00+01:00'); // the failure was seen, not the push after
+      serve(notices);
+      await t.pumpWidget(const App());
+      await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+      await t.pumpAndSettle();
+      expect(find.text('1'), findsOneWidget);
+      expect(t.getTopLeft(find.text('Notifications')).dy, lessThan(t.getTopLeft(find.text('Chats')).dy));
+      await t.tap(find.text('Notifications'));
+      await t.pumpAndSettle();
+      expect(unreadNotices.value, 0);
+      expect(settings.noticesSeen, DateTime.parse('2026-11-05T21:20:00+01:00'));
+    });
+
+    testWidgets('a first count takes the notices already there as read', (t) async {
+      addTearDown(() => callApi = hermesApi);
+      serve(notices);
+      await t.pumpWidget(const App());
+      await t.pumpAndSettle();
+      expect(unreadNotices.value, 0);
+      expect(settings.noticesSeen, DateTime.parse('2026-11-05T21:20:00+01:00'));
     });
 
     testWidgets('nothing sent yet says so', (t) async {

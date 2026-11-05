@@ -53,6 +53,8 @@ Future<String?> setupPush() async {
     await m.subscribeToTopic('herapp-crons');
     // a tapped push opens its notice: while the app runs in the background, or the one that started it
     FirebaseMessaging.onMessageOpenedApp.listen(openPushed);
+    // one more to read, until the next count from the server
+    FirebaseMessaging.onMessage.listen((_) => unreadNotices.value++);
     if (await m.getInitialMessage() case final first?) openPushed(first);
     return token;
   } catch (e) {

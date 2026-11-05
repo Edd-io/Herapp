@@ -63,6 +63,10 @@ class Settings extends ChangeNotifier {
   bool get notifications => _p.getBool('notifications') ?? true;
   set notifications(bool v) => _save(_p.setBool('notifications', v));
 
+  /// When the newest notice the Notifications page showed was sent; null before it was first counted.
+  DateTime? get noticesSeen => DateTime.tryParse(_p.getString('noticesSeen') ?? '');
+  set noticesSeen(DateTime? v) => _save(_p.setString('noticesSeen', v?.toUtc().toIso8601String() ?? ''));
+
   /// Whether the app asks the device's unlock (Face ID, Touch ID, passcode) to open.
   bool get lock => _p.getBool('lock') ?? false;
   set lock(bool v) => _save(_p.setBool('lock', v));
