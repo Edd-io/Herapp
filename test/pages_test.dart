@@ -931,6 +931,27 @@ void main() {
       expect(find.textContaining('Nothing sent yet'), findsOneWidget);
     });
 
+    testWidgets('a notice shows its Markdown rendered', (t) async {
+      addTearDown(() => callApi = hermesApi);
+      serve([
+        {
+          'id': 'm',
+          'cron': 'k',
+          'title': 'Weekly',
+          'text': '# Report\n\n**Bold** and a list:\n\n- one\n- two',
+          'at': '2026-11-05T21:20:00+01:00',
+        },
+      ]);
+      await t.pumpWidget(const App());
+      await t.pumpAndSettle();
+      openedNotice.value = 'm';
+      await t.pumpAndSettle();
+      expect(find.textContaining('**', findRichText: true), findsNothing);
+      expect(find.textContaining('# Report', findRichText: true), findsNothing);
+      expect(find.textContaining('Report', findRichText: true), findsOneWidget);
+      expect(find.textContaining('one', findRichText: true), findsOneWidget);
+    });
+
     testWidgets('a tapped push opens its notice', (t) async {
       addTearDown(() => callApi = hermesApi);
       serve(notices);

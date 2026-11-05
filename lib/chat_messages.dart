@@ -211,9 +211,9 @@ extension _Messages on _ChatPageState {
                       choice: (label, onTap, main, danger) => _choice(c, label, onTap, main: main, danger: danger),
                     ),
             if (m.alt case final alt?)
-              _compared(c, m, alt, _Markdown(text.trimLeft(), style: body.copyWith(color: c.onSurface)))
+              _compared(c, m, alt, ReplyMarkdown(text.trimLeft(), style: body.copyWith(color: c.onSurface)))
             else if (text.trim().isNotEmpty)
-              _Markdown(text.trimLeft(), style: body.copyWith(color: c.onSurface)) // text after a tool call starts with blank lines
+              ReplyMarkdown(text.trimLeft(), style: body.copyWith(color: c.onSurface)) // text after a tool call starts with blank lines
             else if (live && m.ask == null && m.tools.every((t) => t.done))
               _PulseDot(c.onSurface),
             for (final (i, s) in steps.indexed) _macCard(c, s, m.mac.elementAtOrNull(i)),
@@ -330,7 +330,7 @@ extension _Messages on _ChatPageState {
           ],
         ),
         const SizedBox(height: 8),
-        _Markdown(d.output.trim(), style: TextStyle(fontSize: 15, height: 1.4, color: c.onSurface)),
+        ReplyMarkdown(d.output.trim(), style: TextStyle(fontSize: 15, height: 1.4, color: c.onSurface)),
       ],
     ),
   );
@@ -408,7 +408,7 @@ extension _Messages on _ChatPageState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         head(alt.model, onClose: comparing.contains(m) ? null : () => setState(() => m.alt = null)),
-        if (alt.text.trim().isNotEmpty) _Markdown(alt.text.trimLeft(), style: body.copyWith(color: c.onSurface)),
+        if (alt.text.trim().isNotEmpty) ReplyMarkdown(alt.text.trimLeft(), style: body.copyWith(color: c.onSurface)),
         if (comparing.contains(m) && alt.text.trim().isEmpty) _PulseDot(c.onSurface),
       ],
     );
@@ -995,9 +995,9 @@ class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixi
   );
 }
 
-/// A reply's Markdown (headings, lists, code, tables, quotes), rendered as it streams in.
-class _Markdown extends StatelessWidget {
-  const _Markdown(this.text, {required this.style});
+/// A reply's Markdown (headings, lists, code, tables, quotes), rendered as it streams in; a notice's too.
+class ReplyMarkdown extends StatelessWidget {
+  const ReplyMarkdown(this.text, {super.key, required this.style});
   final String text;
   final TextStyle style;
 

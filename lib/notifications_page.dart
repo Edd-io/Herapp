@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'chat_page.dart';
 import 'cron_page.dart';
 import 'hermes.dart';
 import 'l10n/app_localizations.dart';
@@ -148,7 +149,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 }
 
-/// One notice in full, selectable.
+/// One notice in full, its Markdown rendered and selectable.
 class _NoticePage extends StatelessWidget {
   const _NoticePage({required this.notice});
   final Notice notice;
@@ -167,7 +168,7 @@ class _NoticePage extends StatelessWidget {
           children: [
             if (at.isNotEmpty) Text(at, style: TextStyle(fontSize: 13, color: c.outline)),
             const SizedBox(height: 8),
-            SelectableText(
+            ReplyMarkdown(
               notice.text,
               style: TextStyle(fontSize: 16, height: 1.45, color: notice.failed ? const Color(0xFFD93025) : c.onSurface),
             ),
