@@ -8,12 +8,12 @@ jobs:
   flutter:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.41.2
           cache: true
-      - uses: actions/setup-go@v5 # the tunnel library, built by hook/build.dart
+      - uses: actions/setup-go@v6 # the tunnel library, built by hook/build.dart
         with:
           go-version-file: native/wg/go.mod
           cache-dependency-path: native/wg/go.sum
@@ -31,8 +31,8 @@ jobs:
       run:
         working-directory: native/wg
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: native/wg/go.mod
           cache-dependency-path: native/wg/go.sum
