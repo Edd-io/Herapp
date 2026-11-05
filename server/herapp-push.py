@@ -4,10 +4,14 @@
 Polls ~/.hermes/cron/jobs.json. Silent answers are skipped, and so are the successes of script-only jobs
 (no_agent), except those listed in ~/.config/herapp-push/notify.json ({"jobs": ["<job id>", ...]}): their
 output, when not empty, is pushed as is. No model is involved anywhere.
+notify.json may also hold {"stale": {"<job id>": <minutes>}}: a listed job that has not run for that long, or is
+paused, is reported once, and again when it runs anew. This service runs apart from Hermes, so it tells even when
+Hermes' scheduler itself stopped.
 Every notice is also kept in ~/.hermes/herapp/notifications.json (newest first), the app's Notifications page.
 Needs ~/.config/herapp-push/service-account.json (Firebase service account key) and openssl.
 """
 import base64, json, os, subprocess, sys, tempfile, time, urllib.request
+from datetime import datetime
 from pathlib import Path
 
 HOME = Path.home()
@@ -110,6 +114,29 @@ def notify_ids():
         return set()
 
 
+def stale_limits():
+    """{job id: minutes} from notify.json's "stale"."""
+    try:
+        limits = json.loads(NOTIFY.read_text()).get('stale') or {}
+        return {k: float(v) for k, v in limits.items() if isinstance(v, (int, float))}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def staleness(job, minutes, now):
+    """Why [job] looks stopped, or None while it runs on time."""
+    if job is None:
+        return 'supprimé'
+    if job.get('state') == 'paused' or job.get('enabled') is False:
+        return 'en pause'
+    try:
+        last = datetime.fromisoformat(job['last_run_at']).timestamp()
+    except (KeyError, TypeError, ValueError):
+        return 'jamais exécuté'
+    idle = now - last
+    return f'aucune exécution depuis {int(idle // 60)} min' if idle > minutes * 60 else None
+
+
 def record(entry, feed=FEED):
     """Adds [entry] at the top of the feed, written whole then renamed, so the app never reads half of it."""
     try:
@@ -130,14 +157,39 @@ def runs():
         return None  # mid-write: read again next time
 
 
+def tell(sa, cron, title, text, failed, nid):
+    record({'id': nid, 'cron': cron, 'title': title, 'text': text[:TEXT_LIMIT],
+            'at': datetime.now().astimezone().isoformat(timespec='seconds'), 'failed': failed})
+    send(sa, title, summary(text), cron, nid)
+    print('sent', cron, title, flush=True)
+
+
+def watch_stale(sa, jobs, stopped, now):
+    """Reports a watched job that stopped running, once, then when it runs again; [stopped] remembers which."""
+    for i, minutes in stale_limits().items():
+        job, why = jobs.get(i), staleness(jobs.get(i), minutes, now)
+        name = (job or {}).get('name') or i
+        try:
+            if why and i not in stopped:
+                tell(sa, i, f'Arrêt : {name}', f'{name} ne tourne plus : {why}.', True, f'{i}:stale:{int(now)}')
+                stopped.add(i)
+            elif not why and i in stopped:
+                tell(sa, i, name, f'{name} tourne de nouveau.', False, f'{i}:back:{int(now)}')
+                stopped.discard(i)
+        except Exception as e:
+            print('push failed', i, e, file=sys.stderr, flush=True)
+
+
 def main():
     sa = json.loads(KEY.read_text())
     seen = {i: j.get('last_run_at') for i, j in (runs() or {}).items()}
+    stopped = set()
     while True:
         time.sleep(20)
         jobs = runs()
         if jobs is None:
             continue
+        watch_stale(sa, jobs, stopped, time.time())
         for i, j in jobs.items():
             if j.get('last_run_at') and j['last_run_at'] != seen.get(i):
                 seen[i] = j['last_run_at']
@@ -168,6 +220,26 @@ def test():
     agent = {'id': 'a', 'name': 'A', 'last_status': 'ok'}
     assert notice(agent, '## Response\n\nBonjour') == ('A', 'Bonjour', False)
     assert notice(agent, '## Response\n\n[SILENT]') is None
+    now = datetime.fromisoformat('2026-11-05T21:30:00+01:00').timestamp()
+    on_time = {'state': 'scheduled', 'last_run_at': '2026-11-05T21:25:00+01:00'}
+    assert staleness(on_time, 15, now) is None
+    assert staleness({**on_time, 'last_run_at': '2026-11-05T21:00:00+01:00'}, 15, now) == 'aucune exécution depuis 30 min'
+    assert staleness({**on_time, 'state': 'paused'}, 15, now) == 'en pause'
+    assert staleness({**on_time, 'enabled': False}, 15, now) == 'en pause'
+    assert staleness({'state': 'scheduled'}, 15, now) == 'jamais exécuté'
+    assert staleness(None, 15, now) == 'supprimé'
+    global NOTIFY, tell
+    told, real = [], (NOTIFY, tell)
+    with tempfile.TemporaryDirectory() as d:
+        NOTIFY = Path(d) / 'notify.json'
+        NOTIFY.write_text('{"stale": {"k": 15}}')
+        tell = lambda sa, cron, title, text, failed, nid: told.append((title, failed))
+        stopped, late = set(), {'k': {'name': 'K', 'last_run_at': '2026-11-05T21:00:00+01:00'}}
+        for _ in range(3):  # reported once, not every 20 s
+            watch_stale(None, late, stopped, now)
+        watch_stale(None, {'k': {**late['k'], 'last_run_at': '2026-11-05T21:29:00+01:00'}}, stopped, now)
+        assert told == [('Arrêt : K', True), ('K', False)] and not stopped
+    NOTIFY, tell = real
     with tempfile.TemporaryDirectory() as d:
         feed = Path(d) / 'sub' / 'feed.json'
         for n in range(FEED_SIZE + 5):
