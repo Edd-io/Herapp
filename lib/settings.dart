@@ -855,10 +855,12 @@ class _SettingsSheetState extends State<SettingsSheet> {
                   ),
                 ]),
                 section(l.general, [
-                  CupertinoListTile(
-                    title: Text(l.haptics, style: label),
-                    trailing: CupertinoSwitch(value: settings.haptics, onChanged: (v) => settings.haptics = v),
-                  ),
+                  // a Mac or a Linux computer has nothing to vibrate
+                  if (!Platform.isMacOS && !Platform.isLinux)
+                    CupertinoListTile(
+                      title: Text(l.haptics, style: label),
+                      trailing: CupertinoSwitch(value: settings.haptics, onChanged: (v) => settings.haptics = v),
+                    ),
                   CupertinoListTile(
                     title: Text(l.notifications, style: label),
                     subtitle: Text(l.notificationsInfo, maxLines: 2, style: TextStyle(fontSize: 13, color: c.outline)),
