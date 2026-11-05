@@ -235,7 +235,14 @@ extension _Sidebar on _ChatPageState {
                   ],
                   heading(l.chats),
                   if (bot case final b? when b.name.toLowerCase().contains(q))
-                    tile(b.name, icon: CupertinoIcons.bubble_left_bubble_right, selected: identical(b, chat), onTap: () => select(b)),
+                    tile(
+                      b.name,
+                      icon: CupertinoIcons.bubble_left_bubble_right,
+                      selected: identical(b, chat),
+                      onTap: () => select(b),
+                      // held (or right-clicked): cleared, the only thing done to it
+                      onMenu: clearBot,
+                    ),
                   for (final (i, ch) in recent.indexed) ...[
                     if (i == 0 || group(ch) != group(recent[i - 1])) dayHeading(group(ch)),
                     listedTile(ch),

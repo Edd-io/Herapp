@@ -401,6 +401,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'This chat will be deleted from Hermes for good.';
 
   @override
+  String get clearBot => 'Clear the Bot Chat';
+
+  @override
+  String get clearBotMessage =>
+      'Its messages will be deleted from Hermes for good.';
+
+  @override
+  String get clearBotBusy =>
+      'A routine is writing in it, try again in a moment.';
+
+  @override
   String get cancel => 'Cancel';
 
   @override

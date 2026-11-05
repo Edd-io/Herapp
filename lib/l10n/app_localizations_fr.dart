@@ -404,6 +404,16 @@ class AppLocalizationsFr extends AppLocalizations {
       'Ce chat sera supprimé définitivement de Hermes.';
 
   @override
+  String get clearBot => 'Effacer le Bot Chat';
+
+  @override
+  String get clearBotMessage =>
+      'Ses messages seront supprimés définitivement de Hermes.';
+
+  @override
+  String get clearBotBusy => 'Une routine y écrit, réessaie dans un instant.';
+
+  @override
   String get cancel => 'Annuler';
 
   @override

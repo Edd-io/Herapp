@@ -764,6 +764,24 @@ abstract class AppLocalizations {
   /// **'This chat will be deleted from Hermes for good.'**
   String get deleteChatMessage;
 
+  /// No description provided for @clearBot.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the Bot Chat'**
+  String get clearBot;
+
+  /// No description provided for @clearBotMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Its messages will be deleted from Hermes for good.'**
+  String get clearBotMessage;
+
+  /// No description provided for @clearBotBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'A routine is writing in it, try again in a moment.'**
+  String get clearBotBusy;
+
   /// No description provided for @cancel.
   ///
   /// In en, this message translates to:

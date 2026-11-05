@@ -1047,7 +1047,12 @@ void main() {
             {'id': 'b1', 'resolved_id': 'b2', 'title': 'Bot Chat'},
           ],
         },
-        'session.list' => {'sessions': []},
+        // a server that doesn't hide it lists it with the others
+        'session.list' => {
+          'sessions': [
+            {'id': 'b2', 'title': 'Bot Chat'},
+          ],
+        },
         _ => null,
       },
     );
@@ -1081,6 +1086,76 @@ void main() {
     await t.pumpAndSettle();
     expect(paths.where((p) => p == '/api/sessions/b2/messages'), hasLength(2));
     expect(calls.where((c) => c.$1 == 'session.list' && c.$2['title'] == 'Bot Chat'), isNotEmpty);
+  });
+
+  testWidgets('the Bot Chat is cleared from its own button, an empty one taking its place in the menu', (t) async {
+    var id = 'b2'; // the Bot Chat's live end, a new one once cleared
+    final calls = fakeServer(
+      (method, params, emit) => switch (method) {
+        'session.list' when params['title'] == 'Bot Chat' => {
+          'sessions': [
+            {'id': id == 'b2' ? 'b1' : id, 'resolved_id': id, 'title': 'Bot Chat'},
+          ],
+        },
+        'session.list' => {'sessions': []},
+        'session.create' => {'session_id': 'r9', 'stored_session_id': 'b9'},
+        _ => null,
+      },
+    );
+    addTearDown(() => callApi = hermesApi);
+    final deletes = <Object?>[];
+    callApi = (base, method, path, {query, body, user, password}) async {
+      if (path == '/api/sessions/bulk-delete') {
+        deletes.add(body);
+        id = 'b9';
+        return jsonEncode({'ok': true, 'deleted': 1, 'skipped_active': []});
+      }
+      return jsonEncode({
+        'messages': [
+          if (path == '/api/sessions/b2/messages') ...[
+            {'role': 'user', 'content': '[Cronjob "Daily news" output — scheduled job, not the user. Review it.]\n\nRain in Lyon'},
+            {'role': 'assistant', 'content': 'Take an umbrella today.'},
+          ],
+        ],
+      });
+    };
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Bot Chat'));
+    await t.pumpAndSettle();
+    expect(find.text('Take an umbrella today.'), findsOneWidget);
+
+    await t.tap(find.byIcon(CupertinoIcons.trash));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Cancel'));
+    await t.pumpAndSettle();
+    expect(deletes, isEmpty); // kept
+    expect(find.text('Take an umbrella today.'), findsOneWidget);
+
+    await t.tap(find.byIcon(CupertinoIcons.trash));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Clear the Bot Chat'));
+    await t.pumpAndSettle();
+    // with its compressed segments, then born again as the server mints it
+    expect(deletes, [
+      {
+        'ids': ['b2'],
+      },
+    ]);
+    expect(calls.where((c) => c.$1 == 'session.delete'), isEmpty);
+    expect(calls.where((c) => c.$1 == 'session.create').single.$2, {'title': 'Bot Chat', 'hidden': true, 'follow_profile_config': true});
+    expect(calls.where((c) => c.$1 == 'session.title').single.$2, {'session_id': 'r9', 'title': 'Bot Chat'});
+    expect(find.text('Take an umbrella today.'), findsNothing);
+    expect(find.byIcon(CupertinoIcons.trash), findsNothing); // nothing left to clear
+
+    // still in the menu, opening the new one
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    expect(find.text('Bot Chat'), findsOneWidget);
+    await t.tap(find.text('Bot Chat'));
+    await t.pumpAndSettle();
+    expect(find.text('Take an umbrella today.'), findsNothing);
   });
 
   testWidgets('every button of a conversation is named for screen readers', (t) async {

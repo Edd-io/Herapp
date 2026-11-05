@@ -251,6 +251,9 @@
   },
   "deleteChat": "Delete chat",
   "deleteChatMessage": "This chat will be deleted from Hermes for good.",
+  "clearBot": "Clear the Bot Chat",
+  "clearBotMessage": "Its messages will be deleted from Hermes for good.",
+  "clearBotBusy": "A routine is writing in it, try again in a moment.",
   "cancel": "Cancel",
   "deleteFailed": "Couldn't delete the chat.\n{message}",
   "@deleteFailed": {
