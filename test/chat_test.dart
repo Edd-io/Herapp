@@ -1039,8 +1039,8 @@ void main() {
     await t.pump(const Duration(seconds: 10));
   });
 
-  testWidgets('the Bot Chat opens from the menu, with routine results apart', (t) async {
-    final calls = fakeServer(
+  testWidgets('the Bot Chat stays out of the menu, and a routine result in a chat shows apart', (t) async {
+    fakeServer(
       (method, params, emit) => switch (method) {
         'session.list' when params['title'] == 'Bot Chat' => {
           'sessions': [
@@ -1051,108 +1051,29 @@ void main() {
         'session.list' => {
           'sessions': [
             {'id': 'b2', 'title': 'Bot Chat'},
+            {'id': 'n1', 'title': 'News'},
           ],
         },
         _ => null,
       },
     );
     addTearDown(() => callApi = hermesApi);
-    final paths = <String>[];
-    callApi = (base, method, path, {query, body, user, password}) async {
-      paths.add(path);
-      return jsonEncode({
-        'messages': [
-          {'role': 'user', 'content': '[Cronjob "Daily news" output — scheduled job, not the user. Review it.]\n\nRain in Lyon'},
-          {'role': 'assistant', 'content': 'Take an umbrella today.'},
-        ],
-      });
-    };
+    callApi = (base, method, path, {query, body, user, password}) async => jsonEncode({
+      'messages': [
+        {'role': 'user', 'content': '[Cronjob "Daily news" output — scheduled job, not the user. Review it.]\n\nRain in Lyon'},
+        {'role': 'assistant', 'content': 'Take an umbrella today.'},
+      ],
+    });
     await t.pumpWidget(const App());
     await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
     await t.pumpAndSettle();
-    await t.tap(find.text('Bot Chat'));
+    expect(find.text('Bot Chat'), findsNothing); // its results are in the notifications
+    await t.tap(find.text('News'));
     await t.pumpAndSettle();
-    expect(paths, contains('/api/sessions/b2/messages')); // the live end of the chat
     expect(find.text('ROUTINE · DAILY NEWS'), findsOneWidget);
     expect(find.text('Rain in Lyon'), findsOneWidget);
     expect(find.textContaining('[Cronjob'), findsNothing); // not shown as the user's words
     expect(find.text('Take an umbrella today.'), findsOneWidget);
-
-    // it isn't listed again among the chats, and reopening it reads what came in meanwhile
-    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
-    await t.pumpAndSettle();
-    expect(find.text('Bot Chat'), findsOneWidget);
-    await t.tap(find.text('Bot Chat'));
-    await t.pumpAndSettle();
-    expect(paths.where((p) => p == '/api/sessions/b2/messages'), hasLength(2));
-    expect(calls.where((c) => c.$1 == 'session.list' && c.$2['title'] == 'Bot Chat'), isNotEmpty);
-  });
-
-  testWidgets('the Bot Chat is cleared from its own button, an empty one taking its place in the menu', (t) async {
-    var id = 'b2'; // the Bot Chat's live end, a new one once cleared
-    final deletes = <Map>[];
-    final calls = fakeServer(
-      (method, params, emit) => switch (method) {
-        'session.list' when params['title'] == 'Bot Chat' => {
-          'sessions': [
-            {'id': id == 'b2' ? 'b1' : id, 'resolved_id': id, 'title': 'Bot Chat'},
-          ],
-        },
-        'session.list' => {'sessions': []},
-        'session.delete' => () {
-          deletes.add(params);
-          id = 'b9';
-          return {'deleted': params['session_id']};
-        }(),
-        'session.create' => {'session_id': 'r9', 'stored_session_id': 'b9'},
-        _ => null,
-      },
-    );
-    addTearDown(() => callApi = hermesApi);
-    callApi = (base, method, path, {query, body, user, password}) async {
-      return jsonEncode({
-        'messages': [
-          if (path == '/api/sessions/b2/messages') ...[
-            {'role': 'user', 'content': '[Cronjob "Daily news" output — scheduled job, not the user. Review it.]\n\nRain in Lyon'},
-            {'role': 'assistant', 'content': 'Take an umbrella today.'},
-          ],
-        ],
-      });
-    };
-    await t.pumpWidget(const App());
-    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
-    await t.pumpAndSettle();
-    await t.tap(find.text('Bot Chat'));
-    await t.pumpAndSettle();
-    expect(find.text('Take an umbrella today.'), findsOneWidget);
-
-    await t.tap(find.byIcon(CupertinoIcons.trash));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Cancel'));
-    await t.pumpAndSettle();
-    expect(deletes, isEmpty); // kept
-    expect(find.text('Take an umbrella today.'), findsOneWidget);
-
-    await t.tap(find.byIcon(CupertinoIcons.trash));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Clear the Bot Chat'));
-    await t.pumpAndSettle();
-    // through the gateway, which deletes it whole, then born again as the server mints it
-    expect(deletes, [
-      {'session_id': 'b2'},
-    ]);
-    expect(calls.where((c) => c.$1 == 'session.create').single.$2, {'title': 'Bot Chat', 'hidden': true, 'follow_profile_config': true});
-    expect(calls.where((c) => c.$1 == 'session.title').single.$2, {'session_id': 'r9', 'title': 'Bot Chat'});
-    expect(find.text('Take an umbrella today.'), findsNothing);
-    expect(find.byIcon(CupertinoIcons.trash), findsNothing); // nothing left to clear
-
-    // still in the menu, opening the new one
-    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
-    await t.pumpAndSettle();
-    expect(find.text('Bot Chat'), findsOneWidget);
-    await t.tap(find.text('Bot Chat'));
-    await t.pumpAndSettle();
-    expect(find.text('Take an umbrella today.'), findsNothing);
   });
 
   testWidgets('every button of a conversation is named for screen readers', (t) async {

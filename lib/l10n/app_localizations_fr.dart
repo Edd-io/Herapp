@@ -404,16 +404,6 @@ class AppLocalizationsFr extends AppLocalizations {
       'Ce chat sera supprimé définitivement de Hermes.';
 
   @override
-  String get clearBot => 'Effacer le Bot Chat';
-
-  @override
-  String get clearBotMessage =>
-      'Ses messages seront supprimés définitivement de Hermes.';
-
-  @override
-  String get clearBotBusy => 'Une routine y écrit, réessaie dans un instant.';
-
-  @override
   String get cancel => 'Annuler';
 
   @override
@@ -1465,9 +1455,6 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get welcomeRoutines => 'Résultats des tâches planifiées';
-
-  @override
   String toolsEarlier(int n) {
     String _temp0 = intl.Intl.pluralLogic(
       n,
@@ -1613,6 +1600,14 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get notificationsInfo =>
       'Une réponse ou une tâche finie pendant que Herapp n’est pas à l’écran te prévient.';
+
+  @override
+  String get noticeDiscuss => 'En discuter';
+
+  @override
+  String noticeDiscussed(String title) {
+    return 'À propos de cette notification, « $title » :';
+  }
 
   @override
   String get notificationsEmpty =>

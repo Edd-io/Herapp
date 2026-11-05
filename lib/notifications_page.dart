@@ -13,6 +13,9 @@ import 'settings.dart';
 /// The notice a tapped push named, for the chat page to open (set before or after it is up).
 final openedNotice = ValueNotifier<String?>(null);
 
+/// The notice picked to discuss, for the chat page to start a chat on.
+final discussedNotice = ValueNotifier<Notice?>(null);
+
 /// The notices the server's push watcher sent, newest first: cron answers, script outputs (the dispatcher's
 /// pushes, blocks and CI), failures. Read from a file on the server: no model, no token.
 class NotificationsPage extends StatefulWidget {
@@ -139,6 +142,7 @@ class _NoticePage extends StatelessWidget {
     final at = notice.at == null ? '' : DateFormat.yMMMd(Localizations.localeOf(context).toString()).add_Hm().format(notice.at!);
     return PageFrame(
       title: notice.title,
+      action: TextButton(onPressed: () => discussedNotice.value = notice, child: Text(AppLocalizations.of(context).noticeDiscuss)),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 48),
         child: Column(

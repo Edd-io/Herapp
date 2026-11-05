@@ -764,24 +764,6 @@ abstract class AppLocalizations {
   /// **'This chat will be deleted from Hermes for good.'**
   String get deleteChatMessage;
 
-  /// No description provided for @clearBot.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear the Bot Chat'**
-  String get clearBot;
-
-  /// No description provided for @clearBotMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Its messages will be deleted from Hermes for good.'**
-  String get clearBotMessage;
-
-  /// No description provided for @clearBotBusy.
-  ///
-  /// In en, this message translates to:
-  /// **'A routine is writing in it, try again in a moment.'**
-  String get clearBotBusy;
-
   /// No description provided for @cancel.
   ///
   /// In en, this message translates to:
@@ -2576,12 +2558,6 @@ abstract class AppLocalizations {
   /// **'{n, plural, =1{1 subagent at work} other{{n} subagents at work}}'**
   String welcomeSubagents(int n);
 
-  /// No description provided for @welcomeRoutines.
-  ///
-  /// In en, this message translates to:
-  /// **'Scheduled jobs’ results'**
-  String get welcomeRoutines;
-
   /// No description provided for @toolsEarlier.
   ///
   /// In en, this message translates to:
@@ -2815,6 +2791,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A reply or background task done while Herapp is out of sight tells you.'**
   String get notificationsInfo;
+
+  /// No description provided for @noticeDiscuss.
+  ///
+  /// In en, this message translates to:
+  /// **'Discuss'**
+  String get noticeDiscuss;
+
+  /// No description provided for @noticeDiscussed.
+  ///
+  /// In en, this message translates to:
+  /// **'About this notification, “{title}”:'**
+  String noticeDiscussed(String title);
 
   /// No description provided for @notificationsEmpty.
   ///

@@ -885,6 +885,20 @@ void main() {
       expect(find.text('Dispatcher'), findsOneWidget); // the notice's title heads its page
     });
 
+    testWidgets('a notice is discussed in a new chat, its text written in for the question', (t) async {
+      addTearDown(() => callApi = hermesApi);
+      serve(notices);
+      await openFromMenu(t);
+      await t.tap(find.text('🚀 t_1: 1 commit pushed to main.'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Discuss'));
+      await t.pumpAndSettle();
+      expect(find.byType(NotificationsPage), findsNothing);
+      final seeded = 'About this notification, “Dispatcher”:\n\n🚀 t_1: 1 commit pushed to main.\n\n';
+      expect(find.byWidgetPredicate((w) => w is EditableText && w.controller.text == seeded), findsOneWidget); // not sent
+      expect(discussedNotice.value, isNull);
+    });
+
     testWidgets('nothing sent yet says so', (t) async {
       addTearDown(() => callApi = hermesApi);
       serve(null);

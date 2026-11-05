@@ -124,7 +124,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   final paneRefresh = ValueNotifier(0);
   List<Slash> slashes = []; // skills matching the `/` being typed
   String slashFor = '';
-  Chat? bot; // the server's Bot Chat, where scheduled jobs deliver their results
   bool get streaming => chat.streaming;
   List<Msg> get queue => chat.queue;
   String get phase => chat.phase;
@@ -161,6 +160,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     takeShared();
     openedNotice.addListener(openNotice);
     openNotice(); // a push tapped while the app was closed
+    discussedNotice.addListener(discussNotice);
   }
 
   /// Opens the notifications on the notice a tapped push named.
@@ -172,6 +172,15 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       if (mounted) openPage(NotificationsPage(open: id));
     });
     WidgetsBinding.instance.ensureVisualUpdate(); // an idle app draws no frame on its own
+  }
+
+  /// Starts a new chat on the notice picked to discuss, its text written in for the question to follow.
+  void discussNotice() {
+    final n = discussedNotice.value;
+    if (n == null) return;
+    discussedNotice.value = null;
+    ask('');
+    input.text = '${AppLocalizations.of(context).noticeDiscussed(n.title)}\n\n${n.text.trim()}\n\n';
   }
 
   /// Lists the server's stored conversations in the sidebar, after the chats not saved there yet.
@@ -189,18 +198,14 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         ).then((b) => parseSessions(jsonDecode(b ?? '{}') as Map), onError: (Object _) => const <Session>[]))
           r.id: r,
       };
-      // hidden from the list, the Bot Chat is found by its name (an older server ignores the title and lists all)
+      // the Bot Chat, where routines may still deliver, stays out of the list: their results are in the notifications
       final botIds = switch (await g.call('session.list', {'title': 'Bot Chat'}).catchError((Object _) => const {})) {
         {'sessions': [{'title': 'Bot Chat'} && final Map s, ...]} => ['${s['resolved_id'] ?? s['id']}', '${s['id']}'],
         _ => const <String>[],
       };
-      final canonical = botIds.firstOrNull ?? '';
       if (!mounted) return;
-      final known = {
-        for (final c in [...chats, ?bot]) c.stored: c,
-      };
+      final known = {for (final c in chats) c.stored: c};
       setState(() {
-        bot = canonical.isEmpty ? null : known[canonical] ?? Chat(stored: canonical, name: 'Bot Chat');
         chats = [
           ...chats.where((c) => c.stored.isEmpty),
           for (final r in [
@@ -208,14 +213,13 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
             for (final r in rest.values)
               if (r.pinned && !rows.any((row) => row.id == r.id)) r,
           ])
-            // a Bot Chat the server doesn't hide is shown once, by its own button
             if (!botIds.contains(r.id))
               ((known[r.id]?..name = r.title) ?? Chat(stored: r.id, name: r.title))
                 ..pinned = rest[r.id]?.pinned ?? false
                 ..active = rest[r.id]?.at ?? r.at,
           // the server's list is the truth; only the open chat, or one still answering, stays if it's missing from it
           for (final c in {...chats, chat})
-            if (c.stored.isNotEmpty && !identical(c, bot) && (identical(c, chat) || c.streaming) && !rows.any((r) => r.id == c.stored)) c,
+            if (c.stored.isNotEmpty && (identical(c, chat) || c.streaming) && !rows.any((r) => r.id == c.stored)) c,
         ];
       });
     } catch (e) {
@@ -392,7 +396,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     openedNotice.removeListener(openNotice);
-    for (final c in [...chats, ?bot]) {
+    discussedNotice.removeListener(discussNotice);
+    for (final c in chats) {
       c.sub?.cancel();
       c.shell.stop();
     }
@@ -677,7 +682,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   void tellProgress() {
     if (!Platform.isIOS) return;
     const quick = MethodChannel('herapp/quick');
-    final running = [...chats, ?bot].where((c) => c.streaming).toList();
+    final running = chats.where((c) => c.streaming).toList();
     if (running.isEmpty) {
       if (told != null) quick.invokeMethod<void>('replyEnd').catchError((Object _) {});
       told = null;
@@ -1106,21 +1111,15 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   }
 
   /// Asks, then deletes [c] from the server (a chat never sent is only dropped); false if kept.
-  /// For the Bot Chat, the first step of [clearBot].
   Future<bool> confirmDelete(Chat c) async {
     final l = AppLocalizations.of(context);
-    final isBot = identical(c, bot);
     final ok = await showChoices<bool>(
       context: context,
       builder: (context) => CupertinoActionSheet(
         title: Text(c.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-        message: Text(isBot ? l.clearBotMessage : l.deleteChatMessage),
+        message: Text(l.deleteChatMessage),
         actions: [
-          CupertinoActionSheetAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(isBot ? l.clearBot : l.deleteChat),
-          ),
+          CupertinoActionSheetAction(isDestructiveAction: true, onPressed: () => Navigator.pop(context, true), child: Text(l.deleteChat)),
         ],
         cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, false), child: Text(l.cancel)),
       ),
@@ -1137,13 +1136,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           ..on = null
           ..live = '';
       }
-      // the Bot Chat goes whole, its compressed segments with it (the REST delete is refused while the gateway runs)
-      try {
-        await g.call('session.delete', {'session_id': c.stored});
-      } on RpcError catch (e) {
-        if (isBot && e.message.contains('active session')) throw RpcError(l.clearBotBusy); // a routine's turn holds it
-        rethrow;
-      }
+      // the chat goes whole, its compressed segments with it (the REST delete is refused while the gateway runs)
+      await g.call('session.delete', {'session_id': c.stored});
       return true;
     } catch (e) {
       debugPrint('Delete: $e');
@@ -1231,42 +1225,13 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     setState(() => chats.remove(c));
   }
 
-  /// Asks, then clears the Bot Chat: its conversation is deleted and an empty one takes its place at once,
-  /// for the routines to deliver into and the menu to keep.
-  Future<void> clearBot() async {
-    final old = bot;
-    if (old == null || !await confirmDelete(old)) return;
-    Chat? fresh;
-    try {
-      final g = await gateway();
-      if (g == null) throw const HttpException('no server');
-      // as the server mints it: hidden from the list, on the model of its profile
-      final r = await g.call('session.create', {'title': 'Bot Chat', 'hidden': true, 'follow_profile_config': true});
-      // its row exists once titled, not only at its first message; the name is the Bot Chat's identity
-      await g.call('session.title', {'session_id': r['session_id'], 'title': 'Bot Chat'});
-      await g.call('session.close', {'session_id': r['session_id']}).catchError((Object _) => const {});
-      fresh = Chat(stored: '${r['stored_session_id']}', name: 'Bot Chat')..loaded = true;
-    } catch (e) {
-      failed(e); // back with the next routine's result
-    }
-    if (!mounted) return;
-    if (!identical(old, chat)) return setState(() => bot = fresh);
-    stop();
-    setState(() {
-      bot = fresh;
-      chat = fresh ?? (chats..insert(0, Chat())).first;
-      seen = 0;
-    });
-  }
-
   void select(Chat c) {
     setState(() {
       chat = c;
       seen = c.msgs.length;
     });
     closeDrawer();
-    // the Bot Chat also fills up while away, from the scheduled jobs
-    if ((!c.loaded || identical(c, bot)) && !c.loading && !c.streaming) open(c);
+    if (!c.loaded && !c.loading && !c.streaming) open(c);
     toBottom(jump: true);
   }
 
@@ -1354,7 +1319,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         ),
         if (const [TargetPlatform.macOS, TargetPlatform.windows, TargetPlatform.linux].contains(defaultTargetPlatform))
           (label: l.paletteFolder, icon: CupertinoIcons.folder, group: '', keys: '', run: pickFolder),
-        for (final ch in [...chats, ?bot])
+        for (final ch in chats)
           if (ch.title.trim().isNotEmpty) chatItem(ch.title, () => select(ch)),
       ],
       more: (q) async {
@@ -1362,7 +1327,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           final body = await serverApi('GET', '/api/sessions/search', query: {'q': q.trim(), 'limit': '10'});
           return [
             for (final f in body == null ? const <Found>[] : parseFound(body))
-              if (![...chats, ?bot].any((ch) => ch.stored == f.id && ch.title.toLowerCase().contains(q.toLowerCase())))
+              if (!chats.any((ch) => ch.stored == f.id && ch.title.toLowerCase().contains(q.toLowerCase())))
                 chatItem(f.title, () => openFound(f)),
           ];
         } catch (e) {
@@ -1545,7 +1510,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   }
 
   Widget _main(ColorScheme c) {
-    final clearable = identical(chat, bot) && chat.msgs.isNotEmpty && !chat.loading;
     final main = ColoredBox(
       color: c.surface,
       child: SafeArea(
@@ -1556,8 +1520,6 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
               child: Row(
                 children: [
                   if (wide) const SizedBox(width: 52) else _IconBtn(label: l.a11yMenu, onTap: openDrawer, child: _MenuIcon(c.onSurface)),
-                  // the room of the Bot Chat's button, for the title to stay centered
-                  if (clearable && !wide) const SizedBox(width: 52),
                   Expanded(
                     // empty: no title, the centered pill is the picker
                     child: chat.msgs.isEmpty
@@ -1583,16 +1545,8 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
                             ],
                           ),
                   ),
-                  if (clearable)
-                    _IconBtn(
-                      label: l.clearBot,
-                      onTap: clearBot,
-                      child: Icon(CupertinoIcons.trash, size: 22, color: c.onSurface),
-                    ),
                   // a wide window has it in the menu beside: the same room, for the title to stay centered
-                  if (clearable && wide)
-                    const SizedBox()
-                  else if (wide)
+                  if (wide)
                     const SizedBox(width: 52)
                   else
                     _IconBtn(

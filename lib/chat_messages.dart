@@ -51,7 +51,7 @@ extension _Messages on _ChatPageState {
             valueListenable: subagents,
             builder: (context, all, _) {
               final working = all.values.where(subagentRunning).length;
-              if (working == 0 && bot == null) return const SizedBox.shrink();
+              if (working == 0) return const SizedBox.shrink();
               return Padding(
                 padding: const EdgeInsets.only(top: 24),
                 child: Column(
@@ -63,9 +63,7 @@ extension _Messages on _ChatPageState {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        if (working > 0)
-                          chip(l.welcomeSubagents(working), icon: CupertinoIcons.sparkles, onTap: () => openPage(const AgentsPage())),
-                        if (bot case final b?) chip(l.welcomeRoutines, icon: CupertinoIcons.clock, onTap: () => select(b)),
+                        chip(l.welcomeSubagents(working), icon: CupertinoIcons.sparkles, onTap: () => openPage(const AgentsPage())),
                       ],
                     ),
                   ],
