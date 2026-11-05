@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:herapp/agents_page.dart';
 import 'package:herapp/cron_page.dart';
 import 'package:herapp/hermes.dart';
 import 'package:herapp/main.dart';
+import 'package:herapp/notifications_page.dart';
 
 import 'support.dart';
 
@@ -836,5 +838,70 @@ void main() {
     await t.pumpAndSettle();
     expect(posts.last, '/api/gateway/restart');
     expect(find.text('The gateway is restarting.'), findsOneWidget);
+  });
+
+  group('notifications', () {
+    final notices = [
+      {'id': 'k:2', 'cron': 'k', 'title': 'Dispatcher', 'text': '🚀 t_1: 1 commit pushed to main.', 'at': '2026-11-05T21:20:00+01:00'},
+      {'id': 'k:1', 'cron': 'k', 'title': 'Échec : Dispatcher', 'text': 'boom', 'at': '2026-11-05T21:15:00+01:00', 'failed': true},
+    ];
+    late List<String> reads;
+
+    /// A server whose push watcher sent [sent] (null: nothing yet, the file is missing).
+    void serve(List<Map>? sent) {
+      fakeServer((_, _, _) => null);
+      reads = [];
+      callApi = (base, method, path, {query, body, user, password}) async {
+        if (path == '/api/cron/jobs') return '[{"id":"k","name":"Dispatcher","no_agent":true,"hermes_home":"/h"}]';
+        if (path == '/api/files/read') {
+          reads.add(query!['path']!);
+          if (sent == null) throw const HttpException('File not found');
+          return jsonEncode({'data_url': 'data:application/json;base64,${base64Encode(utf8.encode(jsonEncode(sent)))}'});
+        }
+        return '{}';
+      };
+    }
+
+    Future<void> openFromMenu(WidgetTester t) async {
+      await t.pumpWidget(const App());
+      await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Notifications'));
+      await t.pumpAndSettle();
+    }
+
+    testWidgets('list what the server pushed, newest first, each opening in full', (t) async {
+      addTearDown(() => callApi = hermesApi);
+      serve(notices);
+      await openFromMenu(t);
+      expect(reads, ['/h/herapp/notifications.json']);
+      final pushed = find.text('🚀 t_1: 1 commit pushed to main.');
+      expect(pushed, findsOneWidget);
+      expect(find.textContaining('Échec : Dispatcher'), findsOneWidget);
+      expect(t.getTopLeft(pushed).dy, lessThan(t.getTopLeft(find.text('boom')).dy));
+      await t.tap(pushed);
+      await t.pumpAndSettle();
+      expect(find.byType(SelectableText), findsOneWidget);
+      expect(find.text('Dispatcher'), findsOneWidget); // the notice's title heads its page
+    });
+
+    testWidgets('nothing sent yet says so', (t) async {
+      addTearDown(() => callApi = hermesApi);
+      serve(null);
+      await openFromMenu(t);
+      expect(find.textContaining('Nothing sent yet'), findsOneWidget);
+    });
+
+    testWidgets('a tapped push opens its notice', (t) async {
+      addTearDown(() => callApi = hermesApi);
+      serve(notices);
+      await t.pumpWidget(const App());
+      await t.pumpAndSettle();
+      openedNotice.value = 'k:1';
+      await t.pumpAndSettle();
+      expect(find.byType(NotificationsPage, skipOffstage: false), findsOneWidget); // under the notice it opened
+      expect(find.widgetWithText(SelectableText, 'boom'), findsOneWidget);
+      expect(openedNotice.value, isNull);
+    });
   });
 }

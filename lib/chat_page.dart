@@ -28,6 +28,7 @@ import 'mac.dart';
 import 'l10n/app_localizations.dart';
 import 'memory_page.dart';
 import 'model_sheet.dart';
+import 'notifications_page.dart';
 import 'palette.dart';
 import 'quota_page.dart';
 import 'screen_page.dart';
@@ -158,6 +159,19 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     quick.invokeMethod<Object?>('continued').then(continueChat).catchError((Object _) {}); // handed over before the app was up
     WidgetsBinding.instance.addObserver(this);
     takeShared();
+    openedNotice.addListener(openNotice);
+    openNotice(); // a push tapped while the app was closed
+  }
+
+  /// Opens the notifications on the notice a tapped push named.
+  void openNotice() {
+    final id = openedNotice.value;
+    if (id == null) return;
+    openedNotice.value = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) openPage(NotificationsPage(open: id));
+    });
+    WidgetsBinding.instance.ensureVisualUpdate(); // an idle app draws no frame on its own
   }
 
   /// Lists the server's stored conversations in the sidebar, after the chats not saved there yet.
@@ -377,6 +391,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    openedNotice.removeListener(openNotice);
     for (final c in [...chats, ?bot]) {
       c.sub?.cancel();
       c.shell.stop();
@@ -1295,6 +1310,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     (l.vault, CupertinoIcons.lock_shield, const VaultPage()),
     (l.screen, CupertinoIcons.macwindow, const ScreenPage()),
     (l.tools, CupertinoIcons.hammer, const ToolsPage()),
+    (l.notifications, CupertinoIcons.bell, const NotificationsPage()),
   ];
 
   void openPage(Widget page) {

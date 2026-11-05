@@ -1615,6 +1615,10 @@ class AppLocalizationsFr extends AppLocalizations {
       'Une réponse ou une tâche finie pendant que Herapp n’est pas à l’écran te prévient.';
 
   @override
+  String get notificationsEmpty =>
+      'Rien d’envoyé pour l’instant : les réponses des crons, leurs échecs et les nouvelles du dispatcher s’affichent ici.';
+
+  @override
   String get compare => 'Comparer avec un autre modèle';
 
   @override

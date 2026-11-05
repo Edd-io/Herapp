@@ -752,6 +752,7 @@
   "paletteFolder": "Pick the folder",
   "notifications": "Notifications",
   "notificationsInfo": "A reply or background task done while Herapp is out of sight tells you.",
+  "notificationsEmpty": "Nothing sent yet: cron answers, failures and the dispatcher's news show here.",
   "compare": "Compare with another model",
   "compareClose": "Close the comparison",
   "compareNoModels": "No other model to compare with",

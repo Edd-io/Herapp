@@ -6,6 +6,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:herapp/hermes.dart';
 
 void main() {
+  test('the push watcher\'s notices parse, the odd entry skipped', () {
+    final list = parseNotices(
+      jsonEncode([
+        {'id': 'k:2', 'cron': 'k', 'title': 'kdisp', 'text': '🚀 pushed', 'at': '2026-11-05T21:20:52.98+01:00', 'failed': false},
+        {'title': 'no id'},
+        {'id': 'k:1', 'title': 'Échec : kdisp', 'text': 'boom', 'failed': true},
+      ]),
+    );
+    expect(list.map((n) => n.id), ['k:2', 'k:1']);
+    expect(list.first.at, DateTime.utc(2026, 11, 5, 20, 20, 52, 980).toLocal());
+    expect((list.last.failed, list.last.at), (true, null));
+    expect(parseNotices('{"detail":"x"}'), isEmpty);
+    expect(noticesPath('/home/e/.hermes'), '/home/e/.hermes/herapp/notifications.json');
+  });
+
   test('a chat falls under today, yesterday, the week, the month or older', () {
     final now = DateTime(2026, 11, 2, 9);
     expect(dayGroup(DateTime(2026, 11, 2, 0, 5), now), 0);

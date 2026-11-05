@@ -9,6 +9,7 @@ import 'chat_page.dart';
 import 'firebase_options.dart';
 import 'l10n/app_localizations.dart';
 import 'lock.dart';
+import 'notifications_page.dart';
 import 'settings.dart';
 import 'wireguard.dart';
 
@@ -50,12 +51,18 @@ Future<String?> setupPush() async {
     debugPrint('FCM token: $token');
     // the server's cron watcher (server/herapp-push.py) sends to this topic
     await m.subscribeToTopic('herapp-crons');
+    // a tapped push opens its notice: while the app runs in the background, or the one that started it
+    FirebaseMessaging.onMessageOpenedApp.listen(openPushed);
+    if (await m.getInitialMessage() case final first?) openPushed(first);
     return token;
   } catch (e) {
     debugPrint('push setup failed: $e');
     return null;
   }
 }
+
+/// The notice [message] names (server/herapp-push.py sends its id), opened by the chat page.
+void openPushed(RemoteMessage message) => openedNotice.value = message.data['notice'] as String? ?? '';
 
 class App extends StatelessWidget {
   const App({super.key});

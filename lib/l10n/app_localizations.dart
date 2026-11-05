@@ -2816,6 +2816,12 @@ abstract class AppLocalizations {
   /// **'A reply or background task done while Herapp is out of sight tells you.'**
   String get notificationsInfo;
 
+  /// No description provided for @notificationsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing sent yet: cron answers, failures and the dispatcher\'s news show here.'**
+  String get notificationsEmpty;
+
   /// No description provided for @compare.
   ///
   /// In en, this message translates to:

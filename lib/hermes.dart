@@ -802,6 +802,27 @@ String cronOutputText(String doc) {
   return (doc.startsWith('# Cron Job:') && cut >= 0 ? doc.substring(cut + 5) : doc).trim();
 }
 
+/// One notice the server's push watcher (server/herapp-push.py) sent: a cron's answer or output, or why it failed.
+typedef Notice = ({String id, String cron, String title, String text, DateTime? at, bool failed});
+
+/// Where the push watcher keeps the notices it sent, newest first.
+String noticesPath(String hermesHome) => '$hermesHome/herapp/notifications.json';
+
+/// Parses the push watcher's notices file; empty if [body] isn't one.
+List<Notice> parseNotices(String body) => [
+  if (_json(body) case final List list)
+    for (final n in list.whereType<Map>())
+      if (n['id'] is String)
+        (
+          id: n['id'] as String,
+          cron: '${n['cron'] ?? ''}',
+          title: '${n['title'] ?? ''}',
+          text: '${n['text'] ?? ''}',
+          at: n['at'] is String ? DateTime.tryParse(n['at'] as String)?.toLocal() : null,
+          failed: n['failed'] == true,
+        ),
+];
+
 /// `/api/cron/jobs/{id}/runs`, newest first.
 List<CronRun> parseCronRuns(String body) => [
   if (_json(body) case {'runs': final List runs})

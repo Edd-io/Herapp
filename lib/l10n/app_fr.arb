@@ -453,6 +453,7 @@
   "paletteFolder": "Choisir le dossier",
   "notifications": "Notifications",
   "notificationsInfo": "Une réponse ou une tâche finie pendant que Herapp n’est pas à l’écran te prévient.",
+  "notificationsEmpty": "Rien d’envoyé pour l’instant : les réponses des crons, leurs échecs et les nouvelles du dispatcher s’affichent ici.",
   "compare": "Comparer avec un autre modèle",
   "compareClose": "Fermer la comparaison",
   "compareNoModels": "Aucun autre modèle à comparer",

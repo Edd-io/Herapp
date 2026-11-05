@@ -1595,6 +1595,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'A reply or background task done while Herapp is out of sight tells you.';
 
   @override
+  String get notificationsEmpty =>
+      'Nothing sent yet: cron answers, failures and the dispatcher\'s news show here.';
+
+  @override
   String get compare => 'Compare with another model';
 
   @override
