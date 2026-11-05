@@ -85,7 +85,7 @@ jobs:
       - uses: actions/download-artifact@v6
         with:
           merge-multiple: true
-      - name: The files, in the tag's release (a pre-release for a beta, rc or alpha)
+      - name: The files, in the tag's release, the latest one (a beta too)
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -93,6 +93,5 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" herapp-* --clobber
           else
-            pre=$([[ "$TAG" =~ (alpha|beta|rc) ]] && echo --prerelease || true)
-            gh release create "$TAG" herapp-* --title "Herapp ${TAG#v}" --generate-notes --verify-tag $pre
+            gh release create "$TAG" herapp-* --title "Herapp ${TAG#v}" --generate-notes --verify-tag --latest
           fi
