@@ -192,7 +192,9 @@ extension _Sidebar on _ChatPageState {
                       builder: (context, box) => Wrap(
                         children: [
                           for (final (label, icon, onTap) in [
-                            for (final (label, icon, page) in pages(l)) (label, icon, () => openPage(page)),
+                            // the notifications are listed with the chats instead
+                            for (final (label, icon, page) in pages(l))
+                              if (page is! NotificationsPage) (label, icon, () => openPage(page)),
                             (l.settings, CupertinoIcons.gear, openSettings),
                           ])
                             SizedBox(
@@ -234,6 +236,8 @@ extension _Sidebar on _ChatPageState {
                     for (final ch in listed.where((ch) => ch.pinned)) listedTile(ch),
                   ],
                   heading(l.chats),
+                  if (l.notifications.toLowerCase().contains(q))
+                    tile(l.notifications, icon: CupertinoIcons.bell, onTap: () => openPage(const NotificationsPage())),
                   if (bot case final b? when b.name.toLowerCase().contains(q))
                     tile(
                       b.name,
