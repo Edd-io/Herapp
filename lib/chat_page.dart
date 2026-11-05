@@ -1122,13 +1122,12 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
           ..on = null
           ..live = '';
       }
-      if (isBot) {
-        // with its compressed segments, which would else come back as the Bot Chat
-        final ids = [c.stored];
-        final r = await serverApi('POST', '/api/sessions/bulk-delete', body: {'ids': ids});
-        if (jsonDecode(r ?? '{}') case {'skipped_active': [_, ...]}) throw HttpException(l.clearBotBusy);
-      } else {
+      // the Bot Chat goes whole, its compressed segments with it (the REST delete is refused while the gateway runs)
+      try {
         await g.call('session.delete', {'session_id': c.stored});
+      } on RpcError catch (e) {
+        if (isBot && e.message.contains('active session')) throw RpcError(l.clearBotBusy); // a routine's turn holds it
+        rethrow;
       }
       return true;
     } catch (e) {

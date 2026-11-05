@@ -1090,6 +1090,7 @@ void main() {
 
   testWidgets('the Bot Chat is cleared from its own button, an empty one taking its place in the menu', (t) async {
     var id = 'b2'; // the Bot Chat's live end, a new one once cleared
+    final deletes = <Map>[];
     final calls = fakeServer(
       (method, params, emit) => switch (method) {
         'session.list' when params['title'] == 'Bot Chat' => {
@@ -1098,18 +1099,17 @@ void main() {
           ],
         },
         'session.list' => {'sessions': []},
+        'session.delete' => () {
+          deletes.add(params);
+          id = 'b9';
+          return {'deleted': params['session_id']};
+        }(),
         'session.create' => {'session_id': 'r9', 'stored_session_id': 'b9'},
         _ => null,
       },
     );
     addTearDown(() => callApi = hermesApi);
-    final deletes = <Object?>[];
     callApi = (base, method, path, {query, body, user, password}) async {
-      if (path == '/api/sessions/bulk-delete') {
-        deletes.add(body);
-        id = 'b9';
-        return jsonEncode({'ok': true, 'deleted': 1, 'skipped_active': []});
-      }
       return jsonEncode({
         'messages': [
           if (path == '/api/sessions/b2/messages') ...[
@@ -1137,13 +1137,10 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Clear the Bot Chat'));
     await t.pumpAndSettle();
-    // with its compressed segments, then born again as the server mints it
+    // through the gateway, which deletes it whole, then born again as the server mints it
     expect(deletes, [
-      {
-        'ids': ['b2'],
-      },
+      {'session_id': 'b2'},
     ]);
-    expect(calls.where((c) => c.$1 == 'session.delete'), isEmpty);
     expect(calls.where((c) => c.$1 == 'session.create').single.$2, {'title': 'Bot Chat', 'hidden': true, 'follow_profile_config': true});
     expect(calls.where((c) => c.$1 == 'session.title').single.$2, {'session_id': 'r9', 'title': 'Bot Chat'});
     expect(find.text('Take an umbrella today.'), findsNothing);
