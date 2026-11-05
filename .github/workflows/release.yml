@@ -1,18 +1,29 @@
 name: Release
 
-# a v* tag builds the Android app, signed with the release key, into that tag's GitHub release
+# a v* tag builds the Android app (signed with the release key) and the iOS one (unsigned, for sideloading) into
+# that tag's GitHub release; run by hand, it builds an existing tag again, its release's files replaced
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag to build, e.g. v0.9.0-beta
+        required: true
 
 permissions:
   contents: write
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -33,12 +44,55 @@ jobs:
           echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.jks"
           printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=herapp\nstoreFile=%s\n' "$PASSWORD" "$PASSWORD" "$RUNNER_TEMP/release.jks" > android/key.properties
       - run: flutter build apk --release
-      - name: The APK, in the tag's release (a pre-release for a beta, rc or alpha)
+      - run: mv build/app/outputs/flutter-apk/app-release.apk "herapp-$TAG.apk"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: android
+          path: herapp-*.apk
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          cache: true
+      - uses: actions/setup-go@v6 # the tunnel library, built by hook/build.dart for iOS
+        with:
+          go-version-file: native/wg/go.mod
+          cache-dependency-path: native/wg/go.sum
+      # unsigned: AltStore or Sideloadly signs it on install; iOS takes digits only for the version (0.9.0-beta → 0.9.0)
+      - run: |
+          name="${TAG#v}"
+          flutter build ios --release --no-codesign --build-name="${name%%-*}"
+      - name: The app, packed as an .ipa
+        run: |
+          mkdir Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qr "herapp-$TAG.ipa" Payload
+      - uses: actions/upload-artifact@v5
+        with:
+          name: ios
+          path: herapp-*.ipa
+
+  publish:
+    needs: [android, ios]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          merge-multiple: true
+      - name: The files, in the tag's release (a pre-release for a beta, rc or alpha)
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          apk="herapp-$TAG.apk"
-          mv build/app/outputs/flutter-apk/app-release.apk "$apk"
-          pre=$([[ "$TAG" =~ (alpha|beta|rc) ]] && echo --prerelease || true)
-          gh release create "$TAG" "$apk" --title "Herapp ${TAG#v}" --generate-notes $pre
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" herapp-* --clobber
+          else
+            pre=$([[ "$TAG" =~ (alpha|beta|rc) ]] && echo --prerelease || true)
+            gh release create "$TAG" herapp-* --title "Herapp ${TAG#v}" --generate-notes --verify-tag $pre
+          fi
