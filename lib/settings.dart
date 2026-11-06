@@ -42,7 +42,53 @@ class Settings extends ChangeNotifier {
 
   Future<void> load() async {
     _p = await SharedPreferences.getInstance();
-    password = await _secure.read(key: 'hermes_password') ?? '';
+    password = await _secure.read(key: _k('hermes_password')) ?? '';
+  }
+
+  /// The Hermes servers set up, in the order they were added. The first one's id is '': its settings keep the
+  /// keys they had before there could be several.
+  List<String> get servers => _p.getStringList('servers') ?? const [''];
+
+  /// The server the app talks to.
+  String get server => switch (_p.getString('server')) {
+    final s? when servers.contains(s) => s,
+    _ => servers.first,
+  };
+
+  /// [key] of the server [id], the current one by default.
+  String _k(String key, [String? id]) => switch (id ?? server) {
+    '' => key,
+    final s => '${key}_$s',
+  };
+
+  /// The name given to the server [id], '' when none.
+  String nameOf(String id) => _p.getString(_k('name', id)) ?? '';
+  String urlOf(String id) => _p.getString(_k('url', id)) ?? '';
+
+  /// Talks to the server [id] from now on: its sign-in and its tunnel.
+  Future<void> _use(String id) async {
+    await _p.setString('server', id);
+    password = await _secure.read(key: _k('hermes_password')) ?? '';
+    await vpn.load(id);
+    notifyListeners();
+  }
+
+  /// Adds a server, blank, to the list; returns its id.
+  Future<String> _add() async {
+    final id = Random.secure().nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
+    await _p.setStringList('servers', [...servers, id]);
+    return id;
+  }
+
+  /// Takes the server [id], not the current one, off the list with all it kept.
+  Future<void> _forget(String id) async {
+    for (final k in ['name', 'url', 'auth', 'user', 'model', 'effort', 'recentModels', 'noticesSeen']) {
+      await _p.remove(_k(k, id));
+    }
+    await _secure.delete(key: _k('hermes_password', id));
+    await vpn.forget(id);
+    await _p.setStringList('servers', [...servers.where((s) => s != id)]);
+    notifyListeners();
   }
 
   ThemeMode get theme => ThemeMode.values[_p.getInt('theme') ?? 0];
@@ -64,8 +110,8 @@ class Settings extends ChangeNotifier {
   set notifications(bool v) => _save(_p.setBool('notifications', v));
 
   /// When the newest notice the Notifications page showed was sent; null before it was first counted.
-  DateTime? get noticesSeen => DateTime.tryParse(_p.getString('noticesSeen') ?? '');
-  set noticesSeen(DateTime? v) => _save(_p.setString('noticesSeen', v?.toUtc().toIso8601String() ?? ''));
+  DateTime? get noticesSeen => DateTime.tryParse(_p.getString(_k('noticesSeen')) ?? '');
+  set noticesSeen(DateTime? v) => _save(_p.setString(_k('noticesSeen'), v?.toUtc().toIso8601String() ?? ''));
 
   /// Whether the app asks the device's unlock (Face ID, Touch ID, passcode) to open.
   bool get lock => _p.getBool('lock') ?? false;
@@ -85,33 +131,39 @@ class Settings extends ChangeNotifier {
     })(),
   };
 
-  /// Last chosen model, used as the default for new chats.
-  String get model => _p.getString('model') ?? '';
-  set model(String v) => _save(_p.setString('model', v));
+  /// Last chosen model on the current server, used as the default for new chats.
+  String get model => _p.getString(_k('model')) ?? '';
+  set model(String v) => _save(_p.setString(_k('model'), v));
 
   /// The models last picked, the latest first (5 at most).
-  List<String> get recentModels => _p.getStringList('recentModels') ?? const [];
-  void usedModel(String id) => _save(_p.setStringList('recentModels', {id, ...recentModels}.take(5).toList()));
+  List<String> get recentModels => _p.getStringList(_k('recentModels')) ?? const [];
+  void usedModel(String id) => _save(_p.setStringList(_k('recentModels'), {id, ...recentModels}.take(5).toList()));
 
   /// Last chosen reasoning effort ('' = the server's), used for new chats.
-  String get effort => _p.getString('effort') ?? '';
-  set effort(String v) => _save(_p.setString('effort', v));
+  String get effort => _p.getString(_k('effort')) ?? '';
+  set effort(String v) => _save(_p.setString(_k('effort'), v));
+
+  // the current server's own settings, below; the models, the effort and the notices seen are its own too
+
+  /// The current server's name, to tell it from the others; '' = its address's.
+  String get name => nameOf(server);
+  set name(String v) => _save(_p.setString(_k('name'), v.trim()));
 
   /// Hermes server address, read by hermes.dart once hooked up.
-  String get url => _p.getString('url') ?? '';
-  set url(String v) => _save(_p.setString('url', v.trim()));
+  String get url => urlOf(server);
+  set url(String v) => _save(_p.setString(_k('url'), v.trim()));
 
-  bool get auth => _p.getBool('auth') ?? false;
-  set auth(bool v) => _save(_p.setBool('auth', v));
+  bool get auth => _p.getBool(_k('auth')) ?? false;
+  set auth(bool v) => _save(_p.setBool(_k('auth'), v));
 
-  String get user => _p.getString('user') ?? '';
-  set user(String v) => _save(_p.setString('user', v.trim()));
+  String get user => _p.getString(_k('user')) ?? '';
+  set user(String v) => _save(_p.setString(_k('user'), v.trim()));
 
   /// Kept in the Keychain, not in preferences.
   String password = '';
   Future<void> setPassword(String v) {
     password = v;
-    return _secure.write(key: 'hermes_password', value: v);
+    return _secure.write(key: _k('hermes_password'), value: v);
   }
 
   void _save(Future<bool> _) => notifyListeners();
@@ -119,6 +171,45 @@ class Settings extends ChangeNotifier {
   void haptic() {
     if (haptics) HapticFeedback.lightImpact();
   }
+}
+
+/// What the server [id] is called in the app: its name, else its address's host, else [unnamed].
+String serverLabel(String id, String unnamed) {
+  final name = settings.nameOf(id);
+  if (name.isNotEmpty) return name;
+  final url = settings.urlOf(id);
+  final host = Uri.tryParse(url)?.host ?? '';
+  return host.isNotEmpty
+      ? host
+      : url.isNotEmpty
+      ? url
+      : unnamed;
+}
+
+/// Bumped once the app talks to another server, for what shows the last one's to start over.
+final serverSwitched = ValueNotifier(0);
+
+/// Talks to the server [id] from now on: the last one's connection, tunnel and subagents are left behind.
+Future<void> switchServer(String id) async {
+  if (id == settings.server || !settings.servers.contains(id)) return;
+  await settings._use(id);
+  dropGateway(); // once on the new one: a reconnection meanwhile went to the last
+  subagents.value = const {};
+  _again?.cancel();
+  _again = null;
+  online.value = true; // until the new one fails to answer
+  serverSwitched.value++;
+}
+
+/// Adds a blank server and switches to it, to be filled in.
+Future<void> addServer() async => switchServer(await settings._add());
+
+/// Removes the server [id], the app switching to another first when it's the current one; the last can't go.
+Future<void> removeServer(String id) async {
+  final rest = settings.servers.where((s) => s != id).toList();
+  if (rest.isEmpty) return;
+  if (id == settings.server) await switchServer(rest.first);
+  await settings._forget(id);
 }
 
 /// Catalog and quotas of the configured server, through the tunnel once it's ready; null if no server is set.
@@ -598,6 +689,7 @@ class SettingsSheet extends StatefulWidget {
 }
 
 class _SettingsSheetState extends State<SettingsSheet> {
+  final name = TextEditingController(text: settings.name);
   final url = TextEditingController(text: settings.url);
   final user = TextEditingController(text: settings.user);
   final password = TextEditingController(text: settings.password);
@@ -670,6 +762,36 @@ class _SettingsSheetState extends State<SettingsSheet> {
     if (testResult != null) setState(() => testResult = null);
   }
 
+  /// Runs [change] (another server, a new one, one removed), then shows the current server's settings.
+  Future<void> use(Future<void> Function() change) async {
+    await change();
+    if (!mounted) return;
+    name.text = settings.name;
+    url.text = settings.url;
+    user.text = settings.user;
+    password.text = settings.password;
+    setState(() {
+      testResult = null;
+      importError = null;
+    });
+  }
+
+  /// Removes the current server, once confirmed.
+  Future<void> remove() async {
+    final l = AppLocalizations.of(context);
+    final ok = await showChoices<bool>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text(l.serverRemoveConfirm(serverLabel(settings.server, l.serverUnnamed))),
+        actions: [
+          CupertinoActionSheetAction(isDestructiveAction: true, onPressed: () => Navigator.pop(context, true), child: Text(l.serverRemove)),
+        ],
+        cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(context), child: Text(l.cancel)),
+      ),
+    );
+    if (ok == true) await use(() => removeServer(settings.server));
+  }
+
   Future<void> importConfig() async {
     final f = await openFile(
       acceptedTypeGroups: [
@@ -687,6 +809,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
 
   @override
   void dispose() {
+    name.dispose();
     url.dispose();
     user.dispose();
     password.dispose();
@@ -894,9 +1017,42 @@ class _SettingsSheetState extends State<SettingsSheet> {
                       trailing: CupertinoSwitch(value: settings.macShell, onChanged: (v) => settings.macShell = v),
                     ),
                 ]),
+                section(l.servers, [
+                  for (final id in settings.servers)
+                    Hover(
+                      radius: 0,
+                      child: CupertinoListTile(
+                        title: Text(serverLabel(id, l.serverUnnamed), style: label),
+                        subtitle: settings.nameOf(id).isEmpty || settings.urlOf(id).isEmpty
+                            ? null
+                            : Text(settings.urlOf(id), maxLines: 1, style: TextStyle(fontSize: 13, color: c.outline)),
+                        trailing: id == settings.server ? Icon(CupertinoIcons.checkmark_alt, size: 20, color: c.primary) : null,
+                        onTap: id == settings.server ? null : () => use(() => switchServer(id)),
+                      ),
+                    ),
+                  Hover(
+                    radius: 0,
+                    child: CupertinoListTile(
+                      leading: Icon(CupertinoIcons.add, size: 20, color: c.onSurfaceVariant),
+                      title: Text(l.serverAdd, style: label),
+                      onTap: () => use(addServer),
+                    ),
+                  ),
+                ], footer: l.serversFooter),
                 section(
-                  l.hermesServer,
+                  // with several, the one these settings are for
+                  settings.servers.length > 1 ? serverLabel(settings.server, l.serverUnnamed) : l.hermesServer,
                   [
+                    if (settings.servers.length > 1)
+                      CupertinoListTile(
+                        title: CupertinoTextField.borderless(
+                          controller: name,
+                          placeholder: l.serverName,
+                          padding: EdgeInsets.zero,
+                          style: label,
+                          onChanged: (v) => settings.name = v,
+                        ),
+                      ),
                     CupertinoListTile(
                       title: CupertinoTextField.borderless(
                         controller: url,
@@ -971,6 +1127,14 @@ class _SettingsSheetState extends State<SettingsSheet> {
                         onTap: () => Navigator.pop(context, 'system'),
                       ),
                     ),
+                    if (settings.servers.length > 1)
+                      Hover(
+                        radius: 0,
+                        child: CupertinoListTile(
+                          title: Text(l.serverRemove, style: const TextStyle(fontSize: 17, color: CupertinoColors.systemRed)),
+                          onTap: remove,
+                        ),
+                      ),
                   ],
                   footer: l.hermesServerFooter,
                   status: testResult,

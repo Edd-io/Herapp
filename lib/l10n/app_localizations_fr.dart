@@ -258,7 +258,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get wgFooter =>
-      'Tout le trafic réseau de l’app passe par le tunnel. Tunnel activé mais coupé : l’app ne communique plus.';
+      'Le tunnel de ce serveur : tout le trafic réseau de l’app y passe tant que ce serveur est utilisé. Tunnel activé mais coupé : l’app ne communique plus.';
 
   @override
   String get wgInvalidFile =>
@@ -1625,5 +1625,37 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String serverRefused(String message) {
     return 'Hermes a refusé : $message';
+  }
+
+  @override
+  String get servers => 'Serveurs';
+
+  @override
+  String get serversFooter =>
+      'Chaque serveur garde ses conversations, ses modèles, sa connexion et son tunnel WireGuard. Touche-en un pour passer dessus.';
+
+  @override
+  String get serverAdd => 'Ajouter un serveur';
+
+  @override
+  String get serverName => 'Nom (facultatif)';
+
+  @override
+  String get serverUnnamed => 'Nouveau serveur';
+
+  @override
+  String get serverRemove => 'Supprimer ce serveur';
+
+  @override
+  String serverRemoveConfirm(String name) {
+    return 'Supprimer $name ? Sa connexion et son tunnel WireGuard sont effacés de cet appareil ; rien ne change sur le serveur.';
+  }
+
+  @override
+  String get serversManage => 'Gérer les serveurs…';
+
+  @override
+  String serverSwitchTo(String name) {
+    return 'Passer sur $name';
   }
 }

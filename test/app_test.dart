@@ -5,11 +5,13 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:herapp/hermes.dart';
 import 'package:herapp/lock.dart';
 import 'package:herapp/main.dart';
 import 'package:herapp/settings.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support.dart';
 
@@ -91,6 +93,115 @@ void main() {
     await t.tap(find.text('Test connection'));
     await t.pumpAndSettle();
     expect(find.text('Reachable, but not a Hermes server (HTTP 400)'), findsOneWidget);
+  });
+
+  test('each server keeps its own settings, the first one under the keys it always had', () async {
+    SharedPreferences.setMockInitialValues({'url': 'https://home.test', 'model': 'a/b', 'user': 'me'});
+    FlutterSecureStorage.setMockInitialValues({'hermes_password': 'secret'});
+    await settings.load();
+    expect(settings.servers, ['']);
+    expect((settings.url, settings.model, settings.user, settings.password), ('https://home.test', 'a/b', 'me', 'secret'));
+
+    final switched = serverSwitched.value;
+    await addServer();
+    expect(settings.servers, hasLength(2));
+    expect(serverSwitched.value, switched + 1);
+    expect((settings.url, settings.model, settings.user, settings.password), ('', '', '', ''));
+    settings
+      ..url = 'https://work.test/'
+      ..model = 'c/d';
+    await settings.setPassword('other');
+    final work = settings.server;
+    expect(serverLabel(work, 'New'), 'work.test');
+    settings.name = 'Work';
+    expect(serverLabel(work, 'New'), 'Work');
+
+    await switchServer('');
+    expect((settings.url, settings.model, settings.password), ('https://home.test', 'a/b', 'secret'));
+    await switchServer(work);
+    expect((settings.url, settings.model, settings.password), ('https://work.test/', 'c/d', 'other'));
+
+    // the one in use removed: back on the other, which can't be removed in turn
+    await removeServer(work);
+    expect(settings.servers, ['']);
+    expect(settings.url, 'https://home.test');
+    expect(await const FlutterSecureStorage().read(key: 'hermes_password_$work'), isNull);
+    await removeServer('');
+    expect(settings.servers, ['']);
+  });
+
+  testWidgets('the menu switches between servers, each with its own chats', (t) async {
+    fakeServer(
+      (method, params, emit) => method == 'session.list' && params['title'] == null
+          ? {
+              'sessions': [
+                {
+                  'id': settings.url.contains('work') ? 'w1' : 'h1',
+                  'title': settings.url.contains('work') ? 'Quarterly plan' : 'Trip to Lyon',
+                },
+              ],
+            }
+          : null,
+    );
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async => '{}';
+    settings.url = 'https://home.test';
+    await addServer();
+    settings
+      ..url = 'https://work.test'
+      ..name = 'Work';
+    await switchServer('');
+
+    await t.pumpWidget(const App());
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    expect(find.text('Trip to Lyon'), findsOneWidget);
+    await t.tap(find.text('home.test'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Work'));
+    await t.pumpAndSettle();
+    await t.tap(find.byWidgetPredicate((w) => w.runtimeType.toString() == '_MenuIcon'), warnIfMissed: false);
+    await t.pumpAndSettle();
+    expect(find.text('Work'), findsOneWidget);
+    expect(find.text('Quarterly plan'), findsOneWidget);
+    expect(find.text('Trip to Lyon'), findsNothing);
+  });
+
+  testWidgets('settings add a server and switch between them', (t) async {
+    fakeServer((_, _, _) => null);
+    addTearDown(() => callApi = hermesApi);
+    callApi = (base, method, path, {query, body, user, password}) async => '{}';
+    settings.url = 'https://home.test';
+    await t.pumpWidget(const App());
+    await t.tapAt(const Offset(30, 50)); // menu icon
+    await t.pumpAndSettle();
+    await t.tap(find.text('Settings'));
+    await t.pumpAndSettle();
+    expect(find.text('Remove this server'), findsNothing); // the only one
+
+    await t.tap(find.text('Add a server'));
+    await t.pumpAndSettle();
+    expect(settings.servers, hasLength(2));
+    expect(find.widgetWithText(CupertinoTextField, 'https://home.test'), findsNothing); // the new one's fields, blank
+    await t.enterText(find.widgetWithText(CupertinoTextField, 'Name (optional)'), 'Lab');
+    await t.pumpAndSettle();
+    expect(find.text('LAB'), findsOneWidget); // its section, titled with its name
+
+    await t.tap(find.text('home.test'));
+    await t.pumpAndSettle();
+    expect(settings.url, 'https://home.test');
+    expect(find.widgetWithText(CupertinoTextField, 'https://home.test'), findsOneWidget);
+
+    await t.tap(find.text('Lab'));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.text('Remove this server'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Remove this server'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Remove this server').last); // confirmed
+    await t.pumpAndSettle();
+    expect(settings.servers, ['']);
+    expect(settings.url, 'https://home.test');
   });
 
   testWidgets('a wide window keeps the menu beside the chat and its pages', (t) async {

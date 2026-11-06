@@ -551,7 +551,7 @@ abstract class AppLocalizations {
   /// No description provided for @wgFooter.
   ///
   /// In en, this message translates to:
-  /// **'All of the app\'s network traffic goes through the tunnel. If the tunnel is on but down, the app can\'t communicate.'**
+  /// **'The tunnel of this server: all of the app\'s network traffic goes through it while this server is in use. If the tunnel is on but down, the app can\'t communicate.'**
   String get wgFooter;
 
   /// No description provided for @wgInvalidFile.
@@ -2833,6 +2833,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hermes refused: {message}'**
   String serverRefused(String message);
+
+  /// No description provided for @servers.
+  ///
+  /// In en, this message translates to:
+  /// **'Servers'**
+  String get servers;
+
+  /// No description provided for @serversFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Each server keeps its own chats, models, sign-in and WireGuard tunnel. Tap one to switch to it.'**
+  String get serversFooter;
+
+  /// No description provided for @serverAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a server'**
+  String get serverAdd;
+
+  /// No description provided for @serverName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name (optional)'**
+  String get serverName;
+
+  /// No description provided for @serverUnnamed.
+  ///
+  /// In en, this message translates to:
+  /// **'New server'**
+  String get serverUnnamed;
+
+  /// No description provided for @serverRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this server'**
+  String get serverRemove;
+
+  /// No description provided for @serverRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name}? Its sign-in and its WireGuard tunnel are deleted from this device; nothing changes on the server.'**
+  String serverRemoveConfirm(String name);
+
+  /// No description provided for @serversManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage servers…'**
+  String get serversManage;
+
+  /// No description provided for @serverSwitchTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to {name}'**
+  String serverSwitchTo(String name);
 }
 
 class _AppLocalizationsDelegate

@@ -94,7 +94,7 @@
   },
   "wgUnavailable": "Not available on this platform",
   "wgRemove": "Remove configuration",
-  "wgFooter": "All of the app's network traffic goes through the tunnel. If the tunnel is on but down, the app can't communicate.",
+  "wgFooter": "The tunnel of this server: all of the app's network traffic goes through it while this server is in use. If the tunnel is on but down, the app can't communicate.",
   "wgInvalidFile": "This file isn't a WireGuard configuration.",
   "serverTest": "Test connection",
   "serverUnreachable": "Unreachable: {message}",
@@ -756,5 +756,16 @@
   "compareClose": "Close the comparison",
   "compareNoModels": "No other model to compare with",
   "serverRefused": "Hermes refused: {message}",
-  "@serverRefused": {"placeholders": {"message": {"type": "String"}}}
+  "@serverRefused": {"placeholders": {"message": {"type": "String"}}},
+  "servers": "Servers",
+  "serversFooter": "Each server keeps its own chats, models, sign-in and WireGuard tunnel. Tap one to switch to it.",
+  "serverAdd": "Add a server",
+  "serverName": "Name (optional)",
+  "serverUnnamed": "New server",
+  "serverRemove": "Remove this server",
+  "serverRemoveConfirm": "Remove {name}? Its sign-in and its WireGuard tunnel are deleted from this device; nothing changes on the server.",
+  "@serverRemoveConfirm": {"placeholders": {"name": {"type": "String"}}},
+  "serversManage": "Manage servers…",
+  "serverSwitchTo": "Switch to {name}",
+  "@serverSwitchTo": {"placeholders": {"name": {"type": "String"}}}
 }

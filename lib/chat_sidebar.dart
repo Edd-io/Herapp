@@ -132,6 +132,39 @@ extension _Sidebar on _ChatPageState {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // the server in use, to switch to another: only once there are several
+            ListenableBuilder(
+              listenable: settings,
+              builder: (context, _) => settings.servers.length < 2
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                      child: Hover(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: pickServer,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            child: Row(
+                              children: [
+                                Icon(CupertinoIcons.desktopcomputer, size: 18, color: c.onSurfaceVariant),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    serverLabel(settings.server, l.serverUnnamed),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.onSurface),
+                                  ),
+                                ),
+                                Icon(CupertinoIcons.chevron_up_chevron_down, size: 14, color: c.outline),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: Container(

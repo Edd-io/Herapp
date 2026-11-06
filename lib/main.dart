@@ -25,7 +25,7 @@ Future<void> main() async {
     }
   }
   await settings.load();
-  await vpn.load();
+  await vpn.load(settings.server);
   runApp(const App());
   if (Platform.isIOS || Platform.isAndroid) setupPush();
 }

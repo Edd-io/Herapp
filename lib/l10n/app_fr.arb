@@ -75,7 +75,7 @@
   "wgError": "Erreur : {message}",
   "wgUnavailable": "Indisponible sur cette plateforme",
   "wgRemove": "Supprimer la configuration",
-  "wgFooter": "Tout le trafic réseau de l’app passe par le tunnel. Tunnel activé mais coupé : l’app ne communique plus.",
+  "wgFooter": "Le tunnel de ce serveur : tout le trafic réseau de l’app y passe tant que ce serveur est utilisé. Tunnel activé mais coupé : l’app ne communique plus.",
   "wgInvalidFile": "Ce fichier n’est pas une configuration WireGuard.",
   "serverTest": "Tester la connexion",
   "serverUnreachable": "Injoignable : {message}",
@@ -455,5 +455,14 @@
   "compare": "Comparer avec un autre modèle",
   "compareClose": "Fermer la comparaison",
   "compareNoModels": "Aucun autre modèle à comparer",
-  "serverRefused": "Hermes a refusé : {message}"
+  "serverRefused": "Hermes a refusé : {message}",
+  "servers": "Serveurs",
+  "serversFooter": "Chaque serveur garde ses conversations, ses modèles, sa connexion et son tunnel WireGuard. Touche-en un pour passer dessus.",
+  "serverAdd": "Ajouter un serveur",
+  "serverName": "Nom (facultatif)",
+  "serverUnnamed": "Nouveau serveur",
+  "serverRemove": "Supprimer ce serveur",
+  "serverRemoveConfirm": "Supprimer {name} ? Sa connexion et son tunnel WireGuard sont effacés de cet appareil ; rien ne change sur le serveur.",
+  "serversManage": "Gérer les serveurs…",
+  "serverSwitchTo": "Passer sur {name}"
 }

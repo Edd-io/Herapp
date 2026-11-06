@@ -162,6 +162,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     openedNotice.addListener(openNotice);
     openNotice(); // a push tapped while the app was closed
     discussedNotice.addListener(discussNotice);
+    serverSwitched.addListener(serverChanged);
     noticesTimer = Timer.periodic(const Duration(minutes: 1), (_) => countNotices());
   }
 
@@ -177,7 +178,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   }
 
   /// Counts the notices not read yet: the menu, always out on a wide window, would otherwise count only at launch.
-  void countNotices() => fetchNotices().then(countUnread, onError: (Object e) => debugPrint('Notices: $e'));
+  void countNotices() {
+    final server = settings.server; // the last server's notices aren't counted against the new one's
+    fetchNotices().then((n) => settings.server == server ? countUnread(n) : null, onError: (Object e) => debugPrint('Notices: $e'));
+  }
 
   /// Starts a new chat on the notice picked to discuss, its text written in for the question to follow.
   void discussNotice() {
@@ -188,9 +192,59 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     input.text = '${AppLocalizations.of(context).noticeDiscussed(n.title)}\n\n${n.text.trim()}\n\n';
   }
 
+  /// Another server is in use: its own chats, models and notices, none of the last one's. A reply still running
+  /// there goes on, and is found again on coming back.
+  void serverChanged() {
+    for (final c in chats) {
+      c.sub?.cancel();
+      c.shell.stop();
+    }
+    pane.currentState?.popUntil((r) => r.isFirst); // its pages showed the last server
+    setState(() {
+      chats = [Chat()];
+      chat = chats.first;
+      seen = 0;
+      found = [];
+      editing = null;
+      backgrounded = false;
+      comparing.clear();
+    });
+    models.value = (list: const [], loading: true, error: null);
+    unreadNotices.value = 0;
+    loadModels();
+    loadSessions();
+  }
+
+  /// The servers to switch to, and their settings.
+  Future<void> pickServer() async {
+    const manage = '/'; // no server's id
+    final picked = await showChoices<String>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        actions: [
+          for (final id in settings.servers)
+            CupertinoActionSheetAction(
+              isDefaultAction: id == settings.server,
+              onPressed: () => Navigator.pop(context, id),
+              child: Text(serverLabel(id, l.serverUnnamed), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          CupertinoActionSheetAction(onPressed: () => Navigator.pop(context, manage), child: Text(l.serversManage)),
+        ],
+        cancelButton: CupertinoActionSheetAction(onPressed: () => Navigator.pop(context), child: Text(l.cancel)),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    if (picked == manage) return openSettings();
+    if (picked == settings.server) return;
+    settings.haptic();
+    closeDrawer();
+    await switchServer(picked);
+  }
+
   /// Lists the server's stored conversations in the sidebar, after the chats not saved there yet.
   Future<void> loadSessions() async {
     countNotices();
+    final server = settings.server; // switched away meanwhile, its list is the last server's
     try {
       final g = await gateway();
       if (g == null) return;
@@ -209,7 +263,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         {'sessions': [{'title': 'Bot Chat'} && final Map s, ...]} => ['${s['resolved_id'] ?? s['id']}', '${s['id']}'],
         _ => const <String>[],
       };
-      if (!mounted) return;
+      if (!mounted || settings.server != server) return;
       final known = {for (final c in chats) c.stored: c};
       setState(() {
         chats = [
@@ -354,9 +408,10 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   /// Refreshes the server's model list; a choice the server no longer offers falls back to its default.
   Future<void> loadModels() async {
     models.value = (list: models.value.list, loading: true, error: null);
+    final server = settings.server;
     try {
       final r = await serverOptions();
-      if (!mounted) return;
+      if (!mounted || settings.server != server) return;
       if (r == null) {
         models.value = (list: const [], loading: false, error: serverErrorText(AppLocalizations.of(context), null));
         return;
@@ -371,7 +426,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
       });
     } catch (e) {
       debugPrint('Models: $e');
-      if (!mounted) return;
+      if (!mounted || settings.server != server) return;
       models.value = (list: models.value.list, loading: false, error: serverErrorText(AppLocalizations.of(context), e));
     }
   }
@@ -403,6 +458,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     WidgetsBinding.instance.removeObserver(this);
     openedNotice.removeListener(openNotice);
     discussedNotice.removeListener(discussNotice);
+    serverSwitched.removeListener(serverChanged);
     noticesTimer.cancel();
     for (final c in chats) {
       c.sub?.cancel();
@@ -482,11 +538,15 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     const MethodChannel('herapp/quick').invokeMethod<void>('handoff', it).catchError((Object _) {}); // Apple only
   }
 
-  /// Opens the conversation another device handed over, if it is on this app's server.
-  void continueChat(Object? handed) {
+  /// Opens the conversation another device handed over, if it is on one of this app's servers (switching to it).
+  Future<void> continueChat(Object? handed) async {
     String bare(Object? url) => '$url'.replaceFirst(RegExp(r'/+$'), '');
     if (!mounted) return;
-    if (handed case {'session': final String id} when id.isNotEmpty && bare(handed['server']) == bare(settings.url)) {
+    if (handed case {'session': final String id} when id.isNotEmpty) {
+      final on = [settings.server, ...settings.servers].where((s) => bare(settings.urlOf(s)) == bare(handed['server'])).firstOrNull;
+      if (on == null) return;
+      await switchServer(on);
+      if (!mounted) return;
       Navigator.of(context).popUntil((r) => r.isFirst);
       openFound((id: id, title: '${handed['title'] ?? ''}', snippet: ''));
     }
@@ -1317,6 +1377,15 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
         for (final (i, (label, key, run)) in all.indexed)
           if (i != 1) (label: label, icon: i < 3 ? icons[i] : pages(l)[i - 3].$2, group: '', keys: keys(key), run: run),
         (label: l.paletteModel, icon: CupertinoIcons.cube, group: '', keys: '', run: pickModel),
+        for (final id in settings.servers)
+          if (id != settings.server)
+            (
+              label: l.serverSwitchTo(serverLabel(id, l.serverUnnamed)),
+              icon: CupertinoIcons.desktopcomputer,
+              group: '',
+              keys: '',
+              run: () => switchServer(id),
+            ),
         (
           label: l.backgroundTask,
           icon: CupertinoIcons.moon_zzz,

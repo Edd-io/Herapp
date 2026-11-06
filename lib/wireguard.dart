@@ -53,13 +53,20 @@ class Vpn extends ChangeNotifier {
   String? error;
   var tried = false; // a request went through this tunnel (the handshake only happens then), answered or not
   Future<void> _queue = Future.value();
+  var _server = ''; // whose tunnel it is: each server has its own, see [load]
   AppLifecycleListener? _life;
   var _paused = false;
 
-  Future<void> load() async {
-    config = await _store.read(key: 'wg_config');
-    name = await _store.read(key: 'wg_name') ?? '';
-    enabled = config != null && await _store.read(key: 'wg_enabled') == '1';
+  /// [key] of the server [id] (settings.dart's ids: '' for the first one, under the keys it always had).
+  static String _k(String key, String id) => id.isEmpty ? key : '${key}_$id';
+
+  /// Reads the tunnel of the server [server] and starts it when on, the last server's stopping.
+  Future<void> load([String server = '']) async {
+    final was = enabled;
+    _server = server;
+    config = await _store.read(key: _k('wg_config', server));
+    name = await _store.read(key: _k('wg_name', server)) ?? '';
+    enabled = config != null && await _store.read(key: _k('wg_enabled', server)) == '1';
     // a phone tears down a backgrounded app's sockets (the proxy's listener, WireGuard's UDP) while the
     // tunnel still reads as connected: back in front, it starts afresh
     _life ??= AppLifecycleListener(
@@ -72,6 +79,16 @@ class Vpn extends ChangeNotifier {
     if (enabled) {
       HttpOverrides.global = _Proxy(null); // blocked right away, not after the first frame's requests
       apply();
+    } else if (was) {
+      apply(); // the last server's tunnel goes down
+    }
+    notifyListeners();
+  }
+
+  /// Deletes the tunnel kept for the server [server], not the current one.
+  Future<void> forget(String server) async {
+    for (final k in ['wg_config', 'wg_name', 'wg_enabled']) {
+      await _store.delete(key: _k(k, server));
     }
   }
 
@@ -95,24 +112,22 @@ class Vpn extends ChangeNotifier {
     }
     config = text;
     name = fileName;
-    await _store.write(key: 'wg_config', value: text);
-    await _store.write(key: 'wg_name', value: fileName);
+    await _store.write(key: _k('wg_config', _server), value: text);
+    await _store.write(key: _k('wg_name', _server), value: fileName);
     notifyListeners();
     if (enabled) await apply();
   }
 
   Future<void> setEnabled(bool v) async {
     enabled = v && config != null;
-    await _store.write(key: 'wg_enabled', value: enabled ? '1' : '0');
+    await _store.write(key: _k('wg_enabled', _server), value: enabled ? '1' : '0');
     await apply();
   }
 
   Future<void> remove() async {
     config = null;
     name = '';
-    for (final k in ['wg_config', 'wg_name', 'wg_enabled']) {
-      await _store.delete(key: k);
-    }
+    await forget(_server);
     await setEnabled(false);
   }
 
