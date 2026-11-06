@@ -255,13 +255,15 @@ void main() {
     callApi = (base, method, path, {query, body, user, password}) async => switch ((path, query?['board'])) {
       // each project's board runs its own workers, not only the active one
       ('/api/plugins/kanban/boards', _) =>
-        '{"boards":[{"slug":"default","total":1},{"slug":"site","total":1},{"slug":"empty","total":0},{"slug":"app","total":${later ? 1 : 0}}]}',
+        '{"boards":[{"slug":"default","name":"Default","total":1},{"slug":"site","name":"Website","total":1},'
+            '{"slug":"empty","total":0},{"slug":"app","total":${later ? 1 : 0}}]}',
       ('/api/plugins/kanban/board', 'default') =>
         '{"columns":[{"name":"ready","tasks":[{"id":"t1","title":"Fix the map","status":"ready","consecutive_failures":1,'
             '"last_failure_error":"worker exited 1"}]},{"name":"done","tasks":[]}]}',
       ('/api/plugins/kanban/board', 'site') =>
         '{"columns":[{"name":"running","tasks":[{"id":"t2","title":"Build the bridge",'
-            '"status":"running","current_run_started_at":$started,"last_heartbeat_at":$started}]}]}',
+            '"status":"running","current_run_started_at":$started,"last_heartbeat_at":$started}]},'
+            '{"name":"todo","tasks":[{"id":"t4","title":"Draw the logo","status":"todo"},{"id":"t5","title":"Write the copy","status":"todo"}]}]}',
       ('/api/plugins/kanban/board', 'app') =>
         '{"columns":[{"name":"running","tasks":[{"id":"t3","title":"Ship the app","status":"running"}]}]}',
       _ => '[]',
@@ -276,7 +278,11 @@ void main() {
     expect(find.text('Working for 25 min'), findsOneWidget);
     expect(find.text('No sign of life for 25 min'), findsOneWidget);
     expect(find.text('Failed: worker exited 1'), findsOneWidget);
-    expect(find.text('1 ready'), findsOneWidget); // empty columns aren't counted
+    // each board's counts under its name; empty columns aren't counted
+    expect(find.text('Default'), findsOneWidget);
+    expect(find.text('1 ready'), findsOneWidget);
+    expect(find.text('Website'), findsOneWidget);
+    expect(find.text('2 to do'), findsOneWidget);
 
     later = true;
     await t.pump(const Duration(seconds: 10));

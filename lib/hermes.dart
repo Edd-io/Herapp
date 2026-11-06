@@ -770,11 +770,19 @@ Board? parseBoard(String body) {
   return null;
 }
 
-/// `/api/plugins/kanban/boards`: the boards holding live cards (each project's board runs its own workers).
-List<String> parseBoardSlugs(String body) => [
+/// `/api/plugins/kanban/boards`: the boards holding live cards (each project's board runs its own workers), by slug
+/// and the name they show.
+List<({String slug, String name})> parseBoardList(String body) => [
   if (_json(body) case {'boards': final List boards})
     for (final b in boards.whereType<Map>())
-      if ((b['total'] as num? ?? 0) > 0) '${b['slug']}',
+      if ((b['total'] as num? ?? 0) > 0)
+        (
+          slug: '${b['slug']}',
+          name: switch (b['name'] ?? b['title']) {
+            final String n when n.trim().isNotEmpty => n.trim(),
+            _ => '${b['slug']}',
+          },
+        ),
 ];
 
 /// Several boards seen as one.

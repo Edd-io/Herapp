@@ -57,7 +57,7 @@ class AgentsPage extends StatefulWidget {
 
 class _AgentsPageState extends State<AgentsPage> {
   List<CronJob>? jobs;
-  Board? board; // the kanban's workers, null without a kanban
+  List<(String, Board)>? boards; // the kanban's boards by name, with their workers; null without a kanban
   Object? error;
   final busy = <String>{}; // script ids with a request in flight
   late final Timer refresh = Timer.periodic(const Duration(seconds: 10), (_) => load()); // workers come and go
@@ -75,21 +75,25 @@ class _AgentsPageState extends State<AgentsPage> {
     super.dispose();
   }
 
-  /// Every board with cards; an older server only serves the active one.
-  Future<Board?> loadBoard() async {
-    final slugs = parseBoardSlugs(await serverApi('GET', '/api/plugins/kanban/boards').catchError((Object _) => null) ?? '');
+  /// Every board with cards, by name; an older server only serves the active one (named '').
+  Future<List<(String, Board)>?> loadBoards() async {
+    final list = parseBoardList(await serverApi('GET', '/api/plugins/kanban/boards').catchError((Object _) => null) ?? '');
+    final names = list.isEmpty ? [''] : [for (final b in list) b.name];
     final bodies = await Future.wait([
-      if (slugs.isEmpty) serverApi('GET', '/api/plugins/kanban/board'),
-      for (final s in slugs) serverApi('GET', '/api/plugins/kanban/board', query: {'board': s}),
+      if (list.isEmpty) serverApi('GET', '/api/plugins/kanban/board'),
+      for (final b in list) serverApi('GET', '/api/plugins/kanban/board', query: {'board': b.slug}),
     ]);
-    final boards = [for (final b in bodies) ?(b == null ? null : parseBoard(b))];
-    return boards.isEmpty ? null : mergeBoards(boards);
+    final boards = [
+      for (final (i, b) in bodies.indexed)
+        if (b == null ? null : parseBoard(b) case final board?) (names[i], board),
+    ];
+    return boards.isEmpty ? null : boards;
   }
 
   Future<void> load() async {
-    loadBoard()
+    loadBoards()
         .then((b) {
-          if (mounted) setState(() => board = b);
+          if (mounted) setState(() => boards = b);
         })
         .catchError((Object e) {
           debugPrint('Kanban: $e'); // the kanban is a plugin: no board, no section
@@ -186,7 +190,7 @@ class _AgentsPageState extends State<AgentsPage> {
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 10), // the inset of the sections below
                   child: _AgentCard(j, onTap: () => open(j)),
                 ),
-              if (board case final b?) _Workers(b),
+              if (boards case final b?) _Workers(b),
               ValueListenableBuilder(valueListenable: subagents, builder: (_, all, _) => _Subagents(all)),
               if (scripts.isNotEmpty)
                 CupertinoListSection.insetGrouped(
@@ -213,10 +217,10 @@ class _AgentsPageState extends State<AgentsPage> {
   }
 }
 
-/// The kanban's workers: the tasks running and the ones that keep failing, then the board's counts.
+/// The kanban's workers: the tasks running and the ones that keep failing, then each board's counts.
 class _Workers extends StatelessWidget {
-  const _Workers(this.board);
-  final Board board;
+  const _Workers(this.boards);
+  final List<(String, Board)> boards;
 
   @override
   Widget build(BuildContext context) {
@@ -240,16 +244,7 @@ class _Workers extends StatelessWidget {
         ],
       ),
     );
-    final counts = [
-      for (final (status, text) in [
-        ('ready', l.kanbanReady),
-        ('todo', l.kanbanTodo),
-        ('review', l.kanbanReview),
-        ('blocked', l.kanbanBlocked),
-        ('done', l.kanbanDone),
-      ])
-        if ((board.counts[status] ?? 0) > 0) text(board.counts[status]!),
-    ];
+    final board = mergeBoards([for (final (_, b) in boards) b]);
     return CupertinoListSection.insetGrouped(
       backgroundColor: c.surface,
       decoration: BoxDecoration(color: c.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
@@ -287,12 +282,104 @@ class _Workers extends StatelessWidget {
               style: const TextStyle(fontSize: 13, color: CupertinoColors.systemRed),
             ),
           ]),
-        if (counts.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            child: Text(counts.join(' · '), style: small),
-          ),
+        // each board's cards, under its name once there are several
+        for (final (name, b) in boards)
+          if (_BoardCounts.shown.any((s) => (b.counts[s] ?? 0) > 0)) _BoardCounts(boards.length > 1 ? name : '', b),
       ],
+    );
+  }
+}
+
+/// A board's cards by status: a bar of their shares, then their counts by colored dot.
+class _BoardCounts extends StatelessWidget {
+  const _BoardCounts(this.name, this.board);
+  final String name; // '' for none
+  final Board board;
+
+  static const shown = ['ready', 'todo', 'review', 'blocked', 'done'];
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context);
+    final parts = [
+      for (final (status, text, color) in [
+        ('ready', l.kanbanReady, CupertinoColors.systemBlue.resolveFrom(context)),
+        ('todo', l.kanbanTodo, c.outline),
+        ('review', l.kanbanReview, CupertinoColors.systemPurple.resolveFrom(context)),
+        ('blocked', l.kanbanBlocked, CupertinoColors.systemOrange.resolveFrom(context)),
+        ('done', l.kanbanDone, CupertinoColors.systemGreen.resolveFrom(context)),
+      ])
+        if (board.counts[status] case final n? when n > 0) (n, text(n), color),
+    ];
+    final total = parts.fold(0, (sum, p) => sum + p.$1);
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (name.isNotEmpty) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: c.onSurface),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$total',
+                    style: TextStyle(fontSize: 13, color: c.outline, fontFeatures: const [FontFeature.tabularFigures()]),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+            ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: SizedBox(
+                height: 6,
+                child: Row(
+                  children: [
+                    for (final (i, (n, _, color)) in parts.indexed) ...[
+                      if (i > 0) const SizedBox(width: 2),
+                      Expanded(
+                        flex: n,
+                        child: ColoredBox(color: color),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 14,
+              runSpacing: 4,
+              children: [
+                for (final (_, text, color) in parts)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(text, style: TextStyle(fontSize: 13, color: c.onSurfaceVariant)),
+                    ],
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
