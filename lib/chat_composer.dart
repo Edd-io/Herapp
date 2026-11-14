@@ -170,7 +170,7 @@ extension _Composer on _ChatPageState {
         ),
         // nothing typed: the microphone (Linux has no system speech recognition)
         child: voice.listening || (!hasText && !streaming)
-            ? Platform.isLinux
+            ? (!kIsWeb && Platform.isLinux)
                   ? const SizedBox(height: 44)
                   : Hover(
                       key: ValueKey('mic${voice.listening}'),

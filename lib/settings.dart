@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
@@ -983,7 +984,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 ]),
                 section(l.general, [
                   // a Mac or a Linux computer has nothing to vibrate
-                  if (!Platform.isMacOS && !Platform.isLinux)
+                  if (!kIsWeb && !Platform.isMacOS && !Platform.isLinux)
                     CupertinoListTile(
                       title: Text(l.haptics, style: label),
                       trailing: CupertinoSwitch(value: settings.haptics, onChanged: (v) => settings.haptics = v),
@@ -1139,55 +1140,56 @@ class _SettingsSheetState extends State<SettingsSheet> {
                   footer: l.hermesServerFooter,
                   status: testResult,
                 ),
-                section(l.wireguard, [
-                  Hover(
-                    radius: 0,
-                    child: CupertinoListTile(
-                      title: Text(l.wgConfig, style: label),
-                      additionalInfo: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .45),
-                        child: Text(
-                          vpn.config == null ? l.wgImport : vpn.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: c.outline),
-                        ),
-                      ),
-                      trailing: const CupertinoListTileChevron(),
-                      onTap: importConfig,
-                    ),
-                  ),
-                  CupertinoListTile(
-                    title: Text(l.wgUse, style: label),
-                    subtitle: !vpn.enabled
-                        ? null
-                        : Text(
-                            vpn.running
-                                ? l.wgConnected
-                                : vpn.unsupported
-                                ? l.wgUnavailable
-                                : vpn.error != null
-                                ? l.wgError(vpn.error!)
-                                : l.wgConnecting,
-                            style: TextStyle(
-                              color: vpn.running
-                                  ? CupertinoColors.systemGreen
-                                  : vpn.error != null
-                                  ? CupertinoColors.systemRed
-                                  : c.outline,
-                            ),
-                          ),
-                    trailing: CupertinoSwitch(value: vpn.enabled, onChanged: vpn.config == null ? null : vpn.setEnabled),
-                  ),
-                  if (vpn.config != null)
+                if (!kIsWeb)
+                  section(l.wireguard, [
                     Hover(
                       radius: 0,
                       child: CupertinoListTile(
-                        title: Text(l.wgRemove, style: TextStyle(fontSize: 17, color: CupertinoColors.systemRed)),
-                        onTap: vpn.remove,
+                        title: Text(l.wgConfig, style: label),
+                        additionalInfo: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .45),
+                          child: Text(
+                            vpn.config == null ? l.wgImport : vpn.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: c.outline),
+                          ),
+                        ),
+                        trailing: const CupertinoListTileChevron(),
+                        onTap: importConfig,
                       ),
                     ),
-                ], footer: importError ?? l.wgFooter),
+                    CupertinoListTile(
+                      title: Text(l.wgUse, style: label),
+                      subtitle: !vpn.enabled
+                          ? null
+                          : Text(
+                              vpn.running
+                                  ? l.wgConnected
+                                  : vpn.unsupported
+                                  ? l.wgUnavailable
+                                  : vpn.error != null
+                                  ? l.wgError(vpn.error!)
+                                  : l.wgConnecting,
+                              style: TextStyle(
+                                color: vpn.running
+                                    ? CupertinoColors.systemGreen
+                                    : vpn.error != null
+                                    ? CupertinoColors.systemRed
+                                    : c.outline,
+                              ),
+                            ),
+                      trailing: CupertinoSwitch(value: vpn.enabled, onChanged: vpn.config == null ? null : vpn.setEnabled),
+                    ),
+                    if (vpn.config != null)
+                      Hover(
+                        radius: 0,
+                        child: CupertinoListTile(
+                          title: Text(l.wgRemove, style: TextStyle(fontSize: 17, color: CupertinoColors.systemRed)),
+                          onTap: vpn.remove,
+                        ),
+                      ),
+                  ], footer: importError ?? l.wgFooter),
               ],
             ),
           ),

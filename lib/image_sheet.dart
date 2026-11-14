@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'hermes.dart';
@@ -62,7 +62,7 @@ class _ImageSheetState extends State<ImageSheet> {
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context);
-    final computer = Platform.isMacOS || Platform.isLinux || Platform.isWindows;
+    final computer = (!kIsWeb && Platform.isMacOS) || (!kIsWeb && Platform.isLinux) || (!kIsWeb && Platform.isWindows);
     return SafeArea(
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),

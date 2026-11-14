@@ -8,7 +8,7 @@ import 'settings.dart';
 
 /// The device's own unlock (Face ID, Touch ID or its passcode); replaced in tests.
 var deviceAuth = (
-  available: () => LocalAuthentication().isDeviceSupported().catchError((Object _) => false),
+  available: () async => !kIsWeb && await LocalAuthentication().isDeviceSupported().catchError((Object _) => false),
   confirm: (String reason) => LocalAuthentication().authenticate(localizedReason: reason, persistAcrossBackgrounding: true),
 );
 
@@ -33,7 +33,7 @@ class AppLock extends StatefulWidget {
 }
 
 class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
-  late bool locked = settings.lock;
+  late bool locked = !kIsWeb && settings.lock;
   bool veiled = false; // the app switcher's snapshot, on a phone
   bool asking = false;
 
@@ -52,7 +52,7 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
-    if (!settings.lock) return;
+    if (kIsWeb || !settings.lock) return;
     final phone = const [TargetPlatform.iOS, TargetPlatform.android].contains(defaultTargetPlatform);
     switch (s) {
       case AppLifecycleState.hidden || AppLifecycleState.paused:

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'chat_page.dart';
@@ -16,7 +17,7 @@ import 'wireguard.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // out of the sandbox (to run commands), the Mac app reads its preferences outside the container it kept them in
-  if (Platform.isMacOS) {
+  if (!kIsWeb && Platform.isMacOS) {
     const id = 'com.edd-io.herapp';
     final home = Platform.environment['HOME'];
     final kept = File('$home/Library/Containers/$id/Data/Library/Preferences/$id.plist');
@@ -27,7 +28,7 @@ Future<void> main() async {
   await settings.load();
   await vpn.load(settings.server);
   runApp(const App());
-  if (Platform.isIOS || Platform.isAndroid) setupPush();
+  if (!kIsWeb && (Platform.isIOS || Platform.isAndroid)) setupPush();
 }
 
 /// Asks for notification permission and returns this device's FCM token, or null if refused.
@@ -40,7 +41,7 @@ Future<String?> setupPush() async {
     // cron results also show while the app is open
     await m.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
     // FCM gives no token before iOS has handed over the APNs one
-    if (Platform.isIOS) {
+    if (!kIsWeb && Platform.isIOS) {
       for (var i = 0; i < 20 && await m.getAPNSToken() == null; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
       }
@@ -131,7 +132,9 @@ class App extends StatelessWidget {
       // sizes are set for a phone held close; a computer screen sits further away and its UI runs smaller.
       // A window has no safe area: an inset of its own keeps the content off its edges, through every SafeArea.
       builder: (context, child) {
-        if (!(Platform.isMacOS || Platform.isWindows || Platform.isLinux)) return AppLock(child: ConnectionBanner(child: child!));
+        if (kIsWeb || !(Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
+          return AppLock(child: ConnectionBanner(child: child!));
+        }
         // the Mac window draws under its title bar: the content starts below the traffic lights
         final edges = EdgeInsets.fromLTRB(4, Platform.isMacOS ? 30 : 12, 12, 16);
         return AppLock(

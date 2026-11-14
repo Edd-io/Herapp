@@ -750,7 +750,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   /// and shows the reply's progress as a Live Activity, on the Lock Screen and in the Dynamic Island, until it's done.
   /// [told] is the status last shown there, null while no reply runs.
   void tellProgress() {
-    if (!Platform.isIOS) return;
+    if (kIsWeb || !Platform.isIOS) return;
     const quick = MethodChannel('herapp/quick');
     final running = chats.where((c) => c.streaming).toList();
     if (running.isEmpty) {

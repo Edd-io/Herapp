@@ -1492,7 +1492,7 @@ Future<void> showImage(BuildContext context, ImageProvider image, {String name =
   transitionBuilder: (_, a, _, child) => FadeTransition(opacity: a, child: child),
   pageBuilder: (context, _, _) {
     final l = AppLocalizations.of(context);
-    final computer = Platform.isMacOS || Platform.isLinux || Platform.isWindows;
+    final computer = (!kIsWeb && Platform.isMacOS) || (!kIsWeb && Platform.isLinux) || (!kIsWeb && Platform.isWindows);
     Widget button(IconData icon, String label, VoidCallback onTap) => Hover(
       radius: 999,
       label: label,
