@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'hermes.dart';
+import 'downloads.dart';
 import 'l10n/app_localizations.dart';
 import 'settings.dart';
 
@@ -54,15 +54,14 @@ class _ImageSheetState extends State<ImageSheet> {
   }
 
   Future<void> save() async {
-    final to = await getSaveLocation(suggestedName: 'hermes-image.png');
-    if (to != null) await File(to.path).writeAsBytes(image!);
+    await saveBytes(image!, 'hermes-image.png');
   }
 
   @override
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
     final l = AppLocalizations.of(context);
-    final computer = (!kIsWeb && Platform.isMacOS) || (!kIsWeb && Platform.isLinux) || (!kIsWeb && Platform.isWindows);
+    final computer = kIsWeb || Platform.isMacOS || Platform.isLinux || Platform.isWindows;
     return SafeArea(
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),

@@ -22,6 +22,7 @@ import 'agents_page.dart';
 import 'cron_page.dart';
 import 'git_page.dart';
 import 'image_sheet.dart';
+import 'downloads.dart';
 import 'hermes.dart';
 import 'kanban_page.dart';
 import 'mac.dart';
@@ -150,13 +151,15 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     loadModels();
     loadSessions();
     // a new question from outside: the Mac's global shortcut (⌥Space), or Siri and Shortcuts with the question itself
-    const quick = MethodChannel('herapp/quick');
-    quick.setMethodCallHandler((call) async {
-      if (call.method == 'ask') ask(call.arguments is String ? call.arguments as String : '');
-      if (call.method == 'continue') continueChat(call.arguments);
-    });
-    quick.invokeListMethod<String>('ready').then((asked) => asked?.forEach(ask)).catchError((Object _) {}); // only iPhone queues them
-    quick.invokeMethod<Object?>('continued').then(continueChat).catchError((Object _) {}); // handed over before the app was up
+    if (!kIsWeb) {
+      const quick = MethodChannel('herapp/quick');
+      quick.setMethodCallHandler((call) async {
+        if (call.method == 'ask') ask(call.arguments is String ? call.arguments as String : '');
+        if (call.method == 'continue') continueChat(call.arguments);
+      });
+      quick.invokeListMethod<String>('ready').then((asked) => asked?.forEach(ask)).catchError((Object _) {}); // only iPhone queues them
+      quick.invokeMethod<Object?>('continued').then(continueChat).catchError((Object _) {}); // handed over before the app was up
+    }
     WidgetsBinding.instance.addObserver(this);
     takeShared();
     openedNotice.addListener(openNotice);
@@ -496,7 +499,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   /// Tells, through the system, that [c] answered [text] while the app is out of sight; a tap opens [c].
   void notifyDone(Chat c, String text) {
-    if (!settings.notifications || life == AppLifecycleState.resumed || text.trim().isEmpty) return;
+    if (kIsWeb || !settings.notifications || life == AppLifecycleState.resumed || text.trim().isEmpty) return;
     const MethodChannel('herapp/quick')
         .invokeMethod<void>('notify', {
           'title': c.title.trim().isEmpty ? 'Herapp' : c.title,
@@ -509,6 +512,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   /// Starts a new chat with what was shared from other apps (iPhone's "Share → Hermes"), to send once looked over.
   Future<void> takeShared() async {
+    if (kIsWeb) return;
     try {
       final shares = await const MethodChannel('herapp/quick').invokeListMethod<Map>('shared') ?? [];
       if (shares.isEmpty || !mounted) return;
@@ -532,6 +536,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
 
   /// Offers the open conversation to the user's other Apple devices, once the server stores it.
   void handOff() {
+    if (kIsWeb) return;
     if (chat.stored == offered) return;
     offered = chat.stored;
     final it = offered.isEmpty ? null : {'session': offered, 'title': chat.title, 'server': settings.url};
@@ -567,7 +572,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
     if (text.isEmpty && pending.isEmpty) return;
     settings.haptic();
     // asked once a message goes, so the system's question comes when it makes sense
-    if (settings.notifications && !notifyAsked) {
+    if (!kIsWeb && settings.notifications && !notifyAsked) {
       notifyAsked = true;
       const MethodChannel('herapp/quick').invokeMethod<void>('notifyAllow').catchError((Object _) {});
     }
@@ -1463,7 +1468,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     // a Mac lists the commands in its menu bar, which also answers their keys
-    final mac = defaultTargetPlatform == TargetPlatform.macOS;
+    final mac = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
     final body = CallbackShortcuts(
       bindings: {
         if (!mac)

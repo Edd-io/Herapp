@@ -1492,7 +1492,7 @@ Future<void> showImage(BuildContext context, ImageProvider image, {String name =
   transitionBuilder: (_, a, _, child) => FadeTransition(opacity: a, child: child),
   pageBuilder: (context, _, _) {
     final l = AppLocalizations.of(context);
-    final computer = (!kIsWeb && Platform.isMacOS) || (!kIsWeb && Platform.isLinux) || (!kIsWeb && Platform.isWindows);
+    final computer = kIsWeb || Platform.isMacOS || Platform.isLinux || Platform.isWindows;
     Widget button(IconData icon, String label, VoidCallback onTap) => Hover(
       radius: 999,
       label: label,
@@ -1527,8 +1527,7 @@ Future<void> showImage(BuildContext context, ImageProvider image, {String name =
               children: [
                 if (computer && bytes != null) ...[
                   button(CupertinoIcons.arrow_down_to_line, l.imageSave, () async {
-                    final to = await getSaveLocation(suggestedName: name.isEmpty ? 'hermes-image.png' : name);
-                    if (to != null) await File(to.path).writeAsBytes(bytes);
+                    await saveBytes(bytes, name.isEmpty ? 'hermes-image.png' : name);
                   }),
                   const SizedBox(width: 10),
                 ],

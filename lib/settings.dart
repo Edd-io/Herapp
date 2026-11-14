@@ -64,7 +64,7 @@ class Settings extends ChangeNotifier {
 
   /// The name given to the server [id], '' when none.
   String nameOf(String id) => _p.getString(_k('name', id)) ?? '';
-  String urlOf(String id) => _p.getString(_k('url', id)) ?? '';
+  String urlOf(String id) => _p.getString(_k('url', id)) ?? (id.isEmpty ? defaultServer : '');
 
   /// Talks to the server [id] from now on: its sign-in and its tunnel.
   Future<void> _use(String id) async {
@@ -153,6 +153,13 @@ class Settings extends ChangeNotifier {
   /// Hermes server address, read by hermes.dart once hooked up.
   String get url => urlOf(server);
   set url(String v) => _save(_p.setString(_k('url'), v.trim()));
+
+  /// The first server's address until one is saved: HERMES_URL, or in a browser the app's own origin.
+  static String get defaultServer {
+    const configured = String.fromEnvironment('HERMES_URL');
+    if (configured.isNotEmpty) return configured;
+    return kIsWeb ? Uri.base.origin : '';
+  }
 
   bool get auth => _p.getBool(_k('auth')) ?? false;
   set auth(bool v) => _save(_p.setBool(_k('auth'), v));
@@ -982,42 +989,43 @@ class _SettingsSheetState extends State<SettingsSheet> {
                     ),
                   ),
                 ]),
-                section(l.general, [
-                  // a Mac or a Linux computer has nothing to vibrate
-                  if (!kIsWeb && !Platform.isMacOS && !Platform.isLinux)
+                if (!kIsWeb)
+                  section(l.general, [
+                    // a Mac or a Linux computer has nothing to vibrate
+                    if (!Platform.isMacOS && !Platform.isLinux)
+                      CupertinoListTile(
+                        title: Text(l.haptics, style: label),
+                        trailing: CupertinoSwitch(value: settings.haptics, onChanged: (v) => settings.haptics = v),
+                      ),
                     CupertinoListTile(
-                      title: Text(l.haptics, style: label),
-                      trailing: CupertinoSwitch(value: settings.haptics, onChanged: (v) => settings.haptics = v),
-                    ),
-                  CupertinoListTile(
-                    title: Text(l.notifications, style: label),
-                    subtitle: Text(l.notificationsInfo, maxLines: 2, style: TextStyle(fontSize: 13, color: c.outline)),
-                    trailing: CupertinoSwitch(
-                      value: settings.notifications,
-                      onChanged: (v) {
-                        settings.notifications = v;
-                        if (v) const MethodChannel('herapp/quick').invokeMethod<void>('notifyAllow').catchError((Object _) {});
-                      },
-                    ),
-                  ),
-                  if (canLock)
-                    CupertinoListTile(
-                      title: Text(l.lockApp, style: label),
-                      // turning it on proves the unlock works, so nobody is shut out
+                      title: Text(l.notifications, style: label),
+                      subtitle: Text(l.notificationsInfo, maxLines: 2, style: TextStyle(fontSize: 13, color: c.outline)),
                       trailing: CupertinoSwitch(
-                        value: settings.lock,
-                        onChanged: (v) async {
-                          if (!v || await confirmOwner(l.unlockReason)) settings.lock = v;
+                        value: settings.notifications,
+                        onChanged: (v) {
+                          settings.notifications = v;
+                          if (v) const MethodChannel('herapp/quick').invokeMethod<void>('notifyAllow').catchError((Object _) {});
                         },
                       ),
                     ),
-                  if (macCapable)
-                    CupertinoListTile(
-                      title: Text(l.macShell, style: label),
-                      subtitle: Text(l.macShellHint, maxLines: 3, style: TextStyle(fontSize: 13, color: c.outline)),
-                      trailing: CupertinoSwitch(value: settings.macShell, onChanged: (v) => settings.macShell = v),
-                    ),
-                ]),
+                    if (canLock)
+                      CupertinoListTile(
+                        title: Text(l.lockApp, style: label),
+                        // turning it on proves the unlock works, so nobody is shut out
+                        trailing: CupertinoSwitch(
+                          value: settings.lock,
+                          onChanged: (v) async {
+                            if (!v || await confirmOwner(l.unlockReason)) settings.lock = v;
+                          },
+                        ),
+                      ),
+                    if (macCapable)
+                      CupertinoListTile(
+                        title: Text(l.macShell, style: label),
+                        subtitle: Text(l.macShellHint, maxLines: 3, style: TextStyle(fontSize: 13, color: c.outline)),
+                        trailing: CupertinoSwitch(value: settings.macShell, onChanged: (v) => settings.macShell = v),
+                      ),
+                  ]),
                 section(l.servers, [
                   for (final id in settings.servers)
                     Hover(
