@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'network.dart';
+
 class Msg {
   Msg(this.user, this.text, [List<Tool>? tools, List<Attachment>? files]) : tools = tools ?? [], files = files ?? [];
   final bool user;
@@ -330,7 +332,7 @@ ModelOptions? parseModelOptions(String body) {
 
 /// Signs in when [user] is set (session cookies); otherwise reads the session token a loopback
 /// dashboard injects into its page.
-typedef _Auth = ({List<Cookie> cookies, String? token});
+typedef _Auth = ({Map<String, String> cookies, String? token});
 
 /// Sign-ins kept per server and account: the dashboard rate-limits its login (HTTP 429).
 final _auths = <String, Future<_Auth>>{};
@@ -339,25 +341,25 @@ final _auths = <String, Future<_Auth>>{};
 void forgetSignIns() => _auths.clear();
 
 /// The kept sign-in for [base], made with [client] on first use; [fresh] drops the kept one.
-Future<_Auth> _session(HttpClient client, Uri base, String? user, String? password, {bool fresh = false}) {
+Future<_Auth> _session(NetworkClient client, Uri base, String? user, String? password, {bool fresh = false}) {
   final key = '$base\n$user\n$password';
   if (fresh) _auths.remove(key);
   // a sign-in left hanging (tunnel down) must fail, or every later call would wait on it
   return _auths[key] ??= _signIn(client, base, user, password).timeout(const Duration(seconds: 15))
     ..catchError((Object _) {
       _auths.remove(key); // a failed sign-in is retried next time
-      return (cookies: <Cookie>[], token: null);
+      return (cookies: <String, String>{}, token: null);
     });
 }
 
-Future<_Auth> _signIn(HttpClient client, Uri base, String? user, String? password) async {
+Future<_Auth> _signIn(NetworkClient client, Uri base, String? user, String? password) async {
   if (user != null) {
     final login = await hermesLogin(client, base, user, password ?? '');
     if (!login.ok) throw HttpException('sign-in failed (HTTP ${login.status})');
     return (cookies: login.cookies, token: null);
   }
-  final page = await client.getUrl(base).then((r) => r.close()).then((r) => r.transform(utf8.decoder).join());
-  return (cookies: <Cookie>[], token: RegExp(r'__HERMES_SESSION_TOKEN__\s*=\s*"([^"]+)"').firstMatch(page)?.group(1));
+  final page = (await client.request('GET', base)).body;
+  return (cookies: <String, String>{}, token: RegExp(r'__HERMES_SESSION_TOKEN__\s*=\s*"([^"]+)"').firstMatch(page)?.group(1));
 }
 
 /// Calls the dashboard's REST API as the signed-in user and returns the body; a non-2xx answer
@@ -371,25 +373,26 @@ Future<String> hermesApi(
   String? user,
   String? password,
 }) async {
-  final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+  final client = createNetworkClient();
   try {
     for (var fresh = false; ; fresh = true) {
       final auth = await _session(client, base, user, password, fresh: fresh);
-      final req = await client.openUrl(method, _at(base, path).replace(queryParameters: query));
-      req.cookies.addAll(auth.cookies);
-      if (auth.token != null) req.headers.set('X-Hermes-Session-Token', auth.token!);
-      if (body != null) {
-        req.headers.contentType = ContentType.json;
-        req.write(jsonEncode(body));
-      }
-      final res = await req.close();
-      final text = await res.transform(utf8.decoder).join();
-      if (res.statusCode == 401 && !fresh) continue; // the kept sign-in expired: sign in again, once
-      if (res.statusCode ~/ 100 != 2) throw HttpException(_detail(text) ?? '$path failed (HTTP ${res.statusCode})');
+      final res = await client
+          .request(
+            method,
+            _at(base, path).replace(queryParameters: query),
+            cookies: auth.cookies,
+            headers: {if (auth.token != null) 'X-Hermes-Session-Token': auth.token!, if (body != null) 'Content-Type': 'application/json'},
+            body: body == null ? null : jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 30));
+      final text = res.body;
+      if (res.status == 401 && !fresh) continue; // the kept sign-in expired: sign in again, once
+      if (res.status ~/ 100 != 2) throw HttpException(_detail(text) ?? '$path failed (HTTP ${res.status})');
       return text;
     }
   } finally {
-    client.close(force: true);
+    client.close();
   }
 }
 
@@ -399,7 +402,7 @@ var callApi = hermesApi;
 /// Whether [e] means the server couldn't be reached at all (network, tunnel, a gateway in front with Hermes
 /// down), rather than an answer refusing the request.
 bool unreachable(Object e) => switch (e) {
-  SocketException() || TimeoutException() || TlsException() || WebSocketException() => true,
+  NetworkException() || SocketException() || TimeoutException() || TlsException() || WebSocketException() => true,
   // the tunnel's proxy failing to dial, or a reverse proxy without Hermes behind it
   HttpException(:final message) => RegExp(r'^Proxy failed|^Connection closed|HTTP 50[234]\)').hasMatch(message),
   _ => false,
@@ -466,17 +469,18 @@ Uri _at(Uri base, String path) => base.replace(path: '${base.path.replaceAll(Reg
 Uri hermesStatusUri(Uri base) => _at(base, '/api/status');
 
 /// Outcome of [hermesLogin], with the HTTP status for unexpected answers.
-typedef HermesLogin = ({bool ok, int status, List<Cookie> cookies});
+typedef HermesLogin = ({bool ok, int status, Map<String, String> cookies});
 
 /// Signs in like Hermes' web login form ("basic" provider): JSON POST, session cookie on success.
 /// 401 = wrong credentials, 429 = rate limited.
-Future<HermesLogin> hermesLogin(HttpClient client, Uri base, String user, String password) async {
-  final req = await client.postUrl(_at(base, '/auth/password-login'));
-  req.headers.contentType = ContentType.json;
-  req.write(jsonEncode({'provider': 'basic', 'username': user, 'password': password, 'next': ''}));
-  final res = await req.close();
-  await res.drain<void>();
-  return (ok: res.statusCode == 200, status: res.statusCode, cookies: res.cookies);
+Future<HermesLogin> hermesLogin(NetworkClient client, Uri base, String user, String password) async {
+  final res = await client.request(
+    'POST',
+    _at(base, '/auth/password-login'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({'provider': 'basic', 'username': user, 'password': password, 'next': ''}),
+  );
+  return (ok: res.status == 200, status: res.status, cookies: res.cookies);
 }
 
 /// Parsed Hermes `/api/status` payload, null if [body] isn't one.
@@ -586,31 +590,30 @@ var connectGateway = hermesGateway;
 /// Opens the chat gateway. Signed in, the socket takes a one-use ticket; on loopback, the page's token.
 Future<Gateway> hermesGateway(Uri base, {String? user, String? password}) async {
   // a fresh client follows the tunnel's HttpOverrides (WebSocket's shared default client would not)
-  final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+  final client = createNetworkClient();
   try {
     var auth = await _session(client, base, user, password);
     var query = {'token': ?auth.token};
     for (var fresh = false; user != null; fresh = true) {
       if (fresh) auth = await _session(client, base, user, password, fresh: true);
-      final req = await client.postUrl(_at(base, '/api/auth/ws-ticket'));
-      req.cookies.addAll(auth.cookies);
-      final res = await req.close();
-      final body = await res.transform(utf8.decoder).join();
-      if (res.statusCode == 401 && !fresh) continue; // the kept sign-in expired
+      final res = await client
+          .request('POST', _at(base, '/api/auth/ws-ticket'), cookies: auth.cookies)
+          .timeout(const Duration(seconds: 15));
+      final body = res.body;
+      if (res.status == 401 && !fresh) continue; // the kept sign-in expired
       final ticket = switch (_json(body)) {
-        {'ticket': final String t} when res.statusCode == 200 => t,
-        _ => throw HttpException(_detail(body) ?? 'chat unavailable (HTTP ${res.statusCode})'),
+        {'ticket': final String t} when res.status == 200 => t,
+        _ => throw HttpException(_detail(body) ?? 'chat unavailable (HTTP ${res.status})'),
       };
       query = {'ticket': ticket};
       break;
     }
     final url = _at(base, '/api/ws').replace(scheme: base.scheme == 'https' ? 'wss' : 'ws', queryParameters: query);
-    final ws = await WebSocket.connect(url.toString(), customClient: client);
-    ws.pingInterval = const Duration(seconds: 30);
+    final ws = await openNetworkSocket(url);
     client.close(); // the upgraded socket is detached from the client
-    return Gateway(ws, ws.add, ws.close);
+    return Gateway(ws.stream, ws.add, ws.close);
   } catch (_) {
-    client.close(force: true);
+    client.close();
     rethrow;
   }
 }

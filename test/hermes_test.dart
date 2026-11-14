@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:herapp/hermes.dart';
+import 'package:herapp/network.dart';
 
 void main() {
   test('the push watcher\'s notices parse, the odd entry skipped', () {
@@ -70,12 +71,12 @@ void main() {
       await req.response.close();
     });
     addTearDown(server.close);
-    final client = HttpClient();
+    final client = createNetworkClient();
     addTearDown(client.close);
     final base = Uri.parse('http://127.0.0.1:${server.port}/sub/');
 
     final ok = await hermesLogin(client, base, 'alice', 'right');
-    expect((ok.ok, ok.cookies.single.name), (true, 'session'));
+    expect((ok.ok, ok.cookies.keys.single), (true, 'session'));
     final bad = await hermesLogin(client, base, 'alice', 'wrong');
     expect((bad.ok, bad.status), (false, 401));
   });

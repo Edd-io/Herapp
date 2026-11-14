@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 
 import 'cron_page.dart';
 import 'hermes.dart';
+import 'network.dart';
 import 'l10n/app_localizations.dart';
 import 'settings.dart';
 
@@ -219,7 +220,7 @@ class ScreenPage extends StatefulWidget {
 class _ScreenPageState extends State<ScreenPage> {
   Gateway? g;
   StreamSubscription<GatewayEvent>? events;
-  WebSocket? ws;
+  NetworkSocket? ws;
   Rfb? rfb;
   ui.Image? image;
   var decoding = false, dirty = false;
@@ -281,10 +282,13 @@ class _ScreenPageState extends State<ScreenPage> {
         path: '${seen['path'] ?? '/api/display/ws'}',
         queryParameters: {'display_ticket': '${seen['ticket']}'},
       );
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 10); // follows the tunnel's HttpOverrides
-      final ws = this.ws = await WebSocket.connect(url.toString(), customClient: client);
-      client.close();
-      final rfb = this.rfb = Rfb(ws.cast<List<int>>(), ws.add)..onFrame = paint;
+      final ws = await openNetworkSocket(url);
+      if (!mounted) {
+        ws.close();
+        return;
+      }
+      this.ws = ws;
+      final rfb = this.rfb = Rfb(ws.stream.cast<List<int>>(), ws.add)..onFrame = paint;
       if (!mounted) return;
       setState(() => lease = seen['lease'] is Map ? seen['lease'] as Map : const {});
       try {

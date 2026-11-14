@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -14,6 +13,7 @@ import 'hermes.dart';
 import 'l10n/app_localizations.dart';
 import 'lock.dart';
 import 'mac.dart';
+import 'network.dart';
 import 'wireguard.dart';
 
 final settings = Settings();
@@ -718,15 +718,15 @@ class _SettingsSheetState extends State<SettingsSheet> {
       return;
     }
     setState(() => testing = true);
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+    final client = createNetworkClient();
     final sw = Stopwatch()..start();
     (bool, String) result;
     try {
-      final res = await (await client.getUrl(hermesStatusUri(uri))).close().timeout(const Duration(seconds: 15));
-      final body = await res.transform(utf8.decoder).join().timeout(const Duration(seconds: 15));
-      final st = res.statusCode == 200 ? hermesStatus(body) : null;
+      final res = await client.request('GET', hermesStatusUri(uri)).timeout(const Duration(seconds: 15));
+      final body = res.body;
+      final st = res.status == 200 ? hermesStatus(body) : null;
       if (st == null) {
-        result = (false, l.serverNotHermes(res.statusCode));
+        result = (false, l.serverNotHermes(res.status));
       } else if (!settings.auth) {
         result = st.authRequired ? (false, l.serverAuthRequired(st.version)) : (true, l.serverHermes(st.version, sw.elapsedMilliseconds));
       } else {
@@ -749,7 +749,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
     } catch (e) {
       result = (false, l.serverUnreachable('$e'));
     } finally {
-      client.close(force: true);
+      client.close();
     }
     if (mounted) {
       setState(() {
