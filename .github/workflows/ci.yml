@@ -24,6 +24,20 @@ jobs:
         run: dart format -l 140 --set-exit-if-changed --output=none $(git ls-files '*.dart' | grep -v '^lib/l10n/')
       - run: flutter analyze
       - run: flutter test
+      - name: Browser sessions, streaming chat and binary display frames
+        env:
+          CHROME_EXECUTABLE: /usr/bin/google-chrome
+        run: |
+          dart run tool/web_test_server.dart > "$RUNNER_TEMP/herapp-web-server.log" 2>&1 &
+          fixture_pid=$!
+          trap 'kill "$fixture_pid"' EXIT
+          curl --retry 20 --retry-connrefused --retry-delay 1 --fail http://localhost:8766/health
+          flutter test --platform chrome test/web_test.dart
+      - run: flutter build web --release
+      - uses: actions/upload-artifact@v5
+        with:
+          name: web
+          path: build/web
 
   tunnel:
     runs-on: ubuntu-latest

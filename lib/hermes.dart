@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import 'network.dart';
 
 class Msg {
@@ -594,7 +596,8 @@ Future<Gateway> hermesGateway(Uri base, {String? user, String? password}) async 
   try {
     var auth = await _session(client, base, user, password);
     var query = {'token': ?auth.token};
-    for (var fresh = false; user != null; fresh = true) {
+    // A web session may already exist in an HttpOnly browser cookie, without a password in the app.
+    for (var fresh = false; user != null || (kIsWeb && auth.token == null); fresh = true) {
       if (fresh) auth = await _session(client, base, user, password, fresh: true);
       final res = await client
           .request('POST', _at(base, '/api/auth/ws-ticket'), cookies: auth.cookies)
