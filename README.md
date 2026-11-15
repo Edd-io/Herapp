@@ -57,6 +57,31 @@ Browser cookies, including HttpOnly sessions, are managed by the browser. The ap
 obtains one-use WebSocket tickets from Hermes after signing in. Loopback dashboard
 token authentication is also supported.
 
+### Homelab installation
+
+The installation on `user@hermes.example.com` uses Hermes' existing static server and
+login gate. Open **https://hermes.example.com/herapp/index.html** and sign in to
+Hermes as usual. Herapp reuses that session; the server address defaults to the same
+origin. The explicit `index.html` also remains the entry point when installed as a PWA.
+
+To deploy a new release (with the homelab VPN connected):
+
+```sh
+flutter build web --release --base-href=/herapp/
+release="$(git rev-parse --short HEAD)-$(date -u +%Y%m%dT%H%M%SZ)"
+remote="user@hermes.example.com"
+ssh -i ~/.ssh/id_ed25519 "$remote" "mkdir -p /home/user/apps/herapp/releases/$release"
+rsync -az -e 'ssh -i ~/.ssh/id_ed25519' build/web/ "$remote:/home/user/apps/herapp/releases/$release/"
+scp -i ~/.ssh/id_ed25519 server/publish-web.py "$remote:/home/user/apps/herapp/publish-web.py"
+ssh -i ~/.ssh/id_ed25519 "$remote" "python3 /home/user/apps/herapp/publish-web.py /home/user/apps/herapp/releases/$release /home/user/.hermes/hermes-agent/hermes_cli/web_dist"
+```
+
+The installer copies the release into `.herapp-releases/` inside the dashboard's
+static directory and atomically switches its `herapp` symlink. Earlier releases are
+kept for rollback. No service restart or Nginx change is required. The original
+dashboard files are preserved. If a Hermes update replaces `web_dist`, republish the
+retained build from `/home/user/apps/herapp/releases/` under a new release name.
+
 ## Platform differences
 
 The web client supports the remote Hermes features, file attachments, image

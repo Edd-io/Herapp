@@ -1,7 +1,7 @@
 {
     "name": "Herapp",
     "short_name": "Herapp",
-    "start_url": ".",
+    "start_url": "./index.html",
     "display": "standalone",
     "background_color": "#212121",
     "theme_color": "#212121",
