@@ -8,9 +8,11 @@ notify.json may also hold {"stale": {"<job id>": <minutes>}}: a listed job that 
 paused, is reported once, and again when it runs anew. This service runs apart from Hermes, so it tells even when
 Hermes' scheduler itself stopped.
 Every notice is also kept in ~/.hermes/herapp/notifications.json (newest first), the app's Notifications page.
+The FCM topic is drawn at random once and kept in ~/.hermes/herapp/push.json: the app reads it through Hermes, so only
+those who can sign in to this server get its pushes, not everyone who installs Herapp.
 Needs ~/.config/herapp-push/service-account.json (Firebase service account key) and openssl.
 """
-import base64, json, os, subprocess, sys, tempfile, time, urllib.request
+import base64, json, os, secrets, subprocess, sys, tempfile, time, urllib.request
 from datetime import datetime
 from pathlib import Path
 
@@ -22,7 +24,7 @@ NOTIFY = HOME / '.config/herapp-push/notify.json'
 FEED = HOME / '.hermes/herapp/notifications.json'
 FEED_SIZE = 300
 TEXT_LIMIT = 4000
-TOPIC = 'herapp-crons'
+TOPIC_FILE = HOME / '.hermes/herapp/push.json'
 SILENT = {'[SILENT]', 'SILENT', 'NO_REPLY', 'NO REPLY'}
 OK = {'ok', 'delivery_queued'}  # delivery_queued: the output was handed to a Bot Chat, the run itself went fine
 
@@ -54,8 +56,24 @@ def access_token(sa):
     return _token[0]
 
 
+def topic(path=TOPIC_FILE):
+    """This server's FCM topic, drawn the first time and kept in [path] for the app to subscribe to."""
+    try:
+        t = json.loads(path.read_text())['topic']
+        if isinstance(t, str) and t:
+            return t
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    t = 'herapp-' + secrets.token_hex(16)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix('.tmp')
+    tmp.write_text(json.dumps({'topic': t}))
+    os.replace(tmp, path)
+    return t
+
+
 def send(sa, title, body, job_id, notice_id):
-    msg = {'message': {'topic': TOPIC, 'notification': {'title': title, 'body': body},
+    msg = {'message': {'topic': topic(), 'notification': {'title': title, 'body': body},
                        'data': {'cron': job_id, 'notice': notice_id},
                        'apns': {'payload': {'aps': {'sound': 'default'}}}}}
     req = urllib.request.Request(f"https://fcm.googleapis.com/v1/projects/{sa['project_id']}/messages:send",
@@ -182,6 +200,7 @@ def watch_stale(sa, jobs, stopped, now):
 
 def main():
     sa = json.loads(KEY.read_text())
+    print('topic', topic(), flush=True)  # drawn now, for the app to find before the first push
     seen = {i: j.get('last_run_at') for i, j in (runs() or {}).items()}
     stopped = set()
     while True:
@@ -248,6 +267,12 @@ def test():
         items = json.loads(feed.read_text())
         assert len(items) == FEED_SIZE and items[0] == {'id': 'k:3', 'text': 'again'}
         assert items[1]['id'] == f'k:{FEED_SIZE + 4}' and [e['id'] for e in items].count('k:3') == 1
+    with tempfile.TemporaryDirectory() as d:
+        path = Path(d) / 'herapp' / 'push.json'
+        first = topic(path)
+        assert first.startswith('herapp-') and len(first) == 39 and topic(path) == first  # drawn once, then kept
+        path.write_text('{}')
+        assert topic(path) not in ('', first)  # a broken file gets a new one
     print('ok')
 
 

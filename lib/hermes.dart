@@ -822,6 +822,15 @@ typedef Notice = ({String id, String cron, String title, String text, DateTime? 
 /// Where the push watcher keeps the notices it sent, newest first.
 String noticesPath(String hermesHome) => '$hermesHome/herapp/notifications.json';
 
+/// Where the push watcher keeps the FCM topic it drew for its server.
+String pushTopicPath(String hermesHome) => '$hermesHome/herapp/push.json';
+
+/// The topic of the push watcher's push.json; null when [body] holds none FCM would take.
+String? parsePushTopic(String body) => switch (_json(body)) {
+  {'topic': final String t} when RegExp(r'^[A-Za-z0-9_.~%-]{1,900}$').hasMatch(t) => t,
+  _ => null,
+};
+
 /// Parses the push watcher's notices file; empty if [body] isn't one.
 List<Notice> parseNotices(String body) => [
   if (_json(body) case final List list)

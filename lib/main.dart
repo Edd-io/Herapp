@@ -50,13 +50,16 @@ Future<String?> setupPush() async {
     // ignore: deprecated_member_use
     final token = await m.getToken();
     debugPrint('FCM token: $token');
-    // the server's cron watcher (server/herapp-push.py) sends to this topic
-    await m.subscribeToTopic('herapp-crons');
+    // every install once shared this topic, so anyone's app got anyone's crons; each server now draws its own
+    // shortcut: kept for devices still subscribed to it, drop once all of them run 0.9.3 or later
+    await m.unsubscribeFromTopic('herapp-crons');
+    subscribePush = (topic, on) => on ? m.subscribeToTopic(topic) : m.unsubscribeFromTopic(topic);
     // a tapped push opens its notice: while the app runs in the background, or the one that started it
     FirebaseMessaging.onMessageOpenedApp.listen(openPushed);
     // one more to read, until the next count from the server
     FirebaseMessaging.onMessage.listen((_) => unreadNotices.value++);
     if (await m.getInitialMessage() case final first?) openPushed(first);
+    syncPushTopic().catchError((Object e) => debugPrint('Push topic: $e'));
     return token;
   } catch (e) {
     debugPrint('push setup failed: $e');

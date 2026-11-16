@@ -184,6 +184,7 @@ class _ChatPageState extends State<ChatPage> with SingleTickerProviderStateMixin
   void countNotices() {
     final server = settings.server; // the last server's notices aren't counted against the new one's
     fetchNotices().then((n) => settings.server == server ? countUnread(n) : null, onError: (Object e) => debugPrint('Notices: $e'));
+    syncPushTopic().catchError((Object e) => debugPrint('Push topic: $e')); // the server's own, once a run
   }
 
   /// Starts a new chat on the notice picked to discuss, its text written in for the question to follow.

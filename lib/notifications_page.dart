@@ -20,19 +20,41 @@ final discussedNotice = ValueNotifier<Notice?>(null);
 /// How many notices came after the newest the Notifications page showed.
 final unreadNotices = ValueNotifier(0);
 
-/// The push watcher's notices, newest first; none while it sent nothing yet.
-Future<List<Notice>> fetchNotices() async {
-  // the file sits in the server's Hermes home, which the cron jobs tell
+/// A file the push watcher keeps in the server's Hermes home, at [path] of that home; null while it isn't there.
+Future<String?> _watcherFile(String Function(String home) path) async {
+  // the server's Hermes home, which the cron jobs tell
   final home = parseCronJobs(await serverApi('GET', '/api/cron/jobs') ?? '').map((j) => '${j.raw['hermes_home'] ?? ''}');
-  final path = home.where((h) => h.isNotEmpty).firstOrNull;
-  if (path == null) return [];
+  final dir = home.where((h) => h.isNotEmpty).firstOrNull;
+  if (dir == null) return null;
   try {
-    final file = jsonDecode(await serverApi('GET', '/api/files/read', query: {'path': noticesPath(path)}) ?? '{}') as Map;
-    if (file['data_url'] case final String url) return parseNotices(utf8.decode(UriData.parse(url).contentAsBytes(), allowMalformed: true));
+    final file = jsonDecode(await serverApi('GET', '/api/files/read', query: {'path': path(dir)}) ?? '{}') as Map;
+    if (file['data_url'] case final String url) return utf8.decode(UriData.parse(url).contentAsBytes(), allowMalformed: true);
   } on HttpException catch (e) {
-    if (!e.message.toLowerCase().contains('not found')) rethrow; // nothing sent yet
+    if (!e.message.toLowerCase().contains('not found')) rethrow; // nothing written yet
   }
-  return [];
+  return null;
+}
+
+/// The push watcher's notices, newest first; none while it sent nothing yet.
+Future<List<Notice>> fetchNotices() async => parseNotices(await _watcherFile(noticesPath) ?? '');
+
+/// The servers whose topic this device subscribed to since the app started, and the topic.
+final _subscribed = <String, String>{};
+
+/// Subscribes this device to the push topic the current server's watcher (server/herapp-push.py) drew, once a run:
+/// only those who can sign in to a server get its crons' pushes. A topic drawn anew has the last one dropped.
+Future<void> syncPushTopic() async {
+  final sub = subscribePush, server = settings.server;
+  if (sub == null || _subscribed.containsKey(server)) return;
+  final topic = parsePushTopic(await _watcherFile(pushTopicPath) ?? '');
+  if (topic == null || settings.server != server) return; // no watcher there, or another server meanwhile
+  await sub(topic, true); // each run: a reinstalled app or a new FCM token lost what it had
+  final old = settings.pushTopic;
+  if (old.isNotEmpty && old != topic && !settings.servers.any((s) => s != server && settings.pushTopicOf(s) == old)) {
+    await sub(old, false);
+  }
+  settings.pushTopic = topic;
+  _subscribed[server] = topic;
 }
 
 /// Counts the notices of [list] sent after the newest one shown, all of them once [seen]. The first count takes

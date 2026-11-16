@@ -18,6 +18,10 @@ import 'wireguard.dart';
 
 final settings = Settings();
 
+/// Subscribes this device to an FCM topic ([on]) or unsubscribes it; set once push is up (main.dart's setupPush),
+/// null before and where there is none.
+Future<void> Function(String topic, bool on)? subscribePush;
+
 /// WCAG contrast ratio between [a] and [b] (1 to 21; text needs 4.5).
 double contrast(Color a, Color b) {
   final [hi, lo] = [a.computeLuminance(), b.computeLuminance()]..sort((x, y) => y.compareTo(x));
@@ -83,7 +87,10 @@ class Settings extends ChangeNotifier {
 
   /// Takes the server [id], not the current one, off the list with all it kept.
   Future<void> _forget(String id) async {
-    for (final k in ['name', 'url', 'auth', 'user', 'model', 'effort', 'recentModels', 'noticesSeen']) {
+    // its crons' pushes stop, unless another entry is the same server by another address
+    final topic = pushTopicOf(id);
+    if (topic.isNotEmpty && !servers.any((s) => s != id && pushTopicOf(s) == topic)) await subscribePush?.call(topic, false);
+    for (final k in ['name', 'url', 'auth', 'user', 'model', 'effort', 'recentModels', 'noticesSeen', 'pushTopic']) {
       await _p.remove(_k(k, id));
     }
     await _secure.delete(key: _k('hermes_password', id));
@@ -109,6 +116,11 @@ class Settings extends ChangeNotifier {
   /// Whether a reply done while the app is out of sight is told by a notification.
   bool get notifications => _p.getBool('notifications') ?? true;
   set notifications(bool v) => _save(_p.setBool('notifications', v));
+
+  /// The FCM topic of the current server this device is subscribed to, '' before the first.
+  String get pushTopic => pushTopicOf(server);
+  set pushTopic(String v) => _save(_p.setString(_k('pushTopic'), v));
+  String pushTopicOf(String id) => _p.getString(_k('pushTopic', id)) ?? '';
 
   /// When the newest notice the Notifications page showed was sent; null before it was first counted.
   DateTime? get noticesSeen => DateTime.tryParse(_p.getString(_k('noticesSeen')) ?? '');

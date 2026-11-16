@@ -117,7 +117,9 @@ hidden in the browser. Use a system VPN if Hermes is on a private network.
 ## Push notifications
 
 `server/herapp-push.py` runs next to Hermes as a user service (`herapp-push.service`) and
-sends a Firebase Cloud Messaging notification when a scheduled job finishes. The Firebase
+sends a Firebase Cloud Messaging notification when a scheduled job finishes. It draws a random
+topic once and keeps it in `~/.hermes/herapp/push.json`; the app reads it through Hermes and
+subscribes to it, so only people who can sign in to that server receive its notifications. The Firebase
 configuration in this repository belongs to the original project: for your own build,
 create a Firebase project, run `flutterfire configure` and give the service a service
 account key in `~/.config/herapp-push/service-account.json`. See the script's docstring

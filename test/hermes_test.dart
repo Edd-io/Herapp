@@ -22,6 +22,14 @@ void main() {
     expect(noticesPath('/home/e/.hermes'), '/home/e/.hermes/herapp/notifications.json');
   });
 
+  test('the push watcher\'s topic is read only when FCM would take it', () {
+    expect(pushTopicPath('/home/e/.hermes'), '/home/e/.hermes/herapp/push.json');
+    expect(parsePushTopic('{"topic":"herapp-0a1b"}'), 'herapp-0a1b');
+    for (final bad in ['{"topic":""}', '{"topic":"a b"}', '{"topic":3}', '{}', 'nope', '']) {
+      expect(parsePushTopic(bad), isNull, reason: bad);
+    }
+  });
+
   test('a chat falls under today, yesterday, the week, the month or older', () {
     final now = DateTime(2026, 11, 2, 9);
     expect(dayGroup(DateTime(2026, 11, 2, 0, 5), now), 0);

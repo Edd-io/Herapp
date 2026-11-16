@@ -921,6 +921,30 @@ void main() {
       expect(settings.noticesSeen, DateTime.parse('2026-11-05T21:20:00+01:00'));
     });
 
+    testWidgets('a device subscribes to its server\'s own push topic once a run, dropping the one drawn before', (t) async {
+      addTearDown(() {
+        callApi = hermesApi;
+        subscribePush = null;
+      });
+      fakeServer((_, _, _) => null);
+      final calls = <(String, bool)>[];
+      subscribePush = (topic, on) async => calls.add((topic, on));
+      settings.pushTopic = 'herapp-old';
+      var reads = 0;
+      callApi = (base, method, path, {query, body, user, password}) async {
+        if (path == '/api/cron/jobs') return '[{"id":"k","name":"Dispatcher","hermes_home":"/h"}]';
+        if (path == '/api/files/read' && query!['path'] == '/h/herapp/push.json') {
+          reads++;
+          return jsonEncode({'data_url': 'data:application/json;base64,${base64Encode(utf8.encode('{"topic":"herapp-abc"}'))}'});
+        }
+        throw const HttpException('File not found');
+      };
+      await syncPushTopic();
+      await syncPushTopic(); // the menu's count each minute reads it no more
+      expect(calls, [('herapp-abc', true), ('herapp-old', false)]);
+      expect((settings.pushTopic, reads), ('herapp-abc', 1));
+    });
+
     testWidgets('a first count takes the notices already there as read', (t) async {
       addTearDown(() => callApi = hermesApi);
       serve(notices);
