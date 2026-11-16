@@ -146,3 +146,7 @@ flutter test --platform chrome test/web_test.dart
 They exercise real browser cookies and CORS, expired-session recovery, gateway tickets,
 streamed events, binary display frames and the chat/settings UI. CI runs these checks and
 uploads the compiled web build as an artifact.
+
+## License
+
+[MIT](LICENSE)
