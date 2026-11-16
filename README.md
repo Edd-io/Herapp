@@ -1,97 +1,125 @@
 # Herapp
 
-A Flutter client for Hermes: streaming conversations, agents, scheduled jobs, files,
-Git on the server and the remote display. Requires a running Hermes dashboard/API;
-`server/` contains the optional push watcher, not the Hermes backend.
+A Flutter client for [Hermes Agent](https://github.com/NousResearch/hermes-agent): streaming
+conversations, agents, scheduled jobs, kanban, memory, files, Git on the server and the
+remote display, on iOS, Android, macOS and the web.
 
-## Run the web app
+<p align="center">
+  <img src="docs/screenshots/chat.png" alt="A conversation with tool calls, a table and code blocks" width="100%">
+</p>
 
-Use Flutter 3.41.2 (Dart 3.11) or a compatible version:
+<p align="center">
+  <img src="docs/screenshots/palette.png" alt="Command palette" width="49%">
+  <img src="docs/screenshots/light.png" alt="Light theme" width="49%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/phone.png" alt="Phone layout" width="30%">
+</p>
+
+## Features
+
+- Streaming chat with tool calls, Markdown, tables, highlighted code and diffs
+- Model picker, side-by-side comparison with another model, background tasks
+- Agents, scheduled jobs, kanban, memory, skills & MCP, quotas and a password vault
+- Server-side Git, files and the agent's remote display ("Bot screen")
+- Voice input and read-aloud
+- Command palette and keyboard shortcuts on desktop and the web
+- Native extras: built-in WireGuard tunnel, commands and Git on your own Mac, biometric
+  lock, share extension, Handoff and push notifications when a scheduled job finishes
+
+Herapp needs a running Hermes dashboard/API. `server/` holds optional helpers (push
+notifications and web publishing), not the Hermes backend.
+
+## Run
+
+Use Flutter 3.41.2 (Dart 3.11) or a compatible version. Native builds also need Go,
+which compiles the WireGuard tunnel in `native/wg`.
 
 ```sh
 flutter pub get
 flutter run -d chrome --dart-define=HERMES_URL=https://hermes.example.com
 ```
 
-The server address can also be changed in Settings, along with the Hermes username
-and password. Without `HERMES_URL`, the browser uses the app's origin as the server
-address. Saved settings override this initial default. Native apps retain an empty
-default server address unless `HERMES_URL` is provided.
+The server address, Hermes username and password can also be set in Settings. Without
+`HERMES_URL`, the browser uses the app's origin as the server address; native apps start
+with an empty address. Saved settings override this initial default.
 
-## Deploy
+Prebuilt Android APKs and unsigned iOS builds (for sideloading) are attached to the
+[GitHub releases](../../releases).
+
+## Deploy the web app
 
 ```sh
 flutter build web --release --dart-define=HERMES_URL=https://hermes.example.com
 ```
 
-Serve the contents of `build/web/` over HTTPS. HTTPS is required for the browser's
-encrypted password storage and microphone access; localhost also works for development.
-The JavaScript web build is supported. The current text-to-speech plugin reports
-additional compatibility warnings for WebAssembly builds.
+Serve `build/web/` over HTTPS. HTTPS is required for the browser's encrypted password
+storage and microphone access; localhost also works for development. The JavaScript web
+build is supported; the text-to-speech plugin reports compatibility warnings for
+WebAssembly builds.
 
-Hosting Herapp on the same origin as Hermes avoids cross-origin cookie restrictions.
-For example, keep Hermes at `https://hermes.example.com/` and serve Herapp under
+### Same origin as Hermes (recommended)
+
+Hosting Herapp on the same origin as Hermes avoids cross-origin cookie restrictions. For
+example, keep Hermes at `https://hermes.example.com/` and serve Herapp under
 `https://hermes.example.com/herapp/`:
 
 ```sh
 flutter build web --release --base-href=/herapp/
 ```
 
-Copy `build/web/` into the web server's `/herapp/` directory. Serve the static files
-there and forward the existing `/api/`, `/auth/` and dashboard routes to Hermes.
-The proxy must support WebSocket upgrades for `/api/ws` and `/api/display/ws`.
-For a different installation path, set `--base-href` accordingly.
+Serve the files from the web server's `/herapp/` directory and forward the `/api/`,
+`/auth/` and dashboard routes to Hermes. The proxy must support WebSocket upgrades for
+`/api/ws` and `/api/display/ws`.
 
-If hosting on a separate origin, configure the Hermes server or reverse proxy to:
-
-- Allow the exact Herapp origin with CORS, including preflight requests, the HTTP
-  methods in use, `Content-Type` and `X-Hermes-Session-Token`.
-- Send `Access-Control-Allow-Credentials: true`; a wildcard origin is incompatible
-  with credentialed requests.
-- Issue cookies suitable for that deployment. Cross-site cookies require
-  `SameSite=None; Secure` and may still be blocked by browser privacy settings.
-- Accept the Herapp origin for the chat and display WebSockets. Use HTTPS/WSS
-  throughout when the application is served over HTTPS.
-
-Browser cookies, including HttpOnly sessions, are managed by the browser. The app
-obtains one-use WebSocket tickets from Hermes after signing in. Loopback dashboard
-token authentication is also supported.
-
-### Homelab installation
-
-The installation on `user@hermes.example.com` uses Hermes' existing static server and
-login gate. Open **https://hermes.example.com/herapp/index.html** and sign in to
-Hermes as usual. Herapp reuses that session; the server address defaults to the same
-origin. The explicit `index.html` also remains the entry point when installed as a PWA.
-
-To deploy a new release (with the homelab VPN connected):
+Alternatively, `server/publish-web.py` installs a build into the Hermes dashboard's own
+static directory, so no extra web server is needed:
 
 ```sh
-flutter build web --release --base-href=/herapp/
-release="$(git rev-parse --short HEAD)-$(date -u +%Y%m%dT%H%M%SZ)"
-remote="user@hermes.example.com"
-ssh -i ~/.ssh/id_ed25519 "$remote" "mkdir -p /home/user/apps/herapp/releases/$release"
-rsync -az -e 'ssh -i ~/.ssh/id_ed25519' build/web/ "$remote:/home/user/apps/herapp/releases/$release/"
-scp -i ~/.ssh/id_ed25519 server/publish-web.py "$remote:/home/user/apps/herapp/publish-web.py"
-ssh -i ~/.ssh/id_ed25519 "$remote" "python3 /home/user/apps/herapp/publish-web.py /home/user/apps/herapp/releases/$release /home/user/.hermes/hermes-agent/hermes_cli/web_dist"
+python3 server/publish-web.py <build directory named after the release> <hermes web_dist directory>
 ```
 
-The installer copies the release into `.herapp-releases/` inside the dashboard's
-static directory and atomically switches its `herapp` symlink. Earlier releases are
-kept for rollback. No service restart or Nginx change is required. The original
-dashboard files are preserved. If a Hermes update replaces `web_dist`, republish the
-retained build from `/home/user/apps/herapp/releases/` under a new release name.
+It copies the release into `.herapp-releases/` and atomically switches the `herapp`
+symlink, keeping earlier releases for rollback. Herapp is then at
+`https://<hermes>/herapp/index.html` and reuses the Hermes login session. If a Hermes
+update replaces `web_dist`, publish the build again.
+
+### Separate origin
+
+Configure Hermes or its reverse proxy to:
+
+- Allow the exact Herapp origin with CORS, including preflight requests, the HTTP methods
+  in use, `Content-Type` and `X-Hermes-Session-Token`.
+- Send `Access-Control-Allow-Credentials: true`; a wildcard origin is incompatible with
+  credentialed requests.
+- Issue cookies suitable for that deployment. Cross-site cookies require
+  `SameSite=None; Secure` and may still be blocked by browser privacy settings.
+- Accept the Herapp origin for the chat and display WebSockets, using HTTPS/WSS
+  throughout when the app is served over HTTPS.
+
+Cookies, including HttpOnly sessions, are managed by the browser. After signing in, the
+app obtains one-use WebSocket tickets from Hermes. Loopback dashboard token
+authentication is also supported.
 
 ## Platform differences
 
-The web client supports the remote Hermes features, file attachments, image
-downloads and the remote display. Speech input/output depends on browser support
-and permissions. Preferences and encrypted credentials belong to the browser origin.
+The web client supports the remote Hermes features, file attachments, image downloads
+and the remote display. Speech input/output depends on browser support and permissions.
+Preferences and encrypted credentials belong to the browser origin.
 
-WireGuard inside the app, commands and Git on the user's computer, device biometric
-locking, Apple integrations and background push notifications remain native-only.
-Their settings are hidden in the browser. Use a system VPN if Hermes is on a private
-network. Server-side Git and the in-app notifications history remain available.
+The WireGuard tunnel, commands and Git on the user's computer, biometric lock, Apple
+integrations and background push notifications are native-only, and their settings are
+hidden in the browser. Use a system VPN if Hermes is on a private network.
+
+## Push notifications
+
+`server/herapp-push.py` runs next to Hermes as a user service (`herapp-push.service`) and
+sends a Firebase Cloud Messaging notification when a scheduled job finishes. The Firebase
+configuration in this repository belongs to the original project: for your own build,
+create a Firebase project, run `flutterfire configure` and give the service a service
+account key in `~/.config/herapp-push/service-account.json`. See the script's docstring
+for its options.
 
 ## Checks
 
@@ -113,6 +141,6 @@ In another:
 flutter test --platform chrome test/web_test.dart
 ```
 
-They exercise real browser cookies and CORS, expired-session recovery, gateway
-tickets, streamed events, binary display frames and the chat/settings UI. CI runs
-these checks and uploads the compiled `web` artifact.
+They exercise real browser cookies and CORS, expired-session recovery, gateway tickets,
+streamed events, binary display frames and the chat/settings UI. CI runs these checks and
+uploads the compiled web build as an artifact.
