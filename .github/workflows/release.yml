@@ -1,7 +1,8 @@
 name: Release
 
-# a v* tag builds the Android app (signed with the release key) and the iOS one (unsigned, for sideloading) into
-# that tag's GitHub release; run by hand, it builds an existing tag again, its release's files replaced
+# a v* tag builds the Android app (signed with the release key), the iOS one (unsigned, for sideloading) and the
+# macOS one (ad-hoc signed, no Apple team) into that tag's GitHub release; run by hand, it builds an existing tag
+# again, its release's files replaced
 on:
   push:
     tags: ['v*']
@@ -78,8 +79,40 @@ jobs:
           name: ios
           path: herapp-*.ipa
 
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          cache: true
+      - uses: actions/setup-go@v6 # the tunnel library, built by hook/build.dart for macOS
+        with:
+          go-version-file: native/wg/go.mod
+          cache-dependency-path: native/wg/go.sum
+      # the project signs with the author's team, which CI hasn't: ad-hoc instead, the least a Mac runs
+      - run: |
+          sed -i '' -e 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "-";/' \
+            -e 's/DEVELOPMENT_TEAM = [A-Z0-9]*;/DEVELOPMENT_TEAM = "";/' \
+            -e 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/' macos/Runner.xcodeproj/project.pbxproj
+          name="${TAG#v}"
+          flutter build macos --release --build-name="${name%%-*}"
+      - name: The app, signed ad-hoc as a whole (its tunnel library included) and zipped
+        run: |
+          app=build/macos/Build/Products/Release/Herapp.app
+          codesign --force --deep -s - --entitlements macos/Runner/Release.entitlements "$app"
+          codesign --verify --deep --strict "$app"
+          ditto -c -k --keepParent "$app" "herapp-$TAG-macos.zip"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: macos
+          path: herapp-*.zip
+
   publish:
-    needs: [android, ios]
+    needs: [android, ios, macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v6

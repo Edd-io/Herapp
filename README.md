@@ -45,8 +45,10 @@ The server address, Hermes username and password can also be set in Settings. Wi
 `HERMES_URL`, the browser uses the app's origin as the server address; native apps start
 with an empty address. Saved settings override this initial default.
 
-Prebuilt Android APKs and unsigned iOS builds (for sideloading) are attached to the
-[GitHub releases](../../releases).
+Each [GitHub release](../../releases) has prebuilt apps: an Android APK, an unsigned iOS
+`.ipa` to sideload (AltStore, Sideloadly…) and an ad-hoc signed macOS app (macOS 12 or
+later). The macOS app isn't notarized: after unzipping, run
+`xattr -dr com.apple.quarantine Herapp.app` before opening it.
 
 ## Deploy the web app
 
